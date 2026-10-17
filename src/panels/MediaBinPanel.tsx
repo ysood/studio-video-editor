@@ -39,10 +39,13 @@ function loadPrefs(): Prefs {
   }
 }
 
-/** A sequence's length in microseconds, so it reads like a clip's duration. */
-function sequenceMicros(sequence: Sequence): number | null {
+/**
+ * A sequence's length in microseconds, so it reads like a clip's duration. Zero rather
+ * than null for an empty timeline: null means "a still" to formatDuration, which is
+ * not what an empty sequence is.
+ */
+function sequenceMicros(sequence: Sequence): number {
   const end = Math.max(0, ...sequence.tracks.flatMap((t) => t.clips.map((c) => c.start + c.duration)));
-  if (end === 0) return null;
   const { num, den } = sequence.format.frameRate;
   return Math.round((end * den * 1_000_000) / num);
 }
@@ -173,12 +176,9 @@ export function MediaBinPanel() {
         </Button>
       </PanelToolbar>
 
-      {media.length === 0 ? (
-        <EmptyState action={<Button variant="solid" onClick={importMedia}>Import media</Button>}>
-          Import footage, audio or stills to start cutting.
-        </EmptyState>
-      ) : (
-        <div className="bin-layout">
+      {/* The folder column shows even with an empty bin: timelines live here too, and
+          they exist before any footage does. */}
+      <div className="bin-layout">
           <Well className="bin-folders">
             <ul role="listbox" aria-label="Bins">
               {bins.map((b) => (
@@ -216,7 +216,11 @@ export function MediaBinPanel() {
           </Well>
 
           <div className="bin-content">
-            {showingTimelines ? (
+            {media.length === 0 && !showingTimelines ? (
+              <EmptyState action={<Button variant="solid" onClick={importMedia}>Import media</Button>}>
+                Import footage, audio or stills to start cutting.
+              </EmptyState>
+            ) : showingTimelines ? (
               <Well className="bin-list-well">
                 <ul className="bin-list" role="listbox" aria-label="Timelines">
                   {sequences.map((q) => (
@@ -297,7 +301,6 @@ export function MediaBinPanel() {
             )}
           </div>
         </div>
-      )}
 
       <NewSequenceDialog open={newSequence} onClose={() => setNewSequence(false)} />
 
