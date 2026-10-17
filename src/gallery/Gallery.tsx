@@ -67,7 +67,7 @@ export function Gallery() {
           options={themes.map((t) => ({ value: t.id, label: t.name }))}
           onChange={(id) => {
             const next = themes.find((t) => t.id === id);
-            if (next) void applyTheme(next);
+            if (next) void applyTheme(next, { remember: true });
           }}
         />
         <a className="gallery-link" href="#">Back to the editor</a>

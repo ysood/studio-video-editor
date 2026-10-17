@@ -7,7 +7,8 @@ import type { ColorRoles, DeepPartial, SurfaceName, Theme, TypeRoleName } from "
 
 export const SURFACES: SurfaceName[] = ["chrome", "panel", "well", "stage"];
 
-const STORAGE_KEY = "studio.theme";
+// Versioned so choices saved before themes were opt-in do not pin an old default.
+const STORAGE_KEY = "studio.theme.v2";
 const STYLE_ID = "studio-theme";
 
 type Listener = () => void;
@@ -127,8 +128,12 @@ async function loadFonts(theme: Theme) {
   );
 }
 
-/** Apply a theme to the document and notify subscribers once its fonts are ready. */
-export function applyTheme(theme: Theme): Promise<void> {
+/**
+ * Apply a theme to the document and notify subscribers once its fonts are ready. Pass
+ * `remember` when the person chose the theme, so it is restored next launch; otherwise a
+ * changed default theme reaches everyone who never picked one.
+ */
+export function applyTheme(theme: Theme, options: { remember?: boolean } = {}): Promise<void> {
   current = theme;
   const root = document.documentElement;
   let sheet = document.getElementById(STYLE_ID);
@@ -140,10 +145,12 @@ export function applyTheme(theme: Theme): Promise<void> {
   sheet.textContent = toStylesheet(theme);
   root.style.colorScheme = theme.scheme;
   root.dataset.theme = theme.id;
-  try {
-    localStorage.setItem(STORAGE_KEY, theme.id);
-  } catch {
-    // Storage may be unavailable; the theme still applies for this session.
+  if (options.remember) {
+    try {
+      localStorage.setItem(STORAGE_KEY, theme.id);
+    } catch {
+      // Storage may be unavailable; the theme still applies for this session.
+    }
   }
   listeners.forEach((l) => l());
   return loadFonts(theme).then(() => listeners.forEach((l) => l()));
