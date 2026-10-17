@@ -116,6 +116,7 @@ export function MediaBinPanel() {
         </Button>
         <Spacer />
         <Button
+          variant="ghost"
           disabled={!current || inUse}
           title={inUse ? "Used on the timeline" : "Remove from the project"}
           onClick={() => current && removeMedia(current.id)}

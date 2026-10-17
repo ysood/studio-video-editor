@@ -62,8 +62,8 @@ export const crimsonTheme: Theme = {
       gutter: red.gutter,
       panel: red.signal,
       // Dark washes rather than other reds, so controls read clearly on the frame.
-      raised: "rgba(20, 0, 3, 0.16)",
-      hover: "rgba(20, 0, 3, 0.28)",
+      raised: "rgba(20, 0, 3, 0.24)",
+      hover: "rgba(20, 0, 3, 0.36)",
       input: "rgba(20, 0, 3, 0.12)",
       overlay: ink[2],
       locked: red.deep,

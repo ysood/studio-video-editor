@@ -164,7 +164,9 @@ function MultipleClips({ count, ids }: { count: number; ids: string[] }) {
       <Actions>
         <Button onClick={() => void edit({ type: "SetClipsEnabled", clipIds: ids, enabled: true })}>Enable</Button>
         <Button onClick={() => void edit({ type: "SetClipsEnabled", clipIds: ids, enabled: false })}>Disable</Button>
-        <Button onClick={() => void edit({ type: "DeleteClips", clipIds: ids })}>Delete</Button>
+        <Button variant="ghost" onClick={() => void edit({ type: "DeleteClips", clipIds: ids })}>
+          Delete
+        </Button>
       </Actions>
     </Section>
   );

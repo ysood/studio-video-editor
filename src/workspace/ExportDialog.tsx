@@ -87,7 +87,7 @@ export function ExportDialog({ open: isOpen, onClose }: { open: boolean; onClose
         </p>
       )}
       <Actions align="end">
-        <Button onClick={onClose}>Close</Button>
+        <Button variant="ghost" onClick={onClose}>Close</Button>
         <Button variant="solid" onClick={() => void run()} disabled={job !== null}>
           Export
         </Button>
