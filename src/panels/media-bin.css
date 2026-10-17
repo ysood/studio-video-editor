@@ -1,0 +1,73 @@
+.bin-list {
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+}
+
+.bin-row {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  grid-template-areas:
+    "swatch name duration"
+    "swatch meta duration";
+  column-gap: 8px;
+  align-items: center;
+  padding: 5px 10px;
+  border-left: 2px solid transparent;
+}
+
+.bin-row:hover {
+  background: var(--ink-2);
+}
+
+.bin-row[aria-selected="true"] {
+  background: var(--ink-2);
+  border-left-color: var(--time);
+}
+
+.bin-swatch {
+  grid-area: swatch;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-s);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.bin-swatch-video {
+  background: var(--video);
+}
+
+.bin-swatch-image {
+  background: color-mix(in srgb, var(--video) 55%, var(--ink-3));
+}
+
+.bin-swatch-audio {
+  background: var(--audio);
+}
+
+.bin-name {
+  grid-area: name;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bin-meta {
+  grid-area: meta;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.bin-duration {
+  grid-area: duration;
+  color: var(--text-muted);
+  font-size: var(--text-s);
+}
+
+.bin-offline {
+  color: var(--danger);
+  font-style: normal;
+}

@@ -272,3 +272,8 @@ select {
   --dv-drag-over-border-color: var(--time);
   background: var(--ink-0);
 }
+
+/* Every panel is part of the editor; closing one would leave no way to get it back. */
+.app .dv-default-tab-action {
+  display: none;
+}
