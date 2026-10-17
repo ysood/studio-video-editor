@@ -103,9 +103,15 @@ export const crimsonTheme: Theme = {
   surfaces: {
     chrome: { surface: { base: red.signal } },
     well: dark,
+    // The stage sits darker than a well, because it frames a picture, but base and
+    // panel were the same near black and that flattening cost more than it bought: on
+    // the timeline that step is the only thing telling an empty track from the dead
+    // space around it, and the rows no longer start under the ruler where their
+    // position could be taken on trust. The step here is wider than the well's for
+    // that reason, and a locked track still sits clear of both.
     stage: {
       ...dark,
-      surface: { ...dark.surface, base: ink[1], panel: ink[1], raised: ink[3], locked: ink[4] },
+      surface: { ...dark.surface, base: ink[0], panel: ink[3], raised: ink[5], locked: ink[6] },
     },
   },
 
