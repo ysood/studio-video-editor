@@ -33,6 +33,9 @@ interface EditorState {
   scrollX: number;
   status: StatusMessage | null;
   job: JobState | null;
+  /** The OS menu bar carries the File and Edit menus (macOS), so the top bar omits its own. */
+  nativeMenu: boolean;
+  exportOpen: boolean;
 
   init: () => Promise<void>;
   setSnapshot: (snapshot: Snapshot) => void;
@@ -47,6 +50,7 @@ interface EditorState {
   notify: (kind: StatusMessage["kind"], text: string) => void;
   fail: (error: unknown) => void;
   setJob: (job: JobState | null) => void;
+  setExportOpen: (open: boolean) => void;
 }
 
 /** Keep only selected ids that still exist after the project changed. */
@@ -68,11 +72,17 @@ export const useEditor = create<EditorState>((set, get) => ({
   scrollX: 0,
   status: null,
   job: null,
+  nativeMenu: false,
+  exportOpen: false,
 
   init: async () => {
     try {
-      const [snapshot, tools] = await Promise.all([ipc.snapshot(), ipc.toolsStatus()]);
-      set({ snapshot, tools });
+      const [snapshot, tools, nativeMenu] = await Promise.all([
+        ipc.snapshot(),
+        ipc.toolsStatus(),
+        ipc.nativeMenuActive().catch(() => false),
+      ]);
+      set({ snapshot, tools, nativeMenu });
       if (!tools.ffmpeg || !tools.ffprobe) {
         get().notify("error", "FFmpeg was not found. Install it with: brew install ffmpeg");
       }
@@ -129,4 +139,5 @@ export const useEditor = create<EditorState>((set, get) => ({
   notify: (kind, text) => set({ status: { kind, text } }),
   fail: (error) => set({ status: { kind: "error", text: errorMessage(error) } }),
   setJob: (job) => set({ job }),
+  setExportOpen: (exportOpen) => set({ exportOpen }),
 }));

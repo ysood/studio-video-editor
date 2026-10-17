@@ -11,6 +11,7 @@ import type { ImportResponse } from "../bindings/ImportResponse";
 import type { InterchangeFormat } from "../bindings/InterchangeFormat";
 import type { JobFinished } from "../bindings/JobFinished";
 import type { JobProgress } from "../bindings/JobProgress";
+import type { MenuAction } from "../bindings/MenuAction";
 import type { RenderSettings } from "../bindings/RenderSettings";
 import type { SequenceFormat } from "../bindings/SequenceFormat";
 import type { Snapshot } from "../bindings/Snapshot";
@@ -49,6 +50,7 @@ export const ipc = {
   renderStart: (path: string, settings: RenderSettings) =>
     invoke<void>("render_start", { path, settings }),
   renderCancel: () => invoke<void>("render_cancel"),
+  nativeMenuActive: () => invoke<boolean>("native_menu_active"),
 };
 
 export const events = {
@@ -56,4 +58,6 @@ export const events = {
     listen<JobProgress>("job://progress", (e) => handler(e.payload)),
   onJobFinished: (handler: (f: JobFinished) => void): Promise<UnlistenFn> =>
     listen<JobFinished>("job://finished", (e) => handler(e.payload)),
+  onMenuAction: (handler: (action: MenuAction) => void): Promise<UnlistenFn> =>
+    listen<MenuAction>("menu://action", (e) => handler(e.payload)),
 };

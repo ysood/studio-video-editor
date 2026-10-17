@@ -24,6 +24,7 @@ export function installMockBackend() {
     tools_status: () => tools,
     undo: () => snapshot,
     redo: () => snapshot,
+    native_menu_active: () => false,
   };
 
   Object.assign(window, {

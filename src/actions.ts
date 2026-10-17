@@ -4,7 +4,10 @@
 import { ask, open, save } from "@tauri-apps/plugin-dialog";
 import { ipc } from "./ipc";
 import { useEditor } from "./store";
+import type { MenuAction } from "./bindings/MenuAction";
 import type { SequenceFormat } from "./bindings/SequenceFormat";
+import { isTextInput } from "./focus";
+import { resetLayout } from "./workspace/layout";
 
 const PROJECT_FILTER = { name: "Studio project", extensions: ["studio"] };
 
@@ -108,5 +111,53 @@ export async function importMedia() {
     }
   } catch (error) {
     store.fail(error);
+  }
+}
+
+export type { MenuAction };
+
+/**
+ * A menu event that arrives this soon after the keyboard ran the same action is the same
+ * key press seen twice (the web view and the native menu can both receive a shortcut).
+ */
+const DUPLICATE_WINDOW_MS = 300;
+const lastFromKeyboard = new Map<MenuAction, number>();
+
+/**
+ * The one entry point for app-level actions, shared by the native menu, the in-window
+ * File menu, buttons and shortcuts, so each action behaves the same wherever it starts.
+ */
+export function runAction(action: MenuAction, from: "ui" | "keyboard" | "menu" = "ui") {
+  const now = performance.now();
+  if (from === "keyboard") lastFromKeyboard.set(action, now);
+  if (from === "menu" && now - (lastFromKeyboard.get(action) ?? -Infinity) < DUPLICATE_WINDOW_MS) return;
+
+  const store = useEditor.getState();
+  switch (action) {
+    case "newProject":
+      return void newProject();
+    case "openProject":
+      return void openProject();
+    case "save":
+      return void saveProject();
+    case "saveAs":
+      return void saveProject(true);
+    case "importMedia":
+      return void importMedia();
+    case "export": {
+      const hasClips = store.snapshot?.project.sequence.tracks.some((t) => t.clips.length > 0) ?? false;
+      if (hasClips) store.setExportOpen(true);
+      return;
+    }
+    case "undo":
+    case "redo":
+      // The native Edit menu owns Cmd+Z, so a focused text field gets its undo from here.
+      if (from === "menu" && isTextInput(document.activeElement)) {
+        document.execCommand(action);
+        return;
+      }
+      return void (action === "undo" ? store.undo() : store.redo());
+    case "resetLayout":
+      return resetLayout();
   }
 }

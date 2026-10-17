@@ -49,6 +49,23 @@ Last verified: 2026-10-17
 5. The editor pushes the old project onto the undo stack and returns a fresh `Snapshot`.
 6. The store replaces its snapshot and prunes selection; panels re-render.
 
+## App actions and menus
+
+New, open, save, import, export, undo, redo and reset layout are `MenuAction`s, a Rust
+enum exported to TypeScript. Every way of starting one ends in `runAction` in
+`src/actions.ts`: the native menu, the in-window File menu, buttons and shortcuts.
+
+- **macOS:** `src-tauri/src/menu.rs` installs the system menu bar (Studio, File, Edit,
+  View, Window). Choosing an item emits `menu://action` and the UI runs the action. Each
+  command that changes the session calls `menu::refresh` after releasing the session
+  lock, so the Edit menu names the step to undo ("Undo Move clip") and Export is enabled
+  only when the timeline has clips. Cut, copy, paste and select all are native items so
+  text fields behave normally; Cmd+Z in a focused text field is passed back to that field.
+- **Elsewhere:** the top bar draws a File menu instead, since a native menu there is a
+  second bar inside the window. `STUDIO_NATIVE_MENU=1` forces the native menu for testing.
+- A shortcut can reach both the web view and the native menu, so a menu event arriving
+  within 300 ms of the keyboard running the same action is ignored.
+
 ## Media, playback and render
 
 - **Import:** `ffprobe` (found via `STUDIO_FFPROBE`, PATH, or Homebrew paths) runs per file
@@ -86,5 +103,7 @@ copies used media next to both files plus a provenance manifest.
 - No speed changes, ripple edits, transitions, markers, keyframes or audio levels.
 - FCP7 XML writes `in` and `out` at the sequence rate; mixed-rate footage may need conform.
 - FFmpeg must be installed; bundling it as a Tauri sidecar is planned.
+- Quitting (Cmd+Q) or closing the window does not yet ask about unsaved changes.
+- The native menu was tested on Linux (GTK) with `STUDIO_NATIVE_MENU=1`, not yet on a Mac.
 - Files dragged in from Finder are not accepted yet (use Import); HTML drag and drop is
   used for bin to timeline.

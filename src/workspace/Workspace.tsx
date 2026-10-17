@@ -14,10 +14,9 @@ import { ViewerPanel } from "../panels/ViewerPanel";
 import { importMedia } from "../actions";
 import { chord } from "../keyboard";
 import { useEditor } from "../store";
+import { LAYOUT_KEY, resetLayout } from "./layout";
 import { makeHeaderActions, PanelTab } from "./PanelHeader";
 
-// Bump when panels are added or renamed so stale saved layouts are discarded.
-const LAYOUT_KEY = "studio.layout.v2";
 
 const components: Record<string, FunctionComponent<IDockviewPanelProps>> = {
   bin: MediaBinPanel,
@@ -74,15 +73,6 @@ function onReady(event: DockviewReadyEvent) {
       // Storage can be unavailable; the default layout is fine.
     }
   });
-}
-
-export function resetLayout() {
-  try {
-    localStorage.removeItem(LAYOUT_KEY);
-  } catch {
-    // ignore
-  }
-  window.location.reload();
 }
 
 const HeaderActions = makeHeaderActions(

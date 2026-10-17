@@ -2,13 +2,14 @@
 //! fresh [`Snapshot`]. Long work (probing, rendering, packaging) runs off the main thread.
 
 use crate::error::{CommandError, CommandResult, ErrorCode};
+use crate::menu;
 use crate::state::{AppState, Job, Session, Snapshot};
 use crate::tools::{self, ToolsStatus};
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 use studio_core::export::render::{self, RenderSettings};
 use studio_core::export::{fcp7, otio, package};
@@ -110,6 +111,21 @@ fn allow_media(app: &AppHandle, project: &Project) {
     }
 }
 
+/// Snapshot the session, release the lock, then bring the native menu up to date. The
+/// order matters: menu updates run on the main thread, which may be waiting for the lock.
+fn reply(app: &AppHandle, session: MutexGuard<'_, Session>) -> Snapshot {
+    let snapshot = session.snapshot();
+    drop(session);
+    menu::refresh(app, &snapshot);
+    snapshot
+}
+
+/// Whether the native menu bar replaces the in-window File menu.
+#[tauri::command]
+pub fn native_menu_active(app: AppHandle) -> bool {
+    menu::is_installed(&app)
+}
+
 #[tauri::command]
 pub fn session_snapshot(state: State<'_, AppState>) -> Snapshot {
     state.session().snapshot()
@@ -124,6 +140,7 @@ pub fn tools_status() -> ToolsStatus {
 pub fn project_new(
     name: String,
     format: SequenceFormat,
+    app: AppHandle,
     state: State<'_, AppState>,
 ) -> CommandResult<Snapshot> {
     let project = Project::new(name.trim(), format);
@@ -133,7 +150,7 @@ pub fn project_new(
         editor: Editor::new(project),
         path: None,
     };
-    Ok(session.snapshot())
+    Ok(reply(&app, session))
 }
 
 #[tauri::command]
@@ -150,12 +167,16 @@ pub fn project_open(
         editor: Editor::opened(project),
         path: Some(path),
     };
-    Ok(session.snapshot())
+    Ok(reply(&app, session))
 }
 
 /// Save to `path`, or to the current path when `path` is `None`.
 #[tauri::command]
-pub fn project_save(path: Option<String>, state: State<'_, AppState>) -> CommandResult<Snapshot> {
+pub fn project_save(
+    path: Option<String>,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> CommandResult<Snapshot> {
     let mut session = state.session();
     let target = match path {
         Some(p) => absolute(&p)?,
@@ -167,31 +188,35 @@ pub fn project_save(path: Option<String>, state: State<'_, AppState>) -> Command
     persist::save(session.editor.project(), &target)?;
     session.editor.mark_saved();
     session.path = Some(target);
-    Ok(session.snapshot())
+    Ok(reply(&app, session))
 }
 
 #[tauri::command]
-pub fn edit(command: EditCommand, state: State<'_, AppState>) -> CommandResult<EditResponse> {
+pub fn edit(
+    command: EditCommand,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> CommandResult<EditResponse> {
     let mut session = state.session();
     let report = session.editor.apply(&command)?;
     Ok(EditResponse {
-        snapshot: session.snapshot(),
+        snapshot: reply(&app, session),
         report,
     })
 }
 
 #[tauri::command]
-pub fn undo(state: State<'_, AppState>) -> Snapshot {
+pub fn undo(app: AppHandle, state: State<'_, AppState>) -> Snapshot {
     let mut session = state.session();
     session.editor.undo();
-    session.snapshot()
+    reply(&app, session)
 }
 
 #[tauri::command]
-pub fn redo(state: State<'_, AppState>) -> Snapshot {
+pub fn redo(app: AppHandle, state: State<'_, AppState>) -> Snapshot {
     let mut session = state.session();
     session.editor.redo();
-    session.snapshot()
+    reply(&app, session)
 }
 
 /// Probe files with ffprobe and add the usable ones to the bin. Files that fail are
@@ -243,7 +268,7 @@ pub async fn media_import(
     };
     allow_media(&app, session.editor.project());
     Ok(ImportResponse {
-        snapshot: session.snapshot(),
+        snapshot: reply(&app, session),
         report,
         failed,
     })
