@@ -5,6 +5,7 @@ import type { MediaId } from "../bindings/MediaId";
 import { insertMedia, MEDIA_DRAG_TYPE, mediaDrag } from "../edits";
 import { formatDuration, formatRate } from "../format";
 import { useEditor } from "../store";
+import { Button, EmptyState, Icon, Panel, PanelBody, PanelToolbar, Spacer } from "../ui";
 import "./media-bin.css";
 
 function describe(media: MediaAsset): string {
@@ -13,7 +14,9 @@ function describe(media: MediaAsset): string {
   }
   if (media.video) return `${media.video.width}×${media.video.height}`;
   if (media.audio) {
-    return `${media.audio.sampleRate / 1000} kHz, ${media.audio.channels === 1 ? "mono" : media.audio.channels === 2 ? "stereo" : `${media.audio.channels} ch`}`;
+    const channels =
+      media.audio.channels === 1 ? "mono" : media.audio.channels === 2 ? "stereo" : `${media.audio.channels} ch`;
+    return `${media.audio.sampleRate / 1000} kHz, ${channels}`;
   }
   return "";
 }
@@ -30,40 +33,36 @@ export function MediaBinPanel() {
     snapshot?.project.sequence.tracks.flatMap((t) => t.clips.map((c) => c.source.mediaId)) ?? [],
   );
   const current = media.find((m) => m.id === selected) ?? null;
+  const inUse = current !== null && usedIds.has(current.id);
 
   return (
-    <div className="panel">
-      <div className="panel-toolbar">
-        <button className="btn" onClick={importMedia}>Import</button>
-        <button
-          className="btn"
+    <Panel>
+      <PanelToolbar>
+        <Button onClick={importMedia}>Import</Button>
+        <Button
           disabled={!current}
           onClick={() => current && void insertMedia(current.id, playhead)}
           title="Place at the playhead on V1 and A1"
         >
           Add to timeline
-        </button>
-        <span style={{ flex: 1 }} />
-        <button
-          className="btn"
-          disabled={!current || usedIds.has(current.id)}
-          title={current && usedIds.has(current.id) ? "Used on the timeline" : "Remove from the project"}
+        </Button>
+        <Spacer />
+        <Button
+          disabled={!current || inUse}
+          title={inUse ? "Used on the timeline" : "Remove from the project"}
           onClick={() => {
             if (!current) return;
             void edit({ type: "RemoveMedia", mediaId: current.id }).then(() => setSelected(null));
           }}
         >
           Remove
-        </button>
-      </div>
-      <div className="panel-body">
+        </Button>
+      </PanelToolbar>
+      <PanelBody>
         {media.length === 0 ? (
-          <div className="empty">
-            <p>Import footage, audio or stills to start cutting.</p>
-            <div>
-              <button className="btn btn-primary" onClick={importMedia}>Import media</button>
-            </div>
-          </div>
+          <EmptyState action={<Button variant="primary" onClick={importMedia}>Import media</Button>}>
+            Import footage, audio or stills to start cutting.
+          </EmptyState>
         ) : (
           <ul className="bin-list" role="listbox" aria-label="Media">
             {media.map((m) => (
@@ -86,8 +85,8 @@ export function MediaBinPanel() {
                 onDoubleClick={() => void insertMedia(m.id, playhead)}
                 title={m.path}
               >
-                <span className={`bin-swatch bin-swatch-${m.kind}`} aria-hidden>
-                  {m.kind === "audio" ? "♪" : m.kind === "image" ? "▣" : "▶"}
+                <span className="bin-swatch" data-kind={m.kind} aria-hidden>
+                  <Icon name={m.kind} />
                 </span>
                 <span className="bin-name">{m.name}</span>
                 <span className="bin-meta numeric">{describe(m)}</span>
@@ -98,7 +97,7 @@ export function MediaBinPanel() {
             ))}
           </ul>
         )}
-      </div>
-    </div>
+      </PanelBody>
+    </Panel>
   );
 }

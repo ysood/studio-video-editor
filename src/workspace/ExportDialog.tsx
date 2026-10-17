@@ -1,8 +1,9 @@
 import { open, save } from "@tauri-apps/plugin-dialog";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import type { VideoCodec } from "../bindings/VideoCodec";
 import { ipc } from "../ipc";
 import { useEditor } from "../store";
+import { Actions, Button, Dialog } from "../ui";
 import "./export-dialog.css";
 
 type Choice = "render-h264" | "render-prores" | "otio" | "fcp7" | "package";
@@ -21,18 +22,10 @@ function safeName(name: string): string {
 }
 
 export function ExportDialog({ open: isOpen, onClose }: { open: boolean; onClose: () => void }) {
-  const ref = useRef<HTMLDialogElement>(null);
   const [choice, setChoice] = useState<Choice>("render-h264");
   const snapshot = useEditor((s) => s.snapshot);
   const job = useEditor((s) => s.job);
   const { notify, fail, setJob } = useEditor.getState();
-
-  useEffect(() => {
-    const dialog = ref.current;
-    if (!dialog) return;
-    if (isOpen && !dialog.open) dialog.showModal();
-    if (!isOpen && dialog.open) dialog.close();
-  }, [isOpen]);
 
   const name = safeName(snapshot?.project.name ?? "Untitled");
 
@@ -67,8 +60,7 @@ export function ExportDialog({ open: isOpen, onClose }: { open: boolean; onClose
   };
 
   return (
-    <dialog ref={ref} className="export-dialog" onClose={onClose} onCancel={onClose}>
-      <h2>Export</h2>
+    <Dialog open={isOpen} onClose={onClose} title="Export">
       <div className="export-choices" role="radiogroup" aria-label="Export type">
         {CHOICES.map((c) => (
           <label key={c.id} className="export-choice" data-checked={choice === c.id}>
@@ -90,16 +82,16 @@ export function ExportDialog({ open: isOpen, onClose }: { open: boolean; onClose
         <p className="export-busy">
           A {job.kind === "render" ? "render" : "package"} is running ({Math.round(job.fraction * 100)}%).{" "}
           {job.kind === "render" && (
-            <button className="btn" onClick={() => void ipc.renderCancel()}>Cancel render</button>
+            <Button onClick={() => void ipc.renderCancel()}>Cancel render</Button>
           )}
         </p>
       )}
-      <div className="export-actions">
-        <button className="btn" onClick={onClose}>Close</button>
-        <button className="btn btn-primary" onClick={() => void run()} disabled={job !== null}>
+      <Actions align="end">
+        <Button onClick={onClose}>Close</Button>
+        <Button variant="primary" onClick={() => void run()} disabled={job !== null}>
           Export
-        </button>
-      </div>
-    </dialog>
+        </Button>
+      </Actions>
+    </Dialog>
   );
 }

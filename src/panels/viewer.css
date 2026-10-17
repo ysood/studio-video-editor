@@ -58,37 +58,12 @@
   flex: none;
 }
 
-/* The one loud element in the app: where you are in time. */
-.viewer-timecode {
-  color: var(--color-accent-base);
-  font: var(--type-timecode-display);
-  letter-spacing: var(--type-timecode-display-tracking);
-}
-
 .viewer-duration {
   justify-self: end;
-  color: var(--color-text-tertiary);
-  font: var(--type-body);
 }
 
 .viewer-buttons {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-}
-
-.viewer-play {
-  display: grid;
-  place-items: center;
-  width: var(--size-play-button);
-  height: var(--size-play-button);
-  border: var(--border-width) solid var(--color-border-strong);
-  border-radius: var(--radius-round);
-  background: var(--color-surface-raised);
-  font: var(--type-label);
-}
-
-.viewer-play:hover:not(:disabled) {
-  border-color: var(--color-accent-base);
-  color: var(--color-accent-base);
 }

@@ -1,0 +1,27 @@
+.ui-timecode[data-tone="accent"] {
+  color: var(--color-accent-base);
+}
+
+.ui-timecode[data-tone="muted"] {
+  color: var(--color-text-tertiary);
+}
+
+.ui-timecode[data-size="toolbar"] {
+  min-width: var(--size-timecode-min);
+  font: var(--type-timecode);
+  letter-spacing: var(--type-timecode-tracking);
+}
+
+.ui-timecode[data-size="display"] {
+  font: var(--type-timecode-display);
+  letter-spacing: var(--type-timecode-display-tracking);
+}
+
+.ui-timecode[data-size="body"] {
+  font: var(--type-body);
+}
+
+/* The numeric family applies after the role so a theme can give numbers their own face. */
+.ui-timecode.numeric {
+  font-family: var(--font-numeric);
+}

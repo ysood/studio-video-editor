@@ -1,4 +1,5 @@
 import { useEditor } from "../store";
+import { ProgressBar } from "../ui";
 
 export function StatusBar() {
   const status = useEditor((s) => s.status);
@@ -12,9 +13,7 @@ export function StatusBar() {
       {job && (
         <>
           <span>{job.kind === "render" ? "Rendering" : "Packaging"}</span>
-          <div className="progress" aria-hidden>
-            <div style={{ width: `${Math.round(job.fraction * 100)}%` }} />
-          </div>
+          <ProgressBar fraction={job.fraction} />
           <span className="numeric">{Math.round(job.fraction * 100)}%</span>
         </>
       )}

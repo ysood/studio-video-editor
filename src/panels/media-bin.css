@@ -36,15 +36,15 @@
   color: var(--color-text-on-media);
 }
 
-.bin-swatch-video {
+.bin-swatch[data-kind="video"] {
   background: var(--color-media-video);
 }
 
-.bin-swatch-image {
+.bin-swatch[data-kind="image"] {
   background: var(--color-media-image);
 }
 
-.bin-swatch-audio {
+.bin-swatch[data-kind="audio"] {
   background: var(--color-media-audio);
 }
 

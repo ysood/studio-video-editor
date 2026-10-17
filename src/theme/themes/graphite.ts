@@ -75,7 +75,7 @@ export const graphiteTheme: Theme = {
 
   radius: { control: 3, panel: 0, dialog: 6, clip: 3, round: 9999 },
 
-  border: { width: 1, focusWidth: 2 },
+  border: { width: 1, focusWidth: 2, iconStroke: 1.4 },
 
   size: {
     controlSmall: 22,

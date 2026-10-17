@@ -1,5 +1,7 @@
 import { importMedia, newProject, openProject, saveProject } from "../actions";
+import { formatRate } from "../format";
 import { useEditor } from "../store";
+import { Button } from "../ui";
 
 export function TopBar({ onExport }: { onExport: () => void }) {
   const snapshot = useEditor((s) => s.snapshot);
@@ -16,38 +18,36 @@ export function TopBar({ onExport }: { onExport: () => void }) {
         {history?.dirty && <span className="dirty-dot" title="Unsaved changes" />}
         {format && (
           <span className="numeric">
-            {format.width}×{format.height}, {(format.frameRate.num / format.frameRate.den).toFixed(3).replace(/\.?0+$/, "")} fps
+            {format.width}×{format.height}, {formatRate(format.frameRate)} fps
           </span>
         )}
       </div>
       <div className="topbar-group">
-        <button className="btn" onClick={newProject}>New</button>
-        <button className="btn" onClick={openProject}>Open</button>
-        <button className="btn" onClick={() => saveProject()}>Save</button>
+        <Button onClick={newProject}>New</Button>
+        <Button onClick={openProject}>Open</Button>
+        <Button onClick={() => saveProject()}>Save</Button>
       </div>
       <div className="topbar-group">
-        <button
-          className="btn"
+        <Button
           onClick={undo}
           disabled={!history?.canUndo}
           title={history?.undoLabel ? `Undo ${history.undoLabel}` : "Nothing to undo"}
         >
           Undo
-        </button>
-        <button
-          className="btn"
+        </Button>
+        <Button
           onClick={redo}
           disabled={!history?.canRedo}
           title={history?.redoLabel ? `Redo ${history.redoLabel}` : "Nothing to redo"}
         >
           Redo
-        </button>
+        </Button>
       </div>
       <div className="topbar-group">
-        <button className="btn" onClick={importMedia}>Import</button>
-        <button className="btn btn-primary" onClick={onExport} disabled={!hasClips}>
+        <Button onClick={importMedia}>Import</Button>
+        <Button variant="primary" onClick={onExport} disabled={!hasClips}>
           Export
-        </button>
+        </Button>
       </div>
     </header>
   );

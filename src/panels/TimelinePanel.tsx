@@ -6,7 +6,7 @@ import type { Project } from "../bindings/Project";
 import type { Track } from "../bindings/Track";
 import type { TrackId } from "../bindings/TrackId";
 import { firstTrack, insertMedia, MEDIA_DRAG_TYPE, mediaDrag } from "../edits";
-import { microsToFrames, timecode } from "../format";
+import { microsToFrames } from "../format";
 import { useShortcut } from "../keyboard";
 import { useEditor, ZOOM_MAX, ZOOM_MIN } from "../store";
 import { draw, type Ghost } from "../timeline/draw";
@@ -25,6 +25,7 @@ import {
   xToFrame,
   type View,
 } from "../timeline/geometry";
+import { Button, Gap, IconButton, Panel, PanelBody, PanelToolbar, Slider, Spacer, Timecode } from "../ui";
 import "./timeline.css";
 
 /** Pointer travel before a press on a clip becomes a drag, so clicks stay clicks. */
@@ -389,38 +390,35 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
     ),
   );
 
-  if (!project) return <div className="panel" />;
+  if (!project) return <Panel />;
 
   return (
-    <div className="panel">
-      <div className="panel-toolbar">
-        <span className="timeline-timecode numeric" aria-label="Playhead">
-          {timecode(playhead, rate)}
-        </span>
-        <button className="btn" onClick={splitAtPlayhead} title="Split at playhead (S)">Split</button>
-        <button className="btn" onClick={deleteSelection} disabled={selection.length === 0} title="Delete (⌫)">
+    <Panel>
+      <PanelToolbar>
+        <Timecode frame={playhead} rate={rate} label="Playhead" />
+        <Button onClick={splitAtPlayhead} title="Split at playhead (S)">Split</Button>
+        <Button onClick={deleteSelection} disabled={selection.length === 0} title="Delete (⌫)">
           Delete
-        </button>
-        <span className="toolbar-gap" />
-        <button className="btn" onClick={() => void edit({ type: "AddTrack", kind: "video" })}>Add video track</button>
-        <button className="btn" onClick={() => void edit({ type: "AddTrack", kind: "audio" })}>Add audio track</button>
-        <span style={{ flex: 1 }} />
-        <button className="btn" aria-pressed={snap} onClick={() => setSnap(!snap)} title="Snapping (N)">
+        </Button>
+        <Gap />
+        <Button icon="plus" onClick={() => void edit({ type: "AddTrack", kind: "video" })}>Video track</Button>
+        <Button icon="plus" onClick={() => void edit({ type: "AddTrack", kind: "audio" })}>Audio track</Button>
+        <Spacer />
+        <Button aria-pressed={snap} onClick={() => setSnap(!snap)} title="Snapping (N)">
           Snap {snap ? "on" : "off"}
-        </button>
-        <button className="btn" onClick={zoomToFit} title="Fit timeline (\)">Fit</button>
-        <input
+        </Button>
+        <Button onClick={zoomToFit} title="Fit timeline (\)">Fit</Button>
+        <Slider
           className="timeline-zoom"
-          type="range"
           min={Math.log(ZOOM_MIN)}
           max={Math.log(ZOOM_MAX)}
           step={0.01}
           value={Math.log(zoom)}
-          onChange={(e) => setZoom(Math.exp(Number(e.target.value)))}
-          aria-label="Zoom"
+          onChange={(v) => setZoom(Math.exp(v))}
+          ariaLabel="Zoom"
         />
-      </div>
-      <div className="panel-body timeline-body">
+      </PanelToolbar>
+      <PanelBody className="timeline-body">
         <div className="timeline-grid" style={{ height }}>
           <div className="timeline-headers">
             <div className="timeline-ruler-corner" />
@@ -444,14 +442,14 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
               onPointerCancel={() => setDrag(null)}
             />
             {project.sequence.tracks.every((t) => t.clips.length === 0) && !drop && (
-              <p className="timeline-hint" style={{ left: frameToX(0, view) + 16 }}>
+              <p className="timeline-hint" style={{ left: frameToX(0, view) }}>
                 Drag media here from the bin, or double-click it to place it at the playhead.
               </p>
             )}
           </div>
         </div>
-      </div>
-    </div>
+      </PanelBody>
+    </Panel>
   );
 }
 
@@ -464,80 +462,29 @@ function TrackHeader({ track, height, top }: { track: Track; height: number; top
       enabled: patch.enabled ?? null,
       locked: patch.locked ?? null,
     });
+  const isVideo = track.kind === "video";
   return (
-    <div className={`track-header track-header-${track.kind}`} style={{ height, top }}>
+    <div className="track-header" data-kind={track.kind} style={{ height, top }}>
       <span className="track-name">{track.name}</span>
-      <button
-        className="icon-btn"
-        aria-pressed={!track.enabled}
-        title={track.kind === "video" ? (track.enabled ? "Hide track" : "Show track") : track.enabled ? "Mute track" : "Unmute track"}
+      <IconButton
+        icon={isVideo ? (track.enabled ? "eye" : "eyeOff") : track.enabled ? "speaker" : "mute"}
+        pressed={!track.enabled}
+        label={isVideo ? (track.enabled ? "Hide track" : "Show track") : track.enabled ? "Mute track" : "Unmute track"}
         onClick={() => setState({ enabled: !track.enabled })}
-      >
-        {track.kind === "video" ? (track.enabled ? <EyeIcon /> : <EyeOffIcon />) : track.enabled ? <SpeakerIcon /> : <MuteIcon />}
-      </button>
-      <button
-        className="icon-btn"
-        aria-pressed={track.locked}
-        title={track.locked ? "Unlock track" : "Lock track"}
+      />
+      <IconButton
+        icon={track.locked ? "lock" : "unlock"}
+        pressed={track.locked}
+        label={track.locked ? "Unlock track" : "Lock track"}
         onClick={() => setState({ locked: !track.locked })}
-      >
-        <LockIcon open={!track.locked} />
-      </button>
-      <button
-        className="icon-btn track-remove"
-        title="Remove track and its clips"
+      />
+      <IconButton
+        icon="close"
+        className="track-remove"
+        label="Remove track and its clips"
         onClick={() => void edit({ type: "RemoveTrack", trackId: track.id })}
         disabled={track.locked}
-      >
-        ×
-      </button>
+      />
     </div>
-  );
-}
-
-const iconProps = { width: 14, height: 14, viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", strokeWidth: 1.4 } as const;
-
-function EyeIcon() {
-  return (
-    <svg {...iconProps} aria-hidden>
-      <path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8Z" />
-      <circle cx="8" cy="8" r="2" />
-    </svg>
-  );
-}
-
-function EyeOffIcon() {
-  return (
-    <svg {...iconProps} aria-hidden>
-      <path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8Z" />
-      <path d="M2.5 13.5l11-11" />
-    </svg>
-  );
-}
-
-function SpeakerIcon() {
-  return (
-    <svg {...iconProps} aria-hidden>
-      <path d="M2.5 6h2.5L8.5 3v10L5 10H2.5Z" />
-      <path d="M11 5.5a3.5 3.5 0 0 1 0 5" />
-    </svg>
-  );
-}
-
-function MuteIcon() {
-  return (
-    <svg {...iconProps} aria-hidden>
-      <path d="M2.5 6h2.5L8.5 3v10L5 10H2.5Z" />
-      <path d="M10.5 6l3.5 4M14 6l-3.5 4" />
-    </svg>
-  );
-}
-
-function LockIcon({ open }: { open: boolean }) {
-  return (
-    <svg {...iconProps} aria-hidden>
-      <rect x="3" y="7.5" width="10" height="6.5" rx="1" />
-      <path d={open ? "M5.5 7.5V5a2.5 2.5 0 0 1 4.9-.7" : "M5.5 7.5V5a2.5 2.5 0 0 1 5 0v2.5"} />
-    </svg>
   );
 }

@@ -115,6 +115,8 @@ export interface Theme {
   border: {
     width: number;
     focusWidth: number;
+    /** Stroke weight of line icons, in icon grid units (16 per icon). */
+    iconStroke: number;
   };
 
   /** Fixed component dimensions in pixels. */

@@ -1,0 +1,19 @@
+.ui-dialog {
+  width: min(var(--size-dialog-width), calc(100vw - 2 * var(--space-7)));
+  padding: var(--space-8);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-dialog);
+  background: var(--color-surface-overlay);
+  color: var(--color-text-primary);
+  box-shadow: var(--elevation-dialog);
+}
+
+.ui-dialog::backdrop {
+  background: var(--color-scrim);
+}
+
+.ui-dialog-title {
+  margin-bottom: var(--space-6);
+  font: var(--type-title);
+  letter-spacing: var(--type-title-tracking);
+}

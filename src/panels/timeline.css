@@ -1,17 +1,5 @@
-.timeline-timecode {
-  min-width: var(--size-timecode-min);
-  color: var(--color-accent-base);
-  font: var(--type-timecode);
-  letter-spacing: var(--type-timecode-tracking);
-}
-
-.toolbar-gap {
-  width: var(--space-4);
-}
-
 .timeline-zoom {
   width: var(--size-zoom-slider);
-  accent-color: var(--color-accent-base);
 }
 
 .timeline-body {
@@ -49,7 +37,7 @@
   border-left: var(--timeline-header-stripe) solid var(--color-media-video);
 }
 
-.track-header-audio {
+.track-header[data-kind="audio"] {
   border-left-color: var(--color-media-audio);
 }
 
@@ -84,6 +72,7 @@
 .timeline-hint {
   position: absolute;
   top: calc(var(--timeline-ruler-height) + var(--space-6));
+  padding-left: var(--space-7);
   color: var(--color-text-secondary);
   pointer-events: none;
 }

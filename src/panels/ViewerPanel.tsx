@@ -1,10 +1,11 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import type { MediaAsset } from "../bindings/MediaAsset";
-import { framesToSeconds, timecode } from "../format";
+import { framesToSeconds } from "../format";
 import { useShortcut } from "../keyboard";
 import { audioAt, sequenceEnd, videoAt } from "../playback/resolve";
 import { useEditor } from "../store";
+import { IconButton, Panel, Timecode } from "../ui";
 import "./viewer.css";
 
 /** Seek a playing element only when it drifts this far, so playback stays smooth. */
@@ -159,10 +160,10 @@ export function ViewerPanel() {
     ),
   );
 
-  if (!project || !format) return <div className="panel" />;
+  if (!project || !format) return <Panel />;
 
   return (
-    <div className="panel viewer">
+    <Panel className="viewer">
       <div className="viewer-surround">
         <div
           ref={stageRef}
@@ -184,34 +185,24 @@ export function ViewerPanel() {
         </div>
       </div>
       <div className="viewer-transport">
-        <span className="viewer-timecode numeric">{timecode(playhead, rate)}</span>
+        <Timecode frame={playhead} rate={rate} size="display" label="Playhead" />
         <div className="viewer-buttons">
-          <button className="icon-btn" title="Go to start (Home)" onClick={() => setPlayhead(0)} aria-label="Go to start">
-            ⏮
-          </button>
-          <button className="icon-btn" title="Back one frame (←)" onClick={() => setPlayhead(playhead - 1)} aria-label="Back one frame">
-            ◀︎
-          </button>
-          <button
-            className="viewer-play"
+          <IconButton icon="toStart" label="Go to start (Home)" onClick={() => setPlayhead(0)} />
+          <IconButton icon="stepBack" label="Back one frame (←)" onClick={() => setPlayhead(playhead - 1)} />
+          <IconButton
+            icon={playing ? "pause" : "play"}
+            shape="round"
+            label={playing ? "Pause (Space)" : "Play (Space)"}
             onClick={togglePlay}
             disabled={end === 0}
-            aria-label={playing ? "Pause" : "Play"}
-            title="Play or pause (Space)"
-          >
-            {playing ? "❚❚" : "▶︎"}
-          </button>
-          <button className="icon-btn" title="Forward one frame (→)" onClick={() => setPlayhead(playhead + 1)} aria-label="Forward one frame">
-            ▶︎
-          </button>
-          <button className="icon-btn" title="Go to end (End)" onClick={() => setPlayhead(end)} aria-label="Go to end">
-            ⏭
-          </button>
+          />
+          <IconButton icon="stepForward" label="Forward one frame (→)" onClick={() => setPlayhead(playhead + 1)} />
+          <IconButton icon="toEnd" label="Go to end (End)" onClick={() => setPlayhead(end)} />
         </div>
-        <span className="viewer-duration numeric" title={`${framesToSeconds(end, rate).toFixed(2)} s`}>
-          {timecode(end, rate)}
+        <span className="viewer-duration" title={`${framesToSeconds(end, rate).toFixed(2)} s`}>
+          <Timecode frame={end} rate={rate} size="body" tone="muted" label="Duration" />
         </span>
       </div>
-    </div>
+    </Panel>
   );
 }
