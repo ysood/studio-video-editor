@@ -1,33 +1,28 @@
-import { useEffect, useState } from "react";
-import type { Snapshot } from "./bindings/Snapshot";
-import type { ToolsStatus } from "./bindings/ToolsStatus";
-import { errorMessage, ipc } from "./ipc";
+import { useEffect, useMemo, useState } from "react";
+import { useGlobalShortcuts } from "./keyboard";
+import { useEditor } from "./store";
+import { StatusBar } from "./workspace/StatusBar";
+import { TopBar } from "./workspace/TopBar";
+import { Workspace } from "./workspace/Workspace";
 
-// Placeholder that proves the IPC round trip; replaced by the workspace in the next layer.
 export function App() {
-  const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
-  const [tools, setTools] = useState<ToolsStatus | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const init = useEditor((s) => s.init);
+  const undo = useEditor((s) => s.undo);
+  const redo = useEditor((s) => s.redo);
+  const [, setExportOpen] = useState(false);
 
   useEffect(() => {
-    Promise.all([ipc.snapshot(), ipc.toolsStatus()])
-      .then(([s, t]) => {
-        setSnapshot(s);
-        setTools(t);
-      })
-      .catch((e: unknown) => setError(errorMessage(e)));
-  }, []);
+    void init();
+  }, [init]);
+
+  const actions = useMemo(() => ({ undo: () => void undo(), redo: () => void redo() }), [undo, redo]);
+  useGlobalShortcuts(actions);
 
   return (
-    <main style={{ fontFamily: "system-ui", padding: 24 }}>
-      <h1>Studio</h1>
-      {error && <p role="alert">{error}</p>}
-      {snapshot && <p>Project: {snapshot.project.name}</p>}
-      {tools && (
-        <p>
-          ffmpeg: {tools.ffmpeg ?? "not found"} · ffprobe: {tools.ffprobe ?? "not found"}
-        </p>
-      )}
-    </main>
+    <div className="app">
+      <TopBar onExport={() => setExportOpen(true)} />
+      <Workspace />
+      <StatusBar />
+    </div>
   );
 }

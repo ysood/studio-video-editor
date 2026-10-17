@@ -1,0 +1,274 @@
+/*
+  Studio tokens. The canvas is neutral graphite on purpose: editors judge picture against
+  the UI, so the chrome carries no hue. Color is reserved for meaning: steel blue for
+  video, sea green for audio, and amber for time (playhead, timecode, selection).
+*/
+:root {
+  color-scheme: dark;
+
+  --ink-0: #18191b; /* app background, viewer surround */
+  --ink-1: #1f2023; /* panels */
+  --ink-2: #26282c; /* raised controls, track headers */
+  --ink-3: #303237; /* hover, inputs */
+  --line: #3a3c42;
+  --line-soft: #2d2f33;
+
+  --text: #e4e4e7;
+  --text-muted: #9b9ca3;
+  --text-faint: #6c6e75;
+
+  --video: #4d79a8;
+  --video-edge: #6e97c4;
+  --audio: #3d8a77;
+  --audio-edge: #5fae99;
+  --time: #f0b545; /* playhead, timecode, selection */
+  --danger: #e0645a;
+
+  --radius-s: 3px;
+  --radius-m: 6px;
+
+  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+  --text-xs: 11px;
+  --text-s: 12px;
+  --text-m: 13px;
+  --text-l: 15px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--ink-0);
+  color: var(--text);
+  font: var(--text-m) / 1.4 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  overflow: hidden;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--time);
+  outline-offset: 1px;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* App frame */
+.app {
+  display: grid;
+  grid-template-rows: 40px 1fr 24px;
+  height: 100%;
+}
+
+.dock {
+  min-height: 0;
+}
+
+/* Buttons: one quiet style, one primary. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-s);
+  background: var(--ink-2);
+  cursor: default;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--ink-3);
+}
+
+.btn:disabled {
+  color: var(--text-faint);
+}
+
+.btn-primary {
+  border-color: transparent;
+  background: var(--time);
+  color: #1d1606;
+  font-weight: 600;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #f6c565;
+}
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.icon-btn:hover {
+  background: var(--ink-3);
+  color: var(--text);
+}
+
+.icon-btn[aria-pressed="true"] {
+  color: var(--time);
+}
+
+/* Top bar */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--ink-1);
+}
+
+.topbar-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  margin-right: auto;
+}
+
+.topbar-title strong {
+  font-size: var(--text-l);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar-title span {
+  color: var(--text-muted);
+  font-size: var(--text-s);
+}
+
+.dirty-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--time);
+  align-self: center;
+}
+
+.topbar-group {
+  display: flex;
+  gap: 4px;
+}
+
+/* Status bar */
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 10px;
+  border-top: 1px solid var(--line-soft);
+  background: var(--ink-1);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.statusbar .error {
+  color: var(--danger);
+}
+
+.statusbar .push {
+  margin-left: auto;
+}
+
+.progress {
+  width: 120px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--ink-3);
+  overflow: hidden;
+}
+
+.progress > div {
+  height: 100%;
+  background: var(--time);
+}
+
+/* Panels */
+.panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--ink-1);
+  overflow: hidden;
+}
+
+.panel-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 8px;
+  border-bottom: 1px solid var(--line-soft);
+  flex: none;
+}
+
+.panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.empty {
+  display: grid;
+  place-content: center;
+  gap: 10px;
+  height: 100%;
+  padding: 16px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.empty p {
+  margin: 0;
+  max-width: 34ch;
+}
+
+/* Dockview, retuned to the tokens above. */
+.app .dockview-theme-dark {
+  --dv-group-view-background-color: var(--ink-1);
+  --dv-tabs-and-actions-container-background-color: var(--ink-0);
+  --dv-tabs-and-actions-container-height: 28px;
+  --dv-tabs-and-actions-container-font-size: var(--text-s);
+  --dv-activegroup-visiblepanel-tab-background-color: var(--ink-1);
+  --dv-activegroup-visiblepanel-tab-color: var(--text);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--ink-1);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--text-muted);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--ink-0);
+  --dv-activegroup-hiddenpanel-tab-color: var(--text-muted);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--ink-0);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--text-faint);
+  --dv-separator-border: var(--ink-0);
+  --dv-sash-color: transparent;
+  --dv-active-sash-color: var(--time);
+  --dv-tab-divider-color: transparent;
+  --dv-drag-over-background-color: rgba(240, 181, 69, 0.12);
+  --dv-drag-over-border-color: var(--time);
+  background: var(--ink-0);
+}
