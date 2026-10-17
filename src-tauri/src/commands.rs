@@ -484,3 +484,73 @@ fn last_line(text: &str) -> String {
         .unwrap_or("ffmpeg failed")
         .to_string()
 }
+
+/// Position the native preview surface over the viewer's matte (ADR-0003). The rect
+/// arrives in CSS pixels with a top left origin, straight from `getBoundingClientRect`.
+#[tauri::command]
+pub fn viewer_set_rect(window: tauri::WebviewWindow, x: f64, y: f64, width: f64, height: f64) {
+    #[cfg(target_os = "macos")]
+    let _ = window.with_webview(move |webview| {
+        crate::viewer::set_rect(webview.ns_window(), x, y, width, height);
+    });
+    #[cfg(not(target_os = "macos"))]
+    let _ = (window, x, y, width, height);
+}
+
+/// Rebuild the preview composition from the current document. Called after any edit that
+/// changes what plays; the composition is derived, never a source of truth.
+#[tauri::command]
+pub fn viewer_sync(window: tauri::WebviewWindow, state: State<'_, AppState>) {
+    #[cfg(target_os = "macos")]
+    {
+        let segments = {
+            let session = state.session();
+            crate::viewer::segments(session.editor.project())
+        };
+        let _ = window.with_webview(move |webview| {
+            crate::viewer::set_segments(webview.ns_window(), &segments);
+        });
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = (window, state);
+}
+
+#[tauri::command]
+pub fn viewer_play(window: tauri::WebviewWindow) {
+    #[cfg(target_os = "macos")]
+    let _ = window.with_webview(|webview| crate::viewer::play(webview.ns_window()));
+    #[cfg(not(target_os = "macos"))]
+    let _ = window;
+}
+
+#[tauri::command]
+pub fn viewer_pause(window: tauri::WebviewWindow) {
+    #[cfg(target_os = "macos")]
+    let _ = window.with_webview(|webview| crate::viewer::pause(webview.ns_window()));
+    #[cfg(not(target_os = "macos"))]
+    let _ = window;
+}
+
+/// Seek the preview to a sequence frame. The frame is converted here so the surface never
+/// needs to know the sequence rate.
+#[tauri::command]
+pub fn viewer_seek(window: tauri::WebviewWindow, state: State<'_, AppState>, frame: i64) {
+    #[cfg(target_os = "macos")]
+    {
+        let micros = {
+            let session = state.session();
+            session
+                .editor
+                .project()
+                .sequence
+                .format
+                .frame_rate
+                .frames_to_micros(frame)
+        };
+        let _ = window.with_webview(move |webview| {
+            crate::viewer::seek(webview.ns_window(), micros);
+        });
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = (window, state, frame);
+}

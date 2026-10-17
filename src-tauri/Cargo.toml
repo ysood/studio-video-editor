@@ -22,5 +22,26 @@ serde_json.workspace = true
 thiserror.workspace = true
 ts-rs.workspace = true
 
-[lints]
-workspace = true
+[dev-dependencies]
+studio-core = { path = "../crates/studio-core", features = ["testing"] }
+
+[lints.rust]
+# AppKit and AVFoundation interop cannot be expressed in safe Rust (ADR-0003). Denied
+# here rather than forbidden so the one module that talks to Objective-C can opt in;
+# studio-core keeps the workspace-wide forbid.
+unsafe_code = "deny"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSString", "NSURL", "NSGeometry", "NSArray"] }
+objc2-app-kit = { version = "0.3", features = ["NSView", "NSWindow", "NSResponder", "NSGraphics"] }
+objc2-quartz-core = { version = "0.3", features = ["CALayer"] }
+objc2-core-media = { version = "0.3", features = ["CMTime", "CMTimeRange"] }
+objc2-av-foundation = { version = "0.3", features = [
+  "AVPlayer", "AVPlayerItem", "AVPlayerLayer", "AVAsset", "AVAssetTrack",
+  "AVComposition", "AVCompositionTrack", "AVMediaFormat",
+  "objc2-core-media", "objc2-quartz-core",
+] }

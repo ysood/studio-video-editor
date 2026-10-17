@@ -6,6 +6,8 @@ mod error;
 mod menu;
 mod state;
 mod tools;
+#[cfg(target_os = "macos")]
+mod viewer;
 
 use state::AppState;
 
@@ -34,6 +36,11 @@ pub fn run() {
             commands::render_start,
             commands::render_cancel,
             commands::native_menu_active,
+            commands::viewer_set_rect,
+            commands::viewer_sync,
+            commands::viewer_play,
+            commands::viewer_pause,
+            commands::viewer_seek,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Studio");
