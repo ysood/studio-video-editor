@@ -15,6 +15,7 @@ use studio_core::export::render::{self, RenderSettings};
 use studio_core::export::{fcp7, otio, package};
 use studio_core::{
     persist, probe, EditCommand, EditReport, Editor, MediaAsset, Project, SequenceFormat,
+    SequenceId,
 };
 use tauri::{AppHandle, Emitter, Manager, State};
 use ts_rs::TS;
@@ -296,6 +297,7 @@ fn probe_file(ffprobe: &Path, path: &str) -> CommandResult<MediaAsset> {
 
 #[tauri::command]
 pub fn export_interchange(
+    sequence_id: SequenceId,
     format: InterchangeFormat,
     path: String,
     state: State<'_, AppState>,
@@ -303,9 +305,13 @@ pub fn export_interchange(
     let path = absolute(&path)?;
     let text = {
         let session = state.session();
+        let project = session.editor.project();
+        let sequence = project.sequence(sequence_id).ok_or_else(|| {
+            CommandError::new(ErrorCode::NotFound, "that sequence is not in the project")
+        })?;
         match format {
-            InterchangeFormat::Otio => otio::export(session.editor.project()),
-            InterchangeFormat::Fcp7Xml => fcp7::export(session.editor.project()),
+            InterchangeFormat::Otio => otio::export(project, sequence),
+            InterchangeFormat::Fcp7Xml => fcp7::export(project, sequence),
         }
     };
     std::fs::write(path, text)?;
@@ -314,6 +320,7 @@ pub fn export_interchange(
 
 #[tauri::command]
 pub fn export_package(
+    sequence_id: SequenceId,
     folder: String,
     app: AppHandle,
     state: State<'_, AppState>,
@@ -327,7 +334,10 @@ pub fn export_package(
         ));
     }
     let project = state.session().editor.project().clone();
-    let plan = package::plan(&project, &root);
+    let sequence = project.sequence(sequence_id).ok_or_else(|| {
+        CommandError::new(ErrorCode::NotFound, "that sequence is not in the project")
+    })?;
+    let plan = package::plan(&project, sequence, &root);
     let total = plan.total_bytes().max(1);
     *job = Some(Job {
         child: Arc::new(Mutex::new(None)),
@@ -358,6 +368,7 @@ pub fn export_package(
 
 #[tauri::command]
 pub fn render_start(
+    sequence_id: SequenceId,
     path: String,
     settings: RenderSettings,
     app: AppHandle,
@@ -377,7 +388,14 @@ pub fn render_start(
             "another export is running",
         ));
     }
-    let plan = render::plan(state.session().editor.project(), settings, &output)?;
+    let plan = {
+        let session = state.session();
+        let project = session.editor.project();
+        let sequence = project.sequence(sequence_id).ok_or_else(|| {
+            CommandError::new(ErrorCode::NotFound, "that sequence is not in the project")
+        })?;
+        render::plan(project, sequence, settings, &output)?
+    };
 
     let mut child = Command::new(ffmpeg)
         .args(&plan.args)

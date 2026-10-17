@@ -36,6 +36,9 @@ pub enum ErrorCode {
     NeedsPath,
     /// Another render or package job is still running.
     Busy,
+    /// The UI referred to something the project does not have, such as a sequence that
+    /// was removed between the click and the command arriving.
+    NotFound,
     Io,
 }
 

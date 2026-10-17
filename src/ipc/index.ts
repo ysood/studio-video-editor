@@ -44,11 +44,14 @@ export const ipc = {
   undo: () => invoke<Snapshot>("undo"),
   redo: () => invoke<Snapshot>("redo"),
   importMedia: (paths: string[]) => invoke<ImportResponse>("media_import", { paths }),
-  exportInterchange: (format: InterchangeFormat, path: string) =>
-    invoke<void>("export_interchange", { format, path }),
-  exportPackage: (folder: string) => invoke<void>("export_package", { folder }),
-  renderStart: (path: string, settings: RenderSettings) =>
-    invoke<void>("render_start", { path, settings }),
+  // Each export names the sequence it is for: the top bar passes the one on screen,
+  // and the bin will pass the one that was right-clicked.
+  exportInterchange: (sequenceId: string, format: InterchangeFormat, path: string) =>
+    invoke<void>("export_interchange", { sequenceId, format, path }),
+  exportPackage: (sequenceId: string, folder: string) =>
+    invoke<void>("export_package", { sequenceId, folder }),
+  renderStart: (sequenceId: string, path: string, settings: RenderSettings) =>
+    invoke<void>("render_start", { sequenceId, path, settings }),
   renderCancel: () => invoke<void>("render_cancel"),
   nativeMenuActive: () => invoke<boolean>("native_menu_active"),
   // Native preview surface (ADR-0003). No-ops off macOS.

@@ -68,8 +68,9 @@ fn out_dir() -> PathBuf {
 #[test]
 fn writes_sample_interchange_files() {
     let project = sample_project();
-    let otio_text = otio::export(&project);
-    let xml_text = fcp7::export(&project);
+    let sequence = project.first_sequence();
+    let otio_text = otio::export(&project, sequence);
+    let xml_text = fcp7::export(&project, sequence);
     let dir = out_dir();
     std::fs::write(dir.join("sample.otio"), &otio_text).unwrap();
     std::fs::write(dir.join("sample.xml"), &xml_text).unwrap();

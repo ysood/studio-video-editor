@@ -8,7 +8,7 @@
 //! and overlaid in track order (V1 first, so higher tracks cover it). Each enabled audio
 //! clip is delayed to its start and mixed at unity gain.
 
-use crate::model::{MediaKind, Project, TrackKind};
+use crate::model::{MediaKind, Project, Sequence, TrackKind};
 use crate::time::{Frame, Micros, Rational};
 use serde::{Deserialize, Serialize};
 use std::fmt::Write;
@@ -60,12 +60,13 @@ pub enum RenderError {
 
 pub fn plan(
     project: &Project,
+    sequence: &Sequence,
     settings: RenderSettings,
     output: &Path,
 ) -> Result<RenderPlan, RenderError> {
-    let format = project.first_sequence().format;
+    let format = sequence.format;
     let rate = format.frame_rate;
-    let total = project.first_sequence().duration();
+    let total = sequence.duration();
     if total == 0 {
         return Err(RenderError::EmptyTimeline);
     }
@@ -91,7 +92,7 @@ pub fn plan(
     let mut video_label = "0:v".to_string();
     let mut audio_labels = vec!["1:a".to_string()];
 
-    for track in project.first_sequence().tracks.iter().filter(|t| t.enabled) {
+    for track in sequence.tracks.iter().filter(|t| t.enabled) {
         for clip in track.clips.iter().filter(|c| c.enabled) {
             let media = project
                 .media(clip.source.media_id())
@@ -229,7 +230,14 @@ mod tests {
 
     #[test]
     fn plans_one_input_per_enabled_clip() {
-        let plan = plan(&sample_edit(), H264, Path::new("/out/cut.mp4")).unwrap();
+        let project = sample_edit();
+        let plan = plan(
+            &project,
+            project.first_sequence(),
+            H264,
+            Path::new("/out/cut.mp4"),
+        )
+        .unwrap();
         // Two lavfi bases plus two video and two audio clip inputs.
         assert_eq!(plan.args.iter().filter(|a| *a == "-i").count(), 6);
         assert_eq!(plan.duration_frames, 124);
@@ -247,7 +255,14 @@ mod tests {
 
     #[test]
     fn seeks_to_source_start() {
-        let plan = plan(&sample_edit(), H264, Path::new("/out/cut.mp4")).unwrap();
+        let project = sample_edit();
+        let plan = plan(
+            &project,
+            project.first_sequence(),
+            H264,
+            Path::new("/out/cut.mp4"),
+        )
+        .unwrap();
         let seeks: Vec<_> = plan
             .args
             .windows(2)
@@ -261,7 +276,13 @@ mod tests {
     fn disabled_tracks_are_left_out() {
         let mut project = sample_edit();
         project.first_sequence_mut().tracks[1].enabled = false;
-        let plan = plan(&project, H264, Path::new("/out/cut.mp4")).unwrap();
+        let plan = plan(
+            &project,
+            project.first_sequence(),
+            H264,
+            Path::new("/out/cut.mp4"),
+        )
+        .unwrap();
         assert_eq!(plan.args.iter().filter(|a| *a == "-i").count(), 4);
     }
 
@@ -269,7 +290,12 @@ mod tests {
     fn empty_timeline_is_an_error() {
         let project = crate::testing::project_with(vec![]);
         assert_eq!(
-            plan(&project, H264, Path::new("/out/x.mp4")),
+            plan(
+                &project,
+                project.first_sequence(),
+                H264,
+                Path::new("/out/x.mp4")
+            ),
             Err(RenderError::EmptyTimeline)
         );
     }

@@ -6,29 +6,29 @@
 //! unit. Studio ids go in `metadata.studio` so a future importer can round-trip.
 
 use super::{file_url, sequence_items, Item};
-use crate::model::{Clip, Project, Track, TrackKind};
+use crate::model::{Clip, Project, Sequence, Track, TrackKind};
 use crate::time::Frame;
 use serde_json::{json, Value};
 
 /// Serialize the project's sequence as an OTIO timeline.
-pub fn export(project: &Project) -> String {
-    let rate = project.first_sequence().format.frame_rate.as_f64();
-    let tracks: Vec<Value> = ordered_tracks(project)
-        .map(|track| track_json(project, track, rate))
+pub fn export(project: &Project, sequence: &Sequence) -> String {
+    let rate = sequence.format.frame_rate.as_f64();
+    let tracks: Vec<Value> = ordered_tracks(sequence)
+        .map(|track| track_json(project, sequence, track, rate))
         .collect();
     let timeline = json!({
         "OTIO_SCHEMA": "Timeline.1",
-        "name": project.first_sequence().name,
+        "name": sequence.name,
         "global_start_time": null,
         "metadata": {
             "studio": {
                 "projectId": project.id,
-                "sequenceId": project.first_sequence().id,
+                "sequenceId": sequence.id,
                 "projectName": project.name,
-                "width": project.first_sequence().format.width,
-                "height": project.first_sequence().format.height,
-                "frameRate": project.first_sequence().format.frame_rate,
-                "sampleRate": project.first_sequence().format.sample_rate,
+                "width": sequence.format.width,
+                "height": sequence.format.height,
+                "frameRate": sequence.format.frame_rate,
+                "sampleRate": sequence.format.sample_rate,
             }
         },
         "tracks": {
@@ -47,15 +47,15 @@ pub fn export(project: &Project) -> String {
 
 /// OTIO stacks list children bottom to top; for audio the order has no visual meaning,
 /// so tracks keep document order with video first.
-fn ordered_tracks(project: &Project) -> impl Iterator<Item = &Track> {
-    let tracks = &project.first_sequence().tracks;
+fn ordered_tracks(sequence: &Sequence) -> impl Iterator<Item = &Track> {
+    let tracks = &sequence.tracks;
     tracks
         .iter()
         .filter(|t| t.kind == TrackKind::Video)
         .chain(tracks.iter().filter(|t| t.kind == TrackKind::Audio))
 }
 
-fn track_json(project: &Project, track: &Track, rate: f64) -> Value {
+fn track_json(project: &Project, sequence: &Sequence, track: &Track, rate: f64) -> Value {
     let children: Vec<Value> = sequence_items(track)
         .into_iter()
         .map(|item| match item {
@@ -68,7 +68,7 @@ fn track_json(project: &Project, track: &Track, rate: f64) -> Value {
                 "enabled": true,
                 "metadata": {},
             }),
-            Item::Clip(clip) => clip_json(project, clip, rate),
+            Item::Clip(clip) => clip_json(project, sequence, clip, rate),
         })
         .collect();
     json!({
@@ -87,12 +87,12 @@ fn track_json(project: &Project, track: &Track, rate: f64) -> Value {
     })
 }
 
-fn clip_json(project: &Project, clip: &Clip, rate: f64) -> Value {
+fn clip_json(project: &Project, sequence: &Sequence, clip: &Clip, rate: f64) -> Value {
     let media = project
         .media(clip.source.media_id())
         .expect("validated project references existing media");
     let available = media
-        .frames_at(project.first_sequence().format.frame_rate)
+        .frames_at(sequence.format.frame_rate)
         .map_or(Value::Null, |total| range(0, total, rate));
     json!({
         "OTIO_SCHEMA": "Clip.2",
@@ -142,7 +142,8 @@ mod tests {
     #[test]
     fn writes_gaps_between_clips_and_both_track_kinds() {
         let project = sample_edit();
-        let value: Value = serde_json::from_str(&export(&project)).unwrap();
+        let value: Value =
+            serde_json::from_str(&export(&project, project.first_sequence())).unwrap();
         let tracks = value["tracks"]["children"].as_array().unwrap();
         assert_eq!(tracks.len(), 2);
         assert_eq!(tracks[0]["kind"], "Video");

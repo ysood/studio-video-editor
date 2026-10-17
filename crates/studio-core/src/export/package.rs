@@ -13,8 +13,8 @@
 //! moves, and `manifest.json` carries the relative paths.
 
 use super::{fcp7, otio};
-use crate::ids::MediaId;
-use crate::model::Project;
+use crate::ids::{MediaId, SequenceId};
+use crate::model::{Project, Sequence};
 use serde_json::json;
 use std::collections::{BTreeSet, HashSet};
 use std::fs;
@@ -35,6 +35,8 @@ pub struct PackagePlan {
     pub copies: Vec<FileCopy>,
     /// The project with media paths rewritten to the packaged copies.
     pub project: Project,
+    /// The sequence being handed off. Only its media is copied.
+    pub sequence: SequenceId,
 }
 
 impl PackagePlan {
@@ -48,11 +50,10 @@ impl PackagePlan {
 }
 
 /// Decide what to copy where. Pure: no file is read or written.
-pub fn plan(project: &Project, root: &Path) -> PackagePlan {
-    let used: HashSet<MediaId> = project
-        .all_clips()
-        .map(|(_, c)| c.source.media_id())
-        .collect();
+pub fn plan(project: &Project, sequence: &Sequence, root: &Path) -> PackagePlan {
+    // Only what this sequence uses: another sequence's footage is not part of this
+    // handoff, and copying it would bloat the package with unrelated media.
+    let used: HashSet<MediaId> = sequence.clips().map(|(_, c)| c.source.media_id()).collect();
     let mut packaged = project.clone();
     let mut taken = BTreeSet::new();
     let mut copies = Vec::new();
@@ -69,6 +70,7 @@ pub fn plan(project: &Project, root: &Path) -> PackagePlan {
         root: root.to_path_buf(),
         copies,
         project: packaged,
+        sequence: sequence.id,
     }
 }
 
@@ -91,8 +93,18 @@ pub fn write(
         copied += fs::copy(&copy.from, &copy.to)?;
         on_progress(copied);
     }
-    fs::write(plan.root.join("timeline.otio"), otio::export(&plan.project))?;
-    fs::write(plan.root.join("timeline.xml"), fcp7::export(&plan.project))?;
+    let sequence = plan
+        .project
+        .sequence(plan.sequence)
+        .expect("the plan's own sequence");
+    fs::write(
+        plan.root.join("timeline.otio"),
+        otio::export(&plan.project, sequence),
+    )?;
+    fs::write(
+        plan.root.join("timeline.xml"),
+        fcp7::export(&plan.project, sequence),
+    )?;
     fs::write(plan.root.join("manifest.json"), manifest(original, plan))?;
     Ok(())
 }
@@ -191,7 +203,7 @@ mod tests {
         };
         project = crate::edit::apply(&project, &cmd).unwrap().0;
 
-        let plan = plan(&project, Path::new("/pkg"));
+        let plan = plan(&project, project.first_sequence(), Path::new("/pkg"));
         let targets: Vec<_> = plan
             .copies
             .iter()
@@ -214,7 +226,7 @@ mod tests {
         project.media[0].path = source.to_string_lossy().into_owned();
 
         let root = dir.path().join("Cut_Conform");
-        let plan = plan(&project, &root);
+        let plan = plan(&project, project.first_sequence(), &root);
         let mut reported = 0;
         write(&project, &plan, |bytes| reported = bytes).unwrap();
 

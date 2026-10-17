@@ -9,17 +9,18 @@
 
 use super::{file_url, sequence_items, Item};
 use crate::ids::{ClipId, MediaId};
-use crate::model::{Clip, MediaAsset, MediaKind, Project, Track, TrackKind};
+use crate::model::{Clip, MediaAsset, MediaKind, Project, Sequence, Track, TrackKind};
 use crate::time::{timecode, Frame, Rational};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
 
-pub fn export(project: &Project) -> String {
-    Writer::new(project).write()
+pub fn export(project: &Project, sequence: &Sequence) -> String {
+    Writer::new(project, sequence).write()
 }
 
 struct Writer<'a> {
     project: &'a Project,
+    sequence: &'a Sequence,
     out: String,
     depth: usize,
     /// Clip id to its clipitem id, track index (1-based within kind) and clip index.
@@ -36,11 +37,11 @@ struct Position {
 }
 
 impl<'a> Writer<'a> {
-    fn new(project: &'a Project) -> Self {
+    fn new(project: &'a Project, sequence: &'a Sequence) -> Self {
         let mut positions = HashMap::new();
         let mut item = 0;
         for kind in [TrackKind::Video, TrackKind::Audio] {
-            for (track_index, track) in tracks_of(project, kind).enumerate() {
+            for (track_index, track) in tracks_of(sequence, kind).enumerate() {
                 for (clip_index, clip) in track.clips.iter().enumerate() {
                     item += 1;
                     positions.insert(
@@ -57,6 +58,7 @@ impl<'a> Writer<'a> {
         }
         Self {
             project,
+            sequence,
             out: String::new(),
             depth: 0,
             positions,
@@ -65,15 +67,15 @@ impl<'a> Writer<'a> {
     }
 
     fn write(mut self) -> String {
-        let p = self.project;
-        let format = p.first_sequence().format;
+        let sequence = self.sequence;
+        let format = sequence.format;
         self.out
             .push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE xmeml>\n");
         self.open("xmeml version=\"4\"");
         self.open("sequence id=\"sequence-1\"");
-        self.text("uuid", &p.first_sequence().id.to_string());
-        self.text("name", &p.first_sequence().name);
-        self.text("duration", &p.first_sequence().duration().to_string());
+        self.text("uuid", &sequence.id.to_string());
+        self.text("name", &sequence.name);
+        self.text("duration", &sequence.duration().to_string());
         self.rate(format.frame_rate);
         self.open("timecode");
         self.rate(format.frame_rate);
@@ -93,7 +95,7 @@ impl<'a> Writer<'a> {
         self.text("fielddominance", "none");
         self.close("samplecharacteristics");
         self.close("format");
-        for track in tracks_of(p, TrackKind::Video) {
+        for track in tracks_of(sequence, TrackKind::Video) {
             self.track(track);
         }
         self.close("video");
@@ -105,7 +107,7 @@ impl<'a> Writer<'a> {
         self.text("samplerate", &format.sample_rate.to_string());
         self.close("samplecharacteristics");
         self.close("format");
-        for track in tracks_of(p, TrackKind::Audio) {
+        for track in tracks_of(sequence, TrackKind::Audio) {
             self.track(track);
         }
         self.close("audio");
@@ -130,7 +132,7 @@ impl<'a> Writer<'a> {
 
     fn clip(&mut self, kind: TrackKind, clip: &Clip) {
         let p = self.project;
-        let rate = p.first_sequence().format.frame_rate;
+        let rate = self.sequence.format.frame_rate;
         let media = p
             .media(clip.source.media_id())
             .expect("validated project references existing media");
@@ -184,7 +186,7 @@ impl<'a> Writer<'a> {
             self.line(&format!("<file id=\"{id}\"/>"));
             return;
         }
-        let rate = self.project.first_sequence().format.frame_rate;
+        let rate = self.sequence.format.frame_rate;
         self.open(&format!("file id=\"{id}\""));
         self.text("name", &media.name);
         self.text("pathurl", &file_url(&media.path, "localhost"));
@@ -239,12 +241,8 @@ impl<'a> Writer<'a> {
     }
 }
 
-fn tracks_of(project: &Project, kind: TrackKind) -> impl Iterator<Item = &Track> {
-    project
-        .first_sequence()
-        .tracks
-        .iter()
-        .filter(move |t| t.kind == kind)
+fn tracks_of(sequence: &Sequence, kind: TrackKind) -> impl Iterator<Item = &Track> {
+    sequence.tracks.iter().filter(move |t| t.kind == kind)
 }
 
 /// Media length in sequence frames. Stills have none, so use what the clip needs.
@@ -287,7 +285,8 @@ mod tests {
 
     #[test]
     fn writes_clipitems_with_timing_and_links() {
-        let xml = export(&sample_edit());
+        let project = sample_edit();
+        let xml = export(&project, project.first_sequence());
         assert!(xml.contains("<xmeml version=\"4\">"));
         assert_eq!(xml.matches("<clipitem ").count(), 4);
         assert!(xml.contains("<start>12</start>"));
@@ -304,7 +303,7 @@ mod tests {
     fn escapes_names() {
         let mut project = sample_edit();
         project.first_sequence_mut().name = "Cut <A> & \"B\"".into();
-        let xml = export(&project);
+        let xml = export(&project, project.first_sequence());
         assert!(xml.contains("<name>Cut &lt;A&gt; &amp; &quot;B&quot;</name>"));
     }
 }

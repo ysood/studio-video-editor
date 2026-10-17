@@ -5,6 +5,7 @@ import { ipc } from "../ipc";
 import { useEditor } from "../store";
 import { Actions, Button, Dialog } from "../ui";
 import "./export-dialog.css";
+import { firstSequence } from "../sequences";
 
 type Choice = "render-h264" | "render-prores" | "otio" | "fcp7" | "package";
 
@@ -28,28 +29,30 @@ export function ExportDialog({ open: isOpen, onClose }: { open: boolean; onClose
   const { notify, fail, setJob } = useEditor.getState();
 
   const name = safeName(snapshot?.project.name ?? "Untitled");
+  const sequenceId = snapshot ? firstSequence(snapshot.project).id : null;
 
   const run = async () => {
+    if (!sequenceId) return;
     try {
       if (choice === "render-h264" || choice === "render-prores") {
         const codec: VideoCodec = choice === "render-h264" ? "h264" : "proRes422Hq";
         const ext = codec === "h264" ? "mp4" : "mov";
         const path = await save({ defaultPath: `${name}.${ext}`, filters: [{ name: ext.toUpperCase(), extensions: [ext] }] });
         if (!path) return;
-        await ipc.renderStart(path, { codec });
+        await ipc.renderStart(sequenceId, path, { codec });
         setJob({ kind: "render", fraction: 0 });
         notify("info", `Rendering ${path}`);
       } else if (choice === "otio" || choice === "fcp7") {
         const ext = choice === "otio" ? "otio" : "xml";
         const path = await save({ defaultPath: `${name}.${ext}`, filters: [{ name: ext.toUpperCase(), extensions: [ext] }] });
         if (!path) return;
-        await ipc.exportInterchange(choice === "otio" ? "otio" : "fcp7Xml", path);
+        await ipc.exportInterchange(sequenceId, choice === "otio" ? "otio" : "fcp7Xml", path);
         notify("info", `Exported ${path}`);
       } else {
         const parent = await open({ directory: true, multiple: false, title: "Choose where to create the package" });
         if (typeof parent !== "string") return;
         const folder = `${parent.replace(/\/$/, "")}/${name}_Conform`;
-        await ipc.exportPackage(folder);
+        await ipc.exportPackage(sequenceId, folder);
         setJob({ kind: "package", fraction: 0 });
         notify("info", `Packaging into ${folder}`);
       }

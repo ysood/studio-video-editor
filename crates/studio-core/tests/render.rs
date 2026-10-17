@@ -127,6 +127,7 @@ fn renders_sequence_with_gaps_and_linked_audio() {
     let output = dir.path().join("out.mp4");
     let render = plan(
         editor.project(),
+        editor.project().first_sequence(),
         RenderSettings {
             codec: VideoCodec::H264,
         },
