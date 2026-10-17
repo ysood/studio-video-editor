@@ -1,51 +1,51 @@
 .bin-list {
   margin: 0;
-  padding: 4px 0;
+  padding: var(--space-2) 0;
   list-style: none;
 }
 
 .bin-row {
   display: grid;
-  grid-template-columns: 28px 1fr auto;
+  grid-template-columns: var(--size-swatch) 1fr auto;
   grid-template-areas:
     "swatch name duration"
     "swatch meta duration";
-  column-gap: 8px;
+  column-gap: var(--space-4);
   align-items: center;
-  padding: 5px 10px;
-  border-left: 2px solid transparent;
+  padding: var(--space-2) var(--space-5);
+  border-left: var(--border-focus-width) solid transparent;
 }
 
 .bin-row:hover {
-  background: var(--ink-2);
+  background: var(--color-surface-raised);
 }
 
 .bin-row[aria-selected="true"] {
-  background: var(--ink-2);
-  border-left-color: var(--time);
+  background: var(--color-surface-raised);
+  border-left-color: var(--color-accent-base);
 }
 
 .bin-swatch {
   grid-area: swatch;
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-s);
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.85);
+  width: var(--size-swatch);
+  height: var(--size-swatch);
+  border-radius: var(--radius-control);
+  font: var(--type-caption);
+  color: var(--color-text-on-media);
 }
 
 .bin-swatch-video {
-  background: var(--video);
+  background: var(--color-media-video);
 }
 
 .bin-swatch-image {
-  background: color-mix(in srgb, var(--video) 55%, var(--ink-3));
+  background: var(--color-media-image);
 }
 
 .bin-swatch-audio {
-  background: var(--audio);
+  background: var(--color-media-audio);
 }
 
 .bin-name {
@@ -57,17 +57,17 @@
 
 .bin-meta {
   grid-area: meta;
-  color: var(--text-muted);
-  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  font: var(--type-caption);
 }
 
 .bin-duration {
   grid-area: duration;
-  color: var(--text-muted);
-  font-size: var(--text-s);
+  color: var(--color-text-secondary);
+  font: var(--type-label);
 }
 
 .bin-offline {
-  color: var(--danger);
+  color: var(--color-status-danger);
   font-style: normal;
 }

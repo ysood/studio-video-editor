@@ -1,41 +1,40 @@
 .timeline-timecode {
-  min-width: 96px;
-  color: var(--time);
-  font-size: var(--text-l);
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  min-width: var(--size-timecode-min);
+  color: var(--color-accent-base);
+  font: var(--type-timecode);
+  letter-spacing: var(--type-timecode-tracking);
 }
 
 .toolbar-gap {
-  width: 8px;
+  width: var(--space-4);
 }
 
 .timeline-zoom {
-  width: 120px;
-  accent-color: var(--time);
+  width: var(--size-zoom-slider);
+  accent-color: var(--color-accent-base);
 }
 
 .timeline-body {
   overflow-x: hidden;
   overflow-y: auto;
-  background: var(--ink-0);
+  background: var(--color-surface-base);
 }
 
 .timeline-grid {
   display: grid;
-  grid-template-columns: 148px 1fr;
+  grid-template-columns: var(--timeline-header-width) 1fr;
   min-height: 100%;
 }
 
 .timeline-headers {
   position: relative;
-  border-right: 1px solid var(--line-soft);
-  background: var(--ink-1);
+  border-right: var(--border-width) solid var(--color-border-subtle);
+  background: var(--color-surface-panel);
 }
 
 .timeline-ruler-corner {
-  height: 26px;
-  border-bottom: 1px solid var(--line-soft);
+  height: var(--timeline-ruler-height);
+  border-bottom: var(--border-width) solid var(--color-border-subtle);
 }
 
 .track-header {
@@ -44,20 +43,19 @@
   right: 0;
   display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 0 6px 0 10px;
-  background: var(--ink-2);
-  border-left: 3px solid var(--video);
+  gap: var(--space-1);
+  padding: 0 var(--space-3) 0 var(--space-5);
+  background: var(--color-surface-raised);
+  border-left: var(--timeline-header-stripe) solid var(--color-media-video);
 }
 
 .track-header-audio {
-  border-left-color: var(--audio);
+  border-left-color: var(--color-media-audio);
 }
 
 .track-name {
   flex: 1;
-  font-weight: 600;
-  font-size: var(--text-s);
+  font: var(--type-heading);
 }
 
 .track-remove {
@@ -85,8 +83,7 @@
 
 .timeline-hint {
   position: absolute;
-  top: 40px;
-  margin: 0;
-  color: var(--text-muted);
+  top: calc(var(--timeline-ruler-height) + var(--space-6));
+  color: var(--color-text-secondary);
   pointer-events: none;
 }

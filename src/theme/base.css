@@ -1,0 +1,62 @@
+/*
+  Document base. Every value comes from the active theme (src/theme/themes/*), which
+  src/theme/runtime.ts writes onto :root as CSS variables before the first render.
+  Nothing in src/ outside src/theme may hardcode a color, size or font: `npm run
+  check:design` enforces it.
+*/
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--color-surface-base);
+  color: var(--color-text-primary);
+  font: var(--type-body);
+  letter-spacing: var(--type-body-tracking);
+  -webkit-font-smoothing: antialiased;
+  accent-color: var(--color-accent-base);
+  -webkit-user-select: none;
+  user-select: none;
+  overflow: hidden;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+:focus-visible {
+  outline: var(--border-focus-width) solid var(--color-accent-base);
+  outline-offset: var(--border-width);
+}
+
+/* Numbers that must not jitter as they change: timecode, durations, sizes. */
+.numeric {
+  font-family: var(--font-numeric);
+  font-variant-numeric: var(--font-numeric-variant);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}

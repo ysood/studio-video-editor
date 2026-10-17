@@ -15,7 +15,7 @@ export function StatusBar() {
           <div className="progress" aria-hidden>
             <div style={{ width: `${Math.round(job.fraction * 100)}%` }} />
           </div>
-          <span className="tabular">{Math.round(job.fraction * 100)}%</span>
+          <span className="numeric">{Math.round(job.fraction * 100)}%</span>
         </>
       )}
       {snapshot && <span>{snapshot.path ?? "Not saved yet"}</span>}

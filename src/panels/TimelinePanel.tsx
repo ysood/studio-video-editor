@@ -394,7 +394,7 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
   return (
     <div className="panel">
       <div className="panel-toolbar">
-        <span className="timeline-timecode tabular" aria-label="Playhead">
+        <span className="timeline-timecode numeric" aria-label="Playhead">
           {timecode(playhead, rate)}
         </span>
         <button className="btn" onClick={splitAtPlayhead} title="Split at playhead (S)">Split</button>

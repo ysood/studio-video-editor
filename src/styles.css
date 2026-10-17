@@ -1,81 +1,9 @@
-/*
-  Studio tokens. The canvas is neutral graphite on purpose: editors judge picture against
-  the UI, so the chrome carries no hue. Color is reserved for meaning: steel blue for
-  video, sea green for audio, and amber for time (playhead, timecode, selection).
-*/
-:root {
-  color-scheme: dark;
+/* App frame: top bar, workspace, status bar, shared controls, and Dockview retuned to
+   the theme. Values come from theme variables only (see src/theme). */
 
-  --ink-0: #18191b; /* app background, viewer surround */
-  --ink-1: #1f2023; /* panels */
-  --ink-2: #26282c; /* raised controls, track headers */
-  --ink-3: #303237; /* hover, inputs */
-  --line: #3a3c42;
-  --line-soft: #2d2f33;
-
-  --text: #e4e4e7;
-  --text-muted: #9b9ca3;
-  --text-faint: #6c6e75;
-
-  --video: #4d79a8;
-  --video-edge: #6e97c4;
-  --audio: #3d8a77;
-  --audio-edge: #5fae99;
-  --time: #f0b545; /* playhead, timecode, selection */
-  --danger: #e0645a;
-
-  --radius-s: 3px;
-  --radius-m: 6px;
-
-  --font-ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
-  --text-xs: 11px;
-  --text-s: 12px;
-  --text-m: 13px;
-  --text-l: 15px;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
-}
-
-body {
-  background: var(--ink-0);
-  color: var(--text);
-  font: var(--text-m) / 1.4 var(--font-ui);
-  -webkit-font-smoothing: antialiased;
-  accent-color: var(--time);
-  -webkit-user-select: none;
-  user-select: none;
-  overflow: hidden;
-}
-
-button,
-input,
-select {
-  font: inherit;
-  color: inherit;
-}
-
-:focus-visible {
-  outline: 2px solid var(--time);
-  outline-offset: 1px;
-}
-
-.tabular {
-  font-variant-numeric: tabular-nums;
-}
-
-/* App frame */
 .app {
   display: grid;
-  grid-template-rows: 40px 1fr 24px;
+  grid-template-rows: var(--size-topbar) 1fr var(--size-statusbar);
   height: 100%;
 }
 
@@ -87,112 +15,113 @@ select {
 .btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  height: 26px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-s);
-  background: var(--ink-2);
+  gap: var(--space-3);
+  height: var(--size-control);
+  padding: 0 var(--space-5);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-raised);
+  font: var(--type-body);
   cursor: default;
 }
 
 .btn:hover:not(:disabled) {
-  background: var(--ink-3);
+  background: var(--color-surface-hover);
 }
 
 .btn:disabled {
-  color: var(--text-faint);
+  color: var(--color-text-tertiary);
 }
 
 .btn-primary {
   border-color: transparent;
-  background: var(--time);
-  color: #1d1606;
-  font-weight: 600;
+  background: var(--color-accent-base);
+  color: var(--color-text-on-accent);
+  font-weight: var(--type-heading-weight);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #f6c565;
+  background: var(--color-accent-hover);
 }
 
 .icon-btn {
   display: inline-grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  width: var(--size-control-small);
+  height: var(--size-control-small);
   border: 0;
-  border-radius: var(--radius-s);
+  border-radius: var(--radius-control);
   background: transparent;
-  color: var(--text-muted);
+  color: var(--color-text-secondary);
 }
 
 .icon-btn:hover {
-  background: var(--ink-3);
-  color: var(--text);
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
 }
 
 .icon-btn[aria-pressed="true"] {
-  color: var(--time);
+  color: var(--color-accent-base);
 }
 
 /* Top bar */
 .topbar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 10px;
-  border-bottom: 1px solid var(--line-soft);
-  background: var(--ink-1);
+  gap: var(--space-4);
+  padding: 0 var(--space-5);
+  border-bottom: var(--border-width) solid var(--color-border-subtle);
+  background: var(--color-surface-panel);
 }
 
 .topbar-title {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-4);
   min-width: 0;
   margin-right: auto;
 }
 
 .topbar-title strong {
-  font-size: var(--text-l);
-  font-weight: 600;
+  font: var(--type-title);
+  letter-spacing: var(--type-title-tracking);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .topbar-title span {
-  color: var(--text-muted);
-  font-size: var(--text-s);
+  color: var(--color-text-secondary);
+  font: var(--type-label);
 }
 
 .dirty-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--time);
+  width: var(--size-dot);
+  height: var(--size-dot);
+  border-radius: var(--radius-round);
+  background: var(--color-accent-base);
   align-self: center;
 }
 
 .topbar-group {
   display: flex;
-  gap: 4px;
+  gap: var(--space-2);
 }
 
 /* Status bar */
 .statusbar {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 0 10px;
-  border-top: 1px solid var(--line-soft);
-  background: var(--ink-1);
-  color: var(--text-muted);
-  font-size: var(--text-xs);
+  gap: var(--space-7);
+  padding: 0 var(--space-5);
+  border-top: var(--border-width) solid var(--color-border-subtle);
+  background: var(--color-surface-panel);
+  color: var(--color-text-secondary);
+  font: var(--type-caption);
 }
 
 .statusbar .error {
-  color: var(--danger);
+  color: var(--color-status-danger);
 }
 
 .statusbar .push {
@@ -200,16 +129,16 @@ select {
 }
 
 .progress {
-  width: 120px;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--ink-3);
+  width: var(--size-progress-width);
+  height: var(--size-progress-height);
+  border-radius: var(--radius-round);
+  background: var(--color-surface-hover);
   overflow: hidden;
 }
 
 .progress > div {
   height: 100%;
-  background: var(--time);
+  background: var(--color-accent-base);
 }
 
 /* Panels */
@@ -217,17 +146,17 @@ select {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--ink-1);
+  background: var(--color-surface-panel);
   overflow: hidden;
 }
 
 .panel-toolbar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 8px;
-  border-bottom: 1px solid var(--line-soft);
+  gap: var(--space-3);
+  height: var(--size-toolbar);
+  padding: 0 var(--space-4);
+  border-bottom: var(--border-width) solid var(--color-border-subtle);
   flex: none;
 }
 
@@ -240,39 +169,39 @@ select {
 .empty {
   display: grid;
   place-content: center;
-  gap: 10px;
+  gap: var(--space-5);
   height: 100%;
-  padding: 16px;
-  color: var(--text-muted);
+  padding: var(--space-7);
+  color: var(--color-text-secondary);
   text-align: center;
 }
 
 .empty p {
-  margin: 0;
   max-width: 34ch;
 }
 
-/* Dockview, retuned to the tokens above. */
+/* Dockview, mapped onto the theme. */
 .app .dockview-theme-dark {
-  --dv-group-view-background-color: var(--ink-1);
-  --dv-tabs-and-actions-container-background-color: var(--ink-0);
-  --dv-tabs-and-actions-container-height: 28px;
-  --dv-tabs-and-actions-container-font-size: var(--text-s);
-  --dv-activegroup-visiblepanel-tab-background-color: var(--ink-1);
-  --dv-activegroup-visiblepanel-tab-color: var(--text);
-  --dv-inactivegroup-visiblepanel-tab-background-color: var(--ink-1);
-  --dv-inactivegroup-visiblepanel-tab-color: var(--text-muted);
-  --dv-activegroup-hiddenpanel-tab-background-color: var(--ink-0);
-  --dv-activegroup-hiddenpanel-tab-color: var(--text-muted);
-  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--ink-0);
-  --dv-inactivegroup-hiddenpanel-tab-color: var(--text-faint);
-  --dv-separator-border: var(--ink-0);
+  --dv-group-view-background-color: var(--color-surface-panel);
+  --dv-tabs-and-actions-container-background-color: var(--color-surface-base);
+  --dv-tabs-and-actions-container-height: var(--size-tabbar);
+  --dv-tabs-and-actions-container-font-size: var(--type-label-size);
+  --dv-activegroup-visiblepanel-tab-background-color: var(--color-surface-panel);
+  --dv-activegroup-visiblepanel-tab-color: var(--color-text-primary);
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--color-surface-panel);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--color-text-secondary);
+  --dv-activegroup-hiddenpanel-tab-background-color: var(--color-surface-base);
+  --dv-activegroup-hiddenpanel-tab-color: var(--color-text-secondary);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: var(--color-surface-base);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--color-text-tertiary);
+  --dv-separator-border: var(--color-surface-base);
   --dv-sash-color: transparent;
-  --dv-active-sash-color: var(--time);
+  --dv-active-sash-color: var(--color-accent-base);
   --dv-tab-divider-color: transparent;
-  --dv-drag-over-background-color: rgba(240, 181, 69, 0.12);
-  --dv-drag-over-border-color: var(--time);
-  background: var(--ink-0);
+  --dv-drag-over-background-color: var(--color-accent-wash);
+  --dv-drag-over-border-color: var(--color-accent-base);
+  background: var(--color-surface-base);
+  font-family: var(--font-ui);
 }
 
 /* Every panel is part of the editor; closing one would leave no way to get it back. */

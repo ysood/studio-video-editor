@@ -1,44 +1,43 @@
 .inspector {
-  padding: 4px 0 16px;
+  padding: var(--space-2) 0 var(--space-7);
 }
 
 .inspector-section {
-  padding: 10px 12px 12px;
-  border-bottom: 1px solid var(--line-soft);
+  padding: var(--space-5) var(--space-6) var(--space-6);
+  border-bottom: var(--border-width) solid var(--color-border-subtle);
 }
 
 .inspector-section h2 {
-  margin: 0 0 8px;
-  font-size: var(--text-s);
-  font-weight: 600;
-  color: var(--text-muted);
+  margin-bottom: var(--space-4);
+  font: var(--type-heading);
+  color: var(--color-text-secondary);
 }
 
 .inspector-row {
   display: grid;
-  grid-template-columns: 104px 1fr;
+  grid-template-columns: var(--size-field-label) 1fr;
   align-items: center;
-  gap: 8px;
-  min-height: 28px;
-  font-size: var(--text-s);
+  gap: var(--space-4);
+  min-height: var(--size-control);
+  font: var(--type-label);
 }
 
 .inspector-row > span:first-child {
-  color: var(--text-muted);
+  color: var(--color-text-secondary);
 }
 
 .inspector-input {
   width: 100%;
-  height: 24px;
-  padding: 0 6px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-s);
-  background: var(--ink-0);
+  height: var(--size-field);
+  padding: 0 var(--space-3);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-input);
   user-select: text;
 }
 
 .inspector-input:disabled {
-  color: var(--text-faint);
+  color: var(--color-text-tertiary);
 }
 
 .inspector-value {
@@ -53,14 +52,14 @@
 }
 
 .inspector-note {
-  margin: 8px 12px 0;
-  color: var(--text-faint);
-  font-size: var(--text-xs);
+  margin: var(--space-4) var(--space-6) 0;
+  color: var(--color-text-tertiary);
+  font: var(--type-caption);
 }
 
 .inspector-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  padding: 12px;
+  gap: var(--space-3);
+  padding: var(--space-6);
 }

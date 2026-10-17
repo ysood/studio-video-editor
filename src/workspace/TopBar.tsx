@@ -15,7 +15,7 @@ export function TopBar({ onExport }: { onExport: () => void }) {
         <strong>{snapshot?.project.name ?? "Studio"}</strong>
         {history?.dirty && <span className="dirty-dot" title="Unsaved changes" />}
         {format && (
-          <span className="tabular">
+          <span className="numeric">
             {format.width}×{format.height}, {(format.frameRate.num / format.frameRate.den).toFixed(3).replace(/\.?0+$/, "")} fps
           </span>
         )}

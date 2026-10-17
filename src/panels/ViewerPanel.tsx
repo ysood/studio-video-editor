@@ -184,7 +184,7 @@ export function ViewerPanel() {
         </div>
       </div>
       <div className="viewer-transport">
-        <span className="viewer-timecode tabular">{timecode(playhead, rate)}</span>
+        <span className="viewer-timecode numeric">{timecode(playhead, rate)}</span>
         <div className="viewer-buttons">
           <button className="icon-btn" title="Go to start (Home)" onClick={() => setPlayhead(0)} aria-label="Go to start">
             ⏮
@@ -208,7 +208,7 @@ export function ViewerPanel() {
             ⏭
           </button>
         </div>
-        <span className="viewer-duration tabular" title={`${framesToSeconds(end, rate).toFixed(2)} s`}>
+        <span className="viewer-duration numeric" title={`${framesToSeconds(end, rate).toFixed(2)} s`}>
           {timecode(end, rate)}
         </span>
       </div>

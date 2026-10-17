@@ -88,7 +88,7 @@ function CommitInput({
   useEffect(() => setDraft(value), [value]);
   return (
     <input
-      className="inspector-input tabular"
+      className="inspector-input numeric"
       type={type}
       value={draft}
       disabled={disabled}
@@ -168,13 +168,13 @@ function ClipDetails({ project, entry }: { project: Project; entry: { clip: Clip
           />
         </Row>
         <Row label="In">
-          <span className="inspector-value tabular">{timecode(clip.start, rate)}</span>
+          <span className="inspector-value numeric">{timecode(clip.start, rate)}</span>
         </Row>
         <Row label="Out">
-          <span className="inspector-value tabular">{timecode(clip.start + clip.duration, rate)}</span>
+          <span className="inspector-value numeric">{timecode(clip.start + clip.duration, rate)}</span>
         </Row>
         <Row label="Source in">
-          <span className="inspector-value tabular">{timecode(clip.source.sourceStart, rate)}</span>
+          <span className="inspector-value numeric">{timecode(clip.source.sourceStart, rate)}</span>
         </Row>
       </Section>
       {media && (
@@ -186,14 +186,14 @@ function ClipDetails({ project, entry }: { project: Project; entry: { clip: Clip
           </Row>
           {media.video && (
             <Row label="Picture">
-              <span className="inspector-value tabular">
+              <span className="inspector-value numeric">
                 {media.video.width}×{media.video.height}, {formatRate(media.video.frameRate)} fps, {media.video.codec}
               </span>
             </Row>
           )}
           {media.audio && (
             <Row label="Sound">
-              <span className="inspector-value tabular">
+              <span className="inspector-value numeric">
                 {media.audio.sampleRate} Hz, {media.audio.channels} ch, {media.audio.codec}
               </span>
             </Row>

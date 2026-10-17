@@ -90,8 +90,8 @@ export function MediaBinPanel() {
                   {m.kind === "audio" ? "♪" : m.kind === "image" ? "▣" : "▶"}
                 </span>
                 <span className="bin-name">{m.name}</span>
-                <span className="bin-meta tabular">{describe(m)}</span>
-                <span className="bin-duration tabular">
+                <span className="bin-meta numeric">{describe(m)}</span>
+                <span className="bin-duration numeric">
                   {offline.has(m.id) ? <em className="bin-offline">Offline</em> : formatDuration(m.durationUs)}
                 </span>
               </li>

@@ -35,19 +35,19 @@ function palette() {
   const css = getComputedStyle(document.documentElement);
   const v = (name: string) => css.getPropertyValue(name).trim();
   return {
-    bg: v("--ink-0"),
-    row: v("--ink-1"),
-    rowLocked: v("--ink-2"),
-    line: v("--line-soft"),
-    text: v("--text"),
-    muted: v("--text-muted"),
-    faint: v("--text-faint"),
-    video: v("--video"),
-    videoEdge: v("--video-edge"),
-    audio: v("--audio"),
-    audioEdge: v("--audio-edge"),
-    time: v("--time"),
-    danger: v("--danger"),
+    bg: v("--color-surface-base"),
+    row: v("--color-surface-panel"),
+    rowLocked: v("--color-surface-locked"),
+    line: v("--color-border-subtle"),
+    text: v("--color-text-primary"),
+    muted: v("--color-text-secondary"),
+    faint: v("--color-text-tertiary"),
+    video: v("--color-media-video"),
+    videoEdge: v("--color-media-video-edge"),
+    audio: v("--color-media-audio"),
+    audioEdge: v("--color-media-audio-edge"),
+    time: v("--color-accent-base"),
+    danger: v("--color-status-danger"),
     font: v("--font-ui"),
   };
 }
