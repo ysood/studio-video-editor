@@ -22,7 +22,10 @@
   flex: none;
 }
 
+/* Bottom strips line up across panels, whatever they contain, so the rule that closes
+   one panel continues into its neighbour. */
 .ui-panel-toolbar[data-placement="bottom"] {
+  height: var(--size-panel-footer);
   border-top: var(--border-width) solid var(--color-border-subtle);
   border-bottom: 0;
 }

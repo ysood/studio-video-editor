@@ -155,7 +155,8 @@ export interface Theme {
     statusbar: number;
     toolbar: number;
     tabbar: number;
-    transport: number;
+    /** Bottom strip of a panel: the viewer transport, the bin's view controls. */
+    panelFooter: number;
     playButton: number;
     swatch: number;
     icon: number;

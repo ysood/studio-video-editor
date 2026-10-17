@@ -91,7 +91,7 @@ export const graphiteTheme: Theme = {
     statusbar: 24,
     toolbar: 32,
     tabbar: 28,
-    transport: 52,
+    panelFooter: 40,
     playButton: 34,
     swatch: 28,
     icon: 14,

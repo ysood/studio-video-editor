@@ -16,7 +16,7 @@ export const graphiteCompactTheme: Theme = {
     statusbar: 22,
     toolbar: 28,
     tabbar: 24,
-    transport: 44,
+    panelFooter: 34,
     playButton: 28,
     swatch: 22,
   },

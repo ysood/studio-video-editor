@@ -212,7 +212,7 @@ export function ViewerPanel() {
         </div>
       </div>
       <div className="viewer-transport">
-        <Timecode frame={playhead} rate={rate} size="display" label="Playhead" />
+        <Timecode frame={playhead} rate={rate} label="Playhead" />
         <div className="viewer-buttons">
           <IconButton icon="toStart" label="Go to start (Home)" onClick={() => setPlayhead(0)} />
           <IconButton icon="stepBack" label="Back one frame (←)" onClick={() => setPlayhead(playhead - 1)} />

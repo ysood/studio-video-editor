@@ -140,7 +140,7 @@
 }
 
 .gallery-empty {
-  height: calc(var(--size-transport) * 3);
+  height: calc(var(--size-panel-footer) * 3);
   margin-top: var(--space-7);
   border: var(--border-width) dashed var(--color-border-strong);
   border-radius: var(--radius-dialog);
