@@ -2,7 +2,7 @@
 //! that fails is never committed or opened.
 
 use crate::ids::{ClipId, LinkId, MediaId};
-use crate::model::{ClipSource, MediaKind, Project, TrackKind, SCHEMA_VERSION};
+use crate::model::{ClipSource, MediaKind, Project, Sequence, TrackKind, SCHEMA_VERSION};
 use crate::time::Frame;
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
@@ -43,6 +43,8 @@ pub enum ValidationError {
     InvalidLink { link: LinkId },
     #[error("media {media} has no usable stream")]
     InvalidMedia { media: MediaId },
+    #[error("a project needs at least one sequence")]
+    NoSequences,
 }
 
 impl Project {
@@ -55,47 +57,25 @@ impl Project {
             });
         }
         check_name(&self.name)?;
-        check_name(&self.sequence.name)?;
-        self.validate_format()?;
+        // Every other check assumes a sequence exists, and so does first_sequence.
+        if self.sequences.is_empty() {
+            return Err(ValidationError::NoSequences);
+        }
         self.validate_unique_ids()?;
         self.validate_media()?;
-        self.validate_tracks()?;
+        for sequence in &self.sequences {
+            check_name(&sequence.name)?;
+            validate_format(sequence)?;
+            self.validate_tracks(sequence)?;
+        }
         self.validate_links()
     }
-
-    fn validate_format(&self) -> Result<(), ValidationError> {
-        let f = &self.sequence.format;
-        let fail = |reason: &str| {
-            Err(ValidationError::InvalidFormat {
-                reason: reason.into(),
-            })
-        };
-        if !f.frame_rate.is_valid() || f.frame_rate.as_f64() > 240.0 {
-            return fail("frame rate must be positive and at most 240");
-        }
-        // H.264 and ProRes 4:2:2 need even dimensions.
-        if f.width == 0
-            || f.height == 0
-            || !f.width.is_multiple_of(2)
-            || !f.height.is_multiple_of(2)
-        {
-            return fail("width and height must be positive and even");
-        }
-        if f.width > MAX_DIMENSION || f.height > MAX_DIMENSION {
-            return fail("width and height must be at most 8192");
-        }
-        if !SAMPLE_RATES.contains(&f.sample_rate) {
-            return fail("sample rate must be 44100, 48000 or 96000");
-        }
-        Ok(())
-    }
-
     fn validate_unique_ids(&self) -> Result<(), ValidationError> {
         let mut seen = HashSet::new();
         let ids = std::iter::once(self.id.0)
-            .chain(std::iter::once(self.sequence.id.0))
             .chain(self.media.iter().map(|m| m.id.0))
-            .chain(self.sequence.tracks.iter().map(|t| t.id.0))
+            .chain(self.sequences.iter().map(|s| s.id.0))
+            .chain(self.tracks().map(|t| t.id.0))
             .chain(self.all_clips().map(|(_, c)| c.id.0));
         for id in ids {
             if !seen.insert(id) {
@@ -120,9 +100,9 @@ impl Project {
         Ok(())
     }
 
-    fn validate_tracks(&self) -> Result<(), ValidationError> {
-        let rate = self.sequence.format.frame_rate;
-        for track in &self.sequence.tracks {
+    fn validate_tracks(&self, sequence: &Sequence) -> Result<(), ValidationError> {
+        let rate = sequence.format.frame_rate;
+        for track in &sequence.tracks {
             check_name(&track.name)?;
             let mut previous_end: Option<(ClipId, Frame)> = None;
             for clip in &track.clips {
@@ -170,17 +150,25 @@ impl Project {
 
     fn validate_links(&self) -> Result<(), ValidationError> {
         let mut groups: HashMap<LinkId, Vec<_>> = HashMap::new();
-        for (track, clip) in self.all_clips() {
-            if let Some(link) = clip.link {
-                groups.entry(link).or_default().push((track.id, clip));
+        for sequence in &self.sequences {
+            for (track, clip) in sequence.clips() {
+                if let Some(link) = clip.link {
+                    groups
+                        .entry(link)
+                        .or_default()
+                        .push((sequence.id, track.id, clip));
+                }
             }
         }
         for (link, members) in groups {
-            let first = members[0].1;
+            let (home, _, first) = members[0];
             let mut tracks = HashSet::new();
+            // A group also has to live in one sequence: clips in different sequences
+            // cannot move together, and their frames are counted at different rates.
             let consistent = members.len() >= 2
-                && members.iter().all(|(track_id, c)| {
-                    tracks.insert(*track_id)
+                && members.iter().all(|(sequence_id, track_id, c)| {
+                    *sequence_id == home
+                        && tracks.insert(*track_id)
                         && c.start == first.start
                         && c.duration == first.duration
                         && c.source == first.source
@@ -191,6 +179,31 @@ impl Project {
         }
         Ok(())
     }
+}
+
+/// Format rules apply to each sequence on its own: every sequence carries its own
+/// size and rate, and they do not have to agree.
+fn validate_format(sequence: &Sequence) -> Result<(), ValidationError> {
+    let f = &sequence.format;
+    let fail = |reason: &str| {
+        Err(ValidationError::InvalidFormat {
+            reason: reason.into(),
+        })
+    };
+    if !f.frame_rate.is_valid() || f.frame_rate.as_f64() > 240.0 {
+        return fail("frame rate must be positive and at most 240");
+    }
+    // H.264 and ProRes 4:2:2 need even dimensions.
+    if f.width == 0 || f.height == 0 || !f.width.is_multiple_of(2) || !f.height.is_multiple_of(2) {
+        return fail("width and height must be positive and even");
+    }
+    if f.width > MAX_DIMENSION || f.height > MAX_DIMENSION {
+        return fail("width and height must be at most 8192");
+    }
+    if !SAMPLE_RATES.contains(&f.sample_rate) {
+        return fail("sample rate must be 44100, 48000 or 96000");
+    }
+    Ok(())
 }
 
 fn check_name(name: &str) -> Result<(), ValidationError> {
@@ -204,7 +217,7 @@ fn check_name(name: &str) -> Result<(), ValidationError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{Clip, SequenceFormat};
+    use crate::model::{Clip, Sequence, SequenceFormat};
     use crate::testing::{media_with_av, project_with, still_image};
 
     fn clip_on(project: &mut Project, track_index: usize, start: Frame, duration: Frame) -> ClipId {
@@ -222,7 +235,7 @@ mod tests {
             },
         };
         let id = clip.id;
-        let clips = &mut project.sequence.tracks[track_index].clips;
+        let clips = &mut project.first_sequence_mut().tracks[track_index].clips;
         clips.push(clip);
         clips.sort_by_key(|c| c.start);
         id
@@ -256,7 +269,7 @@ mod tests {
     #[test]
     fn rejects_odd_dimensions() {
         let mut p = project_with(vec![]);
-        p.sequence.format.width = 1921;
+        p.first_sequence_mut().format.width = 1921;
         assert!(matches!(
             p.validate(),
             Err(ValidationError::InvalidFormat { .. })
@@ -264,10 +277,49 @@ mod tests {
     }
 
     #[test]
+    fn rejects_a_project_with_no_sequences() {
+        let mut p = project_with(vec![]);
+        p.sequences.clear();
+        assert!(matches!(p.validate(), Err(ValidationError::NoSequences)));
+    }
+
+    #[test]
+    fn rejects_a_link_that_spans_two_sequences() {
+        // Clips in different sequences cannot move together, and their frames are
+        // counted at each sequence's own rate, so a link across them is meaningless.
+        let mut p = project_with(vec![media_with_av(10)]);
+        clip_on(&mut p, 0, 0, 24);
+        let link = LinkId::new();
+        p.first_sequence_mut().tracks[0].clips[0].link = Some(link);
+
+        let format = p.first_sequence().format;
+        let mut second = Sequence::new("Sequence 2", format);
+        let mut clip = p.first_sequence().tracks[0].clips[0].clone();
+        clip.id = crate::ids::ClipId::new();
+        clip.link = Some(link);
+        second.tracks[0].clips.push(clip);
+        p.sequences.push(second);
+
+        assert!(matches!(
+            p.validate(),
+            Err(ValidationError::InvalidLink { .. })
+        ));
+    }
+
+    #[test]
+    fn accepts_two_sequences_with_different_formats() {
+        let mut p = project_with(vec![]);
+        let mut other = p.first_sequence().format;
+        other.frame_rate = crate::time::Rational::new(25, 1);
+        p.sequences.push(Sequence::new("Sequence 2", other));
+        assert!(p.validate().is_ok());
+    }
+
+    #[test]
     fn rejects_singleton_link() {
         let mut p = project_with(vec![media_with_av(10)]);
         clip_on(&mut p, 0, 0, 24);
-        p.sequence.tracks[0].clips[0].link = Some(LinkId::new());
+        p.first_sequence_mut().tracks[0].clips[0].link = Some(LinkId::new());
         assert!(matches!(
             p.validate(),
             Err(ValidationError::InvalidLink { .. })

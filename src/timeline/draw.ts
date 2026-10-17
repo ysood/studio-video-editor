@@ -9,6 +9,7 @@ import type { TrackId } from "../bindings/TrackId";
 import { timecode } from "../format";
 import { canvasFont, type ColorRoles, type Theme } from "../theme";
 import { clipEnd, frameToX, tickStep, type Row, type View } from "./geometry";
+import { firstSequence } from "../sequences";
 
 /** A clip drawn somewhere other than where the document has it (drag preview). */
 export interface Ghost {
@@ -40,7 +41,7 @@ export function draw(ctx: CanvasRenderingContext2D, scene: Scene) {
   const { theme, view, width, height, rows, project } = scene;
   const c = scene.colors;
   const m = theme.timeline;
-  const rate = project.sequence.format.frameRate;
+  const rate = firstSequence(project).format.frameRate;
   const fps = Math.round(rate.num / rate.den);
 
   ctx.clearRect(0, 0, width, height);

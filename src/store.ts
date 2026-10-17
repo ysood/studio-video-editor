@@ -11,6 +11,7 @@ import type { SequenceFormat } from "./bindings/SequenceFormat";
 import type { Snapshot } from "./bindings/Snapshot";
 import type { ToolsStatus } from "./bindings/ToolsStatus";
 import { errorMessage, ipc } from "./ipc";
+import { firstSequence } from "./sequences";
 
 export interface StatusMessage {
   kind: "info" | "error";
@@ -72,7 +73,7 @@ interface EditorState {
 /** Keep only selected ids that still exist after the project changed. */
 function pruneSelection(selection: ClipId[], snapshot: Snapshot): ClipId[] {
   const live = new Set<string>();
-  for (const track of snapshot.project.sequence.tracks) {
+  for (const track of firstSequence(snapshot.project).tracks) {
     for (const clip of track.clips) live.add(clip.id);
   }
   return selection.filter((id) => live.has(id));

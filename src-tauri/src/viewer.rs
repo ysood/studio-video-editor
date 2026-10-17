@@ -62,11 +62,11 @@ pub struct Segment {
 /// with an enabled clip wins, so the flattened result has no overlaps and fits one
 /// composition track. Audio keeps its lanes because several clips can sound at once.
 pub fn segments(project: &Project) -> Vec<Segment> {
-    let rate = project.sequence.format.frame_rate;
+    let rate = project.first_sequence().format.frame_rate;
     let mut out = Vec::new();
 
     let video: Vec<_> = project
-        .sequence
+        .first_sequence()
         .tracks
         .iter()
         .filter(|t| t.kind == TrackKind::Video && t.enabled)
@@ -99,7 +99,7 @@ pub fn segments(project: &Project) -> Vec<Segment> {
     }
 
     for (lane, track) in project
-        .sequence
+        .first_sequence()
         .tracks
         .iter()
         .filter(|t| t.kind == TrackKind::Audio && t.enabled)
@@ -416,7 +416,7 @@ mod tests {
             },
         });
         // Video tracks are stored bottom to top, before the audio tracks.
-        project.sequence.tracks.insert(1, over);
+        project.first_sequence_mut().tracks.insert(1, over);
 
         let video: Vec<_> = segments(&project)
             .into_iter()
@@ -440,7 +440,7 @@ mod tests {
     #[test]
     fn a_disabled_track_contributes_nothing() {
         let mut project = sample_edit();
-        for track in &mut project.sequence.tracks {
+        for track in &mut project.first_sequence_mut().tracks {
             track.enabled = false;
         }
         assert!(segments(&project).is_empty());

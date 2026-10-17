@@ -9,6 +9,7 @@ import { isBrowserPreview } from "../preview/mode";
 import { useEditor } from "../store";
 import { IconButton, Panel, Timecode } from "../ui";
 import "./viewer.css";
+import { firstSequence } from "../sequences";
 
 /** Seek a playing element only when it drifts this far, so playback stays smooth. */
 const DRIFT_SECONDS = 0.12;
@@ -35,7 +36,7 @@ export function ViewerPanel() {
   const sounds = useRef(new Map<string, HTMLAudioElement>());
 
   const project = snapshot?.project ?? null;
-  const format = project?.sequence.format;
+  const format = project ? firstSequence(project).format : undefined;
   const rate = format?.frameRate ?? { num: 24, den: 1 };
   const end = project ? sequenceEnd(project) : 0;
   const offline = new Set(snapshot?.offlineMedia ?? []);

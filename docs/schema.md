@@ -6,7 +6,7 @@ edited by hand. This page explains the shape and the invariants that
 `Project::validate` enforces. When the code and this page disagree, the code is right and
 this page is a bug.
 
-Current `SCHEMA_VERSION`: **1**
+Current `SCHEMA_VERSION`: **2**
 
 ## Shape
 
@@ -18,7 +18,7 @@ Project
 │     video? { width, height, frameRate, codec },
 │     audio? { sampleRate, channels, codec },
 │     fingerprint { sizeBytes, modifiedUnixMs }
-└── sequence: Sequence
+└── sequences: Sequence[]      (at least one; shown in the bin)
       id, name,
       format { width, height, frameRate: Rational, sampleRate },
       tracks: Track[]
@@ -31,7 +31,9 @@ Project
 
 ## Time
 
-- `Frame` is an integer count of frames at `sequence.format.frameRate`. Every timeline
+- `Frame` is an integer count of frames at the frame rate of the sequence the clip is
+  in. Each sequence carries its own format, so the same count means different wall time
+  in different sequences. Every timeline
   `start`, `duration` and `sourceStart` uses it. There are no float times in the document.
 - `Rational { num, den }` holds exact rates such as `24000/1001`.
 - Media duration is stored as microseconds (`durationUs`) because that is what ffprobe
@@ -44,13 +46,14 @@ Project
 | Rule | Why |
 |---|---|
 | `schemaVersion` equals the build's `SCHEMA_VERSION` | Older files are migrated on load, never edited in an old shape |
+| A project has at least one sequence | There is always something to open, and `first_sequence` cannot fail |
 | Every id is unique across project, sequence, media, tracks and clips | Commands address entities by id alone |
 | Width and height are even, positive and at most 8192; sample rate is 44.1, 48 or 96 kHz; frame rate is positive and at most 240 | H.264 and ProRes 4:2:2 need even dimensions; these are the rates FFmpeg and NLEs share |
 | Clips on a track are sorted by `start` and never overlap | Stacking is between tracks, never within one |
 | `start >= 0`, `duration >= 1`, `sourceStart >= 0` | No negative time |
 | A clip's media exists, and has a video stream on a video track or an audio stream on an audio track | Render and export can trust every reference |
 | `sourceStart + duration` fits inside the media, except for still images | No reading past the end of a file |
-| A link group has at least two clips on distinct tracks, all with equal `start`, `duration` and `source` | Linked video and audio stay in sync through every edit |
+| A link group has at least two clips on distinct tracks of one sequence, all with equal `start`, `duration` and `source` | Linked video and audio stay in sync through every edit. Clips in different sequences cannot move together, and their frames are counted at different rates |
 | Names are at most 256 characters | Bounded input from the UI and from project files |
 
 Because every member of a link group shares its timing, an edit either reaches the whole
@@ -65,6 +68,16 @@ locked track for example, those clips keep their timing and the link dissolves i
 Tracks live in one list. Order within a kind is stacking order: a later video track
 covers an earlier one. The UI shows video tracks top-down from highest to V1, then audio
 tracks from A1 downward.
+
+## Sequences
+
+A project holds several. Each carries its own format, so a 25 fps cut and a 24 fps
+version can live side by side. Nothing in the document records which sequence a window
+is showing: a command names the sequence it acts on, and which one is open is a property
+of the window, not of the work (ADR-0004).
+
+Ids are unique across the whole project, so a track or clip id identifies one clip
+whichever sequence holds it.
 
 ## Extending
 

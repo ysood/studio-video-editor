@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 /// Bump when a persisted type changes, and add a migration in `persist.rs`.
-pub const SCHEMA_VERSION: u32 = 1;
+pub const SCHEMA_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -17,7 +17,9 @@ pub struct Project {
     pub id: ProjectId,
     pub name: String,
     pub media: Vec<MediaAsset>,
-    pub sequence: Sequence,
+    /// At least one, in the order they appear in the bin. A command names the sequence
+    /// it acts on, so nothing here records which one a window happens to show (ADR-0004).
+    pub sequences: Vec<Sequence>,
 }
 
 impl Project {
@@ -28,16 +30,39 @@ impl Project {
             id: ProjectId::new(),
             name: name.into(),
             media: Vec::new(),
-            sequence: Sequence {
-                id: SequenceId::new(),
-                name: "Sequence 1".into(),
-                format,
-                tracks: vec![
-                    Track::new(TrackKind::Video, "V1"),
-                    Track::new(TrackKind::Audio, "A1"),
-                ],
-            },
+            sequences: vec![Sequence::new("Sequence 1", format)],
         }
+    }
+
+    /// The sequence a command named. Ids are unique project wide, so this cannot be
+    /// ambiguous.
+    pub fn sequence(&self, id: SequenceId) -> Option<&Sequence> {
+        self.sequences.iter().find(|s| s.id == id)
+    }
+
+    pub fn sequence_mut(&mut self, id: SequenceId) -> Option<&mut Sequence> {
+        self.sequences.iter_mut().find(|s| s.id == id)
+    }
+
+    /// The sequence to show when nothing has said which, such as a project just opened.
+    /// Validation guarantees there is at least one.
+    pub fn first_sequence(&self) -> &Sequence {
+        self.sequences.first().expect("a project has a sequence")
+    }
+
+    /// Mutable counterpart of `first_sequence`. Transitional: it disappears once every
+    /// command names its sequence, which is the next step of ADR-0004.
+    pub fn first_sequence_mut(&mut self) -> &mut Sequence {
+        self.sequences
+            .first_mut()
+            .expect("a project has a sequence")
+    }
+
+    /// The sequence holding a track, for commands that address a track directly.
+    pub fn sequence_of_track(&self, id: TrackId) -> Option<&Sequence> {
+        self.sequences
+            .iter()
+            .find(|s| s.tracks.iter().any(|t| t.id == id))
     }
 
     pub fn media(&self, id: MediaId) -> Option<&MediaAsset> {
@@ -45,18 +70,24 @@ impl Project {
     }
 
     pub fn track(&self, id: TrackId) -> Option<&Track> {
-        self.sequence.tracks.iter().find(|t| t.id == id)
+        self.tracks().find(|t| t.id == id)
     }
 
     pub fn track_mut(&mut self, id: TrackId) -> Option<&mut Track> {
-        self.sequence.tracks.iter_mut().find(|t| t.id == id)
+        self.sequences
+            .iter_mut()
+            .flat_map(|s| s.tracks.iter_mut())
+            .find(|t| t.id == id)
+    }
+
+    /// Every track in the project, across sequences.
+    pub fn tracks(&self) -> impl Iterator<Item = &Track> {
+        self.sequences.iter().flat_map(|s| s.tracks.iter())
     }
 
     /// The clip and the track that holds it.
     pub fn find_clip(&self, id: ClipId) -> Option<(&Track, &Clip)> {
-        self.sequence
-            .tracks
-            .iter()
+        self.tracks()
             .find_map(|t| t.clips.iter().find(|c| c.id == id).map(|c| (t, c)))
     }
 
@@ -76,15 +107,8 @@ impl Project {
     }
 
     pub fn all_clips(&self) -> impl Iterator<Item = (&Track, &Clip)> {
-        self.sequence
-            .tracks
-            .iter()
+        self.tracks()
             .flat_map(|t| t.clips.iter().map(move |c| (t, c)))
-    }
-
-    /// Frame after the last clip on any track; zero for an empty sequence.
-    pub fn duration(&self) -> Frame {
-        self.all_clips().map(|(_, c)| c.end()).max().unwrap_or(0)
     }
 }
 
@@ -176,6 +200,32 @@ pub struct Sequence {
     /// Video tracks bottom to top, then audio tracks top to bottom, in one list. Order
     /// within a kind is stacking order: a later video track covers an earlier one.
     pub tracks: Vec<Track>,
+}
+
+impl Sequence {
+    /// A sequence with one empty video track and one empty audio track.
+    pub fn new(name: impl Into<String>, format: SequenceFormat) -> Self {
+        Self {
+            id: SequenceId::new(),
+            name: name.into(),
+            format,
+            tracks: vec![
+                Track::new(TrackKind::Video, "V1"),
+                Track::new(TrackKind::Audio, "A1"),
+            ],
+        }
+    }
+
+    pub fn clips(&self) -> impl Iterator<Item = (&Track, &Clip)> {
+        self.tracks
+            .iter()
+            .flat_map(|t| t.clips.iter().map(move |c| (t, c)))
+    }
+
+    /// Frame after the last clip on any track; zero for an empty sequence.
+    pub fn duration(&self) -> Frame {
+        self.clips().map(|(_, c)| c.end()).max().unwrap_or(0)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]

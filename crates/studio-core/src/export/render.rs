@@ -63,9 +63,9 @@ pub fn plan(
     settings: RenderSettings,
     output: &Path,
 ) -> Result<RenderPlan, RenderError> {
-    let format = project.sequence.format;
+    let format = project.first_sequence().format;
     let rate = format.frame_rate;
-    let total = project.duration();
+    let total = project.first_sequence().duration();
     if total == 0 {
         return Err(RenderError::EmptyTimeline);
     }
@@ -91,7 +91,7 @@ pub fn plan(
     let mut video_label = "0:v".to_string();
     let mut audio_labels = vec!["1:a".to_string()];
 
-    for track in project.sequence.tracks.iter().filter(|t| t.enabled) {
+    for track in project.first_sequence().tracks.iter().filter(|t| t.enabled) {
         for clip in track.clips.iter().filter(|c| c.enabled) {
             let media = project
                 .media(clip.source.media_id())
@@ -260,7 +260,7 @@ mod tests {
     #[test]
     fn disabled_tracks_are_left_out() {
         let mut project = sample_edit();
-        project.sequence.tracks[1].enabled = false;
+        project.first_sequence_mut().tracks[1].enabled = false;
         let plan = plan(&project, H264, Path::new("/out/cut.mp4")).unwrap();
         assert_eq!(plan.args.iter().filter(|a| *a == "-i").count(), 4);
     }

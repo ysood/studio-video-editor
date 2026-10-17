@@ -508,7 +508,11 @@ pub fn viewer_sync(window: tauri::WebviewWindow, state: State<'_, AppState>, fra
             let project = session.editor.project();
             (
                 crate::viewer::segments(project),
-                project.sequence.format.frame_rate.frames_to_micros(frame),
+                project
+                    .first_sequence()
+                    .format
+                    .frame_rate
+                    .frames_to_micros(frame),
             )
         };
         let app = window.app_handle().clone();
@@ -553,7 +557,7 @@ pub fn viewer_seek(window: tauri::WebviewWindow, state: State<'_, AppState>, fra
             session
                 .editor
                 .project()
-                .sequence
+                .first_sequence()
                 .format
                 .frame_rate
                 .frames_to_micros(frame)

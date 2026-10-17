@@ -31,6 +31,7 @@ import {
   Value,
 } from "../ui";
 import "./gallery.css";
+import { firstSequence } from "../sequences";
 
 function colorEntries(theme: Theme): [string, string][] {
   const out: [string, string][] = [];
@@ -266,7 +267,7 @@ function TimelineSample() {
   const project = useMemo(() => sampleSnapshot().project, []);
   const rows = layoutRows(project, theme.timeline);
   const height = contentHeight(rows, theme.timeline);
-  const selected = project.sequence.tracks[0]!.clips[1]!;
+  const selected = firstSequence(project).tracks[0]!.clips[1]!;
 
   useEffect(() => {
     const canvas = ref.current;
@@ -289,7 +290,7 @@ function TimelineSample() {
       width,
       height,
       playhead: 132,
-      selection: new Set(project.sequence.tracks.flatMap((t) => t.clips.filter((c) => c.link === selected.link).map((c) => c.id))),
+      selection: new Set(firstSequence(project).tracks.flatMap((t) => t.clips.filter((c) => c.link === selected.link).map((c) => c.id))),
       offline: new Set(),
       lifted: new Set(),
       ghosts: [],

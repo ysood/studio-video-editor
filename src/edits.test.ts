@@ -3,16 +3,19 @@ import type { MediaAsset } from "./bindings/MediaAsset";
 import type { Project } from "./bindings/Project";
 import { formatMismatch } from "./edits";
 import { sampleSnapshot } from "./preview/sampleProject";
+import { firstSequence } from "./sequences";
 
 /** The sample project with every clip removed, which is when the question is asked. */
 function emptyProject(): Project {
   const project = sampleSnapshot().project;
   return {
     ...project,
-    sequence: {
-      ...project.sequence,
-      tracks: project.sequence.tracks.map((t) => ({ ...t, clips: [] })),
-    },
+    sequences: [
+      {
+        ...firstSequence(project),
+        tracks: firstSequence(project).tracks.map((t) => ({ ...t, clips: [] })),
+      },
+    ],
   };
 }
 
@@ -31,7 +34,7 @@ function video(width: number, height: number, num: number, den = 1): MediaAsset 
 
 describe("formatMismatch", () => {
   const project = emptyProject();
-  const { width, height, frameRate } = project.sequence.format;
+  const { width, height, frameRate } = firstSequence(project).format;
 
   it("says nothing when the clip already matches", () => {
     expect(formatMismatch(project, video(width, height, frameRate.num, frameRate.den))).toBeNull();
@@ -49,7 +52,7 @@ describe("formatMismatch", () => {
 
   it("keeps the rest of the format, so sample rate is not reset", () => {
     const suggested = formatMismatch(project, video(width, height, 25));
-    expect(suggested?.sampleRate).toBe(project.sequence.format.sampleRate);
+    expect(suggested?.sampleRate).toBe(firstSequence(project).format.sampleRate);
   });
 
   it("stays quiet once the timeline has clips, because the rate is fixed by then", () => {

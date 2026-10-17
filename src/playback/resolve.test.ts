@@ -40,12 +40,12 @@ function project(tracks: Track[]): Project {
         fingerprint: { sizeBytes: 1, modifiedUnixMs: 0 },
       },
     ],
-    sequence: {
+    sequences: [{
       id: "s",
       name: "s",
       format: { width: 1920, height: 1080, frameRate: { num: 24, den: 1 }, sampleRate: 48000 },
       tracks,
-    },
+    }],
   };
 }
 

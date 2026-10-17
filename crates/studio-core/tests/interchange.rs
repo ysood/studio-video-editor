@@ -38,7 +38,10 @@ fn sample_project() -> Project {
         })
         .unwrap();
     project = editor.project().clone();
-    let (v1, a1) = (project.sequence.tracks[0].id, project.sequence.tracks[1].id);
+    let (v1, a1) = (
+        project.first_sequence().tracks[0].id,
+        project.first_sequence().tracks[1].id,
+    );
     for (start, source_start, duration) in [(24, 48, 96), (168, 0, 72)] {
         editor
             .apply(&EditCommand::InsertMedia {

@@ -8,10 +8,11 @@ import type { SequenceFormat } from "./bindings/SequenceFormat";
 import type { TrackId } from "./bindings/TrackId";
 import type { TrackKind } from "./bindings/TrackKind";
 import { useEditor } from "./store";
+import { firstSequence } from "./sequences";
 
 /** First unlocked track of a kind in document order (V1, A1). */
 export function firstTrack(project: Project, kind: TrackKind): TrackId | null {
-  return project.sequence.tracks.find((t) => t.kind === kind && !t.locked)?.id ?? null;
+  return firstSequence(project).tracks.find((t) => t.kind === kind && !t.locked)?.id ?? null;
 }
 
 export const MEDIA_DRAG_TYPE = "application/x-studio-media";
@@ -31,8 +32,8 @@ export const mediaDrag: { current: MediaId | null } = { current: null };
  */
 export function formatMismatch(project: Project, media: MediaAsset): SequenceFormat | null {
   if (!media.video) return null;
-  if (project.sequence.tracks.some((t) => t.clips.length > 0)) return null;
-  const current = project.sequence.format;
+  if (firstSequence(project).tracks.some((t) => t.clips.length > 0)) return null;
+  const current = firstSequence(project).format;
   const { width, height, frameRate } = media.video;
   const matches =
     width === current.width &&

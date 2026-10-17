@@ -12,6 +12,7 @@ import { events, ipc } from "../ipc";
 import { isBrowserPreview } from "../preview/mode";
 import { useEditor } from "../store";
 import { sequenceEnd } from "./resolve";
+import { firstSequence } from "../sequences";
 
 export function useNativeViewer(stage: RefObject<HTMLElement | null>) {
   const snapshot = useEditor((s) => s.snapshot);
@@ -22,7 +23,7 @@ export function useNativeViewer(stage: RefObject<HTMLElement | null>) {
   const fromPlayer = useRef<number | null>(null);
 
   const project = snapshot?.project ?? null;
-  const rate = project?.sequence.format.frameRate ?? { num: 24, den: 1 };
+  const rate = project ? firstSequence(project).format.frameRate : { num: 24, den: 1 };
   const num = rate.num;
   const den = rate.den;
   const end = project ? sequenceEnd(project) : 0;

@@ -3,4 +3,9 @@ import type { MediaAsset } from "./MediaAsset";
 import type { ProjectId } from "./ProjectId";
 import type { Sequence } from "./Sequence";
 
-export type Project = { schemaVersion: number, id: ProjectId, name: string, media: Array<MediaAsset>, sequence: Sequence, };
+export type Project = { schemaVersion: number, id: ProjectId, name: string, media: Array<MediaAsset>, 
+/**
+ * At least one, in the order they appear in the bin. A command names the sequence
+ * it acts on, so nothing here records which one a window happens to show (ADR-0004).
+ */
+sequences: Array<Sequence>, };

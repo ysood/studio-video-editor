@@ -8,6 +8,7 @@ import { placeMedia } from "../edits";
 import { formatRate } from "../format";
 import { useEditor } from "../store";
 import { Actions, Button, Dialog } from "../ui";
+import { firstSequence } from "../sequences";
 
 function describe(format: SequenceFormat): string {
   return `${format.width}×${format.height} at ${formatRate(format.frameRate)} fps`;
@@ -37,7 +38,7 @@ export function MatchSequenceDialog() {
         <>
           <p>
             {media?.name ?? "The clip"} is {describe(pending.suggested)}, and the sequence is{" "}
-            {describe(project.sequence.format)}.
+            {describe(firstSequence(project).format)}.
           </p>
           <p>
             Matching the sequence to the clip keeps every source frame. Leaving it conforms the

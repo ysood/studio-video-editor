@@ -96,7 +96,7 @@ fn renders_sequence_with_gaps_and_linked_audio() {
         })
         .unwrap();
     let (v1, a1) = {
-        let t = &editor.project().sequence.tracks;
+        let t = &editor.project().first_sequence().tracks;
         (t[0].id, t[1].id)
     };
     // White from 1 s to 2 s, black before and after.

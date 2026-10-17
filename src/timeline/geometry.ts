@@ -12,6 +12,7 @@ import type { Track } from "../bindings/Track";
 import type { TrackId } from "../bindings/TrackId";
 import { microsToFrames } from "../format";
 import type { Theme } from "../theme";
+import { firstSequence } from "../sequences";
 
 /** Timeline dimensions come from the theme so density and proportions are themeable. */
 export type TimelineMetrics = Theme["timeline"];
@@ -29,7 +30,7 @@ export interface Row {
 
 /** Display order: video tracks from the highest down to V1, then audio from A1 down. */
 export function layoutRows(project: Project, m: TimelineMetrics): Row[] {
-  const tracks = project.sequence.tracks;
+  const tracks = firstSequence(project).tracks;
   const video = tracks.filter((t) => t.kind === "video").reverse();
   const audio = tracks.filter((t) => t.kind === "audio");
   let y = m.rulerHeight;
@@ -76,7 +77,7 @@ export function hitTest(rows: Row[], view: View, x: number, y: number, m: Timeli
 }
 
 export function findClip(project: Project, id: ClipId): { clip: Clip; track: Track } | null {
-  for (const track of project.sequence.tracks) {
+  for (const track of firstSequence(project).tracks) {
     const clip = track.clips.find((c) => c.id === id);
     if (clip) return { clip, track };
   }
@@ -89,20 +90,20 @@ export function linkGroup(project: Project, id: ClipId): ClipId[] {
   if (!found) return [];
   const link = found.clip.link;
   if (!link) return [id];
-  return project.sequence.tracks.flatMap((t) => t.clips.filter((c) => c.link === link).map((c) => c.id));
+  return firstSequence(project).tracks.flatMap((t) => t.clips.filter((c) => c.link === link).map((c) => c.id));
 }
 
 /** Frames of media available at the sequence rate, or null for stills. */
 export function mediaFrames(project: Project, clip: Clip): number | null {
   const media = project.media.find((m) => m.id === clip.source.mediaId);
   if (!media || media.kind === "image" || media.durationUs === null) return null;
-  return microsToFrames(media.durationUs, project.sequence.format.frameRate);
+  return microsToFrames(media.durationUs, firstSequence(project).format.frameRate);
 }
 
 /** Clip edges and the playhead, excluding the clips being dragged. */
 export function snapTargets(project: Project, exclude: Set<ClipId>, playhead: number): number[] {
   const targets = [0, playhead];
-  for (const track of project.sequence.tracks) {
+  for (const track of firstSequence(project).tracks) {
     for (const clip of track.clips) {
       if (exclude.has(clip.id)) continue;
       targets.push(clip.start, clipEnd(clip));

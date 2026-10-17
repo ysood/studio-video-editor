@@ -126,12 +126,12 @@ export function sampleSnapshot(): Snapshot {
       id: id(),
       name: "Sydney tour recap",
       media,
-      sequence: {
+      sequences: [{
         id: id(),
         name: "Sequence 1",
         format: { width: 1920, height: 1080, frameRate: rate, sampleRate: 48000 },
         tracks,
-      },
+      }],
     },
     history: { canUndo: false, canRedo: false, undoLabel: null, redoLabel: null, dirty: false },
     path: null,

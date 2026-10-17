@@ -11,6 +11,7 @@ import {
   tickStep,
 } from "./geometry";
 import { graphiteTheme } from "../theme/themes/graphite";
+import { firstSequence } from "../sequences";
 
 const m = graphiteTheme.timeline;
 
@@ -42,7 +43,7 @@ function project(): Project {
         fingerprint: { sizeBytes: 1, modifiedUnixMs: 0 },
       },
     ],
-    sequence: {
+    sequences: [{
       id: "s",
       name: "S",
       format: { width: 1920, height: 1080, frameRate: { num: 24, den: 1 }, sampleRate: 48000 },
@@ -51,7 +52,7 @@ function project(): Project {
         track("v2", "video", []),
         track("a1", "audio", [clip("a-b", 50, 40, 30, "L")]),
       ],
-    },
+    }],
   };
 }
 
@@ -97,8 +98,8 @@ describe("previewMove", () => {
 
   it("only changes track to one of the same kind", () => {
     const p = project();
-    const a1 = p.sequence.tracks[2]!;
-    const v2 = p.sequence.tracks[1]!;
+    const a1 = firstSequence(p).tracks[2]!;
+    const v2 = firstSequence(p).tracks[1]!;
     expect(previewMove(p, "v-b", 60, a1, snapOff)?.trackId).toBe("v1");
     expect(previewMove(p, "v-b", 60, v2, snapOff)?.trackId).toBe("v2");
   });

@@ -66,14 +66,14 @@ impl<'a> Writer<'a> {
 
     fn write(mut self) -> String {
         let p = self.project;
-        let format = p.sequence.format;
+        let format = p.first_sequence().format;
         self.out
             .push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE xmeml>\n");
         self.open("xmeml version=\"4\"");
         self.open("sequence id=\"sequence-1\"");
-        self.text("uuid", &p.sequence.id.to_string());
-        self.text("name", &p.sequence.name);
-        self.text("duration", &p.duration().to_string());
+        self.text("uuid", &p.first_sequence().id.to_string());
+        self.text("name", &p.first_sequence().name);
+        self.text("duration", &p.first_sequence().duration().to_string());
         self.rate(format.frame_rate);
         self.open("timecode");
         self.rate(format.frame_rate);
@@ -130,7 +130,7 @@ impl<'a> Writer<'a> {
 
     fn clip(&mut self, kind: TrackKind, clip: &Clip) {
         let p = self.project;
-        let rate = p.sequence.format.frame_rate;
+        let rate = p.first_sequence().format.frame_rate;
         let media = p
             .media(clip.source.media_id())
             .expect("validated project references existing media");
@@ -184,7 +184,7 @@ impl<'a> Writer<'a> {
             self.line(&format!("<file id=\"{id}\"/>"));
             return;
         }
-        let rate = self.project.sequence.format.frame_rate;
+        let rate = self.project.first_sequence().format.frame_rate;
         self.open(&format!("file id=\"{id}\""));
         self.text("name", &media.name);
         self.text("pathurl", &file_url(&media.path, "localhost"));
@@ -241,7 +241,7 @@ impl<'a> Writer<'a> {
 
 fn tracks_of(project: &Project, kind: TrackKind) -> impl Iterator<Item = &Track> {
     project
-        .sequence
+        .first_sequence()
         .tracks
         .iter()
         .filter(move |t| t.kind == kind)
@@ -303,7 +303,7 @@ mod tests {
     #[test]
     fn escapes_names() {
         let mut project = sample_edit();
-        project.sequence.name = "Cut <A> & \"B\"".into();
+        project.first_sequence_mut().name = "Cut <A> & \"B\"".into();
         let xml = export(&project);
         assert!(xml.contains("<name>Cut &lt;A&gt; &amp; &quot;B&quot;</name>"));
     }

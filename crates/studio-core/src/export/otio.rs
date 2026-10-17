@@ -12,23 +12,23 @@ use serde_json::{json, Value};
 
 /// Serialize the project's sequence as an OTIO timeline.
 pub fn export(project: &Project) -> String {
-    let rate = project.sequence.format.frame_rate.as_f64();
+    let rate = project.first_sequence().format.frame_rate.as_f64();
     let tracks: Vec<Value> = ordered_tracks(project)
         .map(|track| track_json(project, track, rate))
         .collect();
     let timeline = json!({
         "OTIO_SCHEMA": "Timeline.1",
-        "name": project.sequence.name,
+        "name": project.first_sequence().name,
         "global_start_time": null,
         "metadata": {
             "studio": {
                 "projectId": project.id,
-                "sequenceId": project.sequence.id,
+                "sequenceId": project.first_sequence().id,
                 "projectName": project.name,
-                "width": project.sequence.format.width,
-                "height": project.sequence.format.height,
-                "frameRate": project.sequence.format.frame_rate,
-                "sampleRate": project.sequence.format.sample_rate,
+                "width": project.first_sequence().format.width,
+                "height": project.first_sequence().format.height,
+                "frameRate": project.first_sequence().format.frame_rate,
+                "sampleRate": project.first_sequence().format.sample_rate,
             }
         },
         "tracks": {
@@ -48,7 +48,7 @@ pub fn export(project: &Project) -> String {
 /// OTIO stacks list children bottom to top; for audio the order has no visual meaning,
 /// so tracks keep document order with video first.
 fn ordered_tracks(project: &Project) -> impl Iterator<Item = &Track> {
-    let tracks = &project.sequence.tracks;
+    let tracks = &project.first_sequence().tracks;
     tracks
         .iter()
         .filter(|t| t.kind == TrackKind::Video)
@@ -92,7 +92,7 @@ fn clip_json(project: &Project, clip: &Clip, rate: f64) -> Value {
         .media(clip.source.media_id())
         .expect("validated project references existing media");
     let available = media
-        .frames_at(project.sequence.format.frame_rate)
+        .frames_at(project.first_sequence().format.frame_rate)
         .map_or(Value::Null, |total| range(0, total, rate));
     json!({
         "OTIO_SCHEMA": "Clip.2",

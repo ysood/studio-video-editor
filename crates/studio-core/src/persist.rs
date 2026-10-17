@@ -59,10 +59,23 @@ pub fn to_json(project: &Project) -> Result<String, PersistError> {
 fn migrate(value: &mut Value, from: u32) {
     let mut version = from;
     while version < SCHEMA_VERSION {
-        // Add an arm per version bump, e.g. `1 => migrate_v1_to_v2(value)`.
+        if version == 1 {
+            migrate_v1_to_v2(value);
+        }
         version += 1;
     }
     value["schemaVersion"] = Value::from(SCHEMA_VERSION);
+}
+
+/// v1 held one `sequence`; v2 holds a list of them (ADR-0004). The single sequence
+/// becomes the first, so an existing project opens on the timeline it was saved with.
+fn migrate_v1_to_v2(value: &mut Value) {
+    let Some(object) = value.as_object_mut() else {
+        return;
+    };
+    if let Some(sequence) = object.remove("sequence") {
+        object.insert("sequences".into(), Value::Array(vec![sequence]));
+    }
 }
 
 pub fn load(path: &Path) -> Result<Project, PersistError> {
@@ -103,8 +116,8 @@ mod tests {
         let project = project_with(vec![media_with_av(10)]);
         let (media_id, v1, a1) = (
             project.media[0].id,
-            project.sequence.tracks[0].id,
-            project.sequence.tracks[1].id,
+            project.first_sequence().tracks[0].id,
+            project.first_sequence().tracks[1].id,
         );
         let mut editor = Editor::new(project);
         editor
@@ -142,12 +155,31 @@ mod tests {
     fn rejects_structurally_invalid_document() {
         let mut value = serde_json::to_value(edited_project()).unwrap();
         // Make the video clip overlap itself by pushing a duplicate.
-        let clip = value["sequence"]["tracks"][0]["clips"][0].clone();
-        value["sequence"]["tracks"][0]["clips"]
+        let clip = value["sequences"][0]["tracks"][0]["clips"][0].clone();
+        value["sequences"][0]["tracks"][0]["clips"]
             .as_array_mut()
             .unwrap()
             .push(clip);
         assert!(from_json(&value.to_string()).is_err());
+    }
+
+    #[test]
+    fn migrates_a_v1_document_to_one_sequence() {
+        // v1 held a single `sequence`. Rewrite a current document into that shape and
+        // check it comes back as a one-element list rather than being rejected.
+        let mut value = serde_json::to_value(edited_project()).unwrap();
+        let object = value.as_object_mut().unwrap();
+        let sequence = object.remove("sequences").unwrap()[0].clone();
+        object.insert("sequence".into(), sequence);
+        object.insert("schemaVersion".into(), Value::from(1));
+
+        let project = from_json(&value.to_string()).expect("v1 document should migrate");
+        assert_eq!(project.schema_version, SCHEMA_VERSION);
+        assert_eq!(project.sequences.len(), 1);
+        assert!(
+            project.first_sequence().clips().next().is_some(),
+            "clips survive"
+        );
     }
 
     #[test]

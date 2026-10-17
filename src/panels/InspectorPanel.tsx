@@ -21,6 +21,7 @@ import {
   Value,
 } from "../ui";
 import "./inspector.css";
+import { firstSequence } from "../sequences";
 
 const FRAME_RATES: Rational[] = [
   { num: 24000, den: 1001 },
@@ -68,7 +69,7 @@ export function InspectorPanel() {
 function ClipDetails({ project, entry }: { project: Project; entry: { clip: Clip; track: Track } }) {
   const edit = useEditor((s) => s.edit);
   const { clip, track } = entry;
-  const rate = project.sequence.format.frameRate;
+  const rate = firstSequence(project).format.frameRate;
   const media = project.media.find((m) => m.id === clip.source.mediaId);
   const locked = track.locked;
 
@@ -174,8 +175,8 @@ function MultipleClips({ count, ids }: { count: number; ids: string[] }) {
 
 function SequenceSettings({ project }: { project: Project }) {
   const edit = useEditor((s) => s.edit);
-  const format = project.sequence.format;
-  const hasClips = project.sequence.tracks.some((t) => t.clips.length > 0);
+  const format = firstSequence(project).format;
+  const hasClips = firstSequence(project).tracks.some((t) => t.clips.length > 0);
   const apply = (patch: Partial<SequenceFormat>) =>
     void edit({ type: "SetSequenceFormat", format: { ...format, ...patch } });
   const sizeKey = `${format.width}x${format.height}`;

@@ -126,10 +126,10 @@ fn manifest(original: &Project, plan: &PackagePlan) -> String {
         "version": 1,
         "project": { "id": original.id, "name": original.name },
         "sequence": {
-            "id": original.sequence.id,
-            "name": original.sequence.name,
-            "format": original.sequence.format,
-            "durationFrames": original.duration(),
+            "id": original.first_sequence().id,
+            "name": original.first_sequence().name,
+            "format": original.first_sequence().format,
+            "durationFrames": original.first_sequence().duration(),
         },
         "files": {
             "otio": "timeline.otio",
@@ -179,7 +179,7 @@ mod tests {
         });
         project.media.push(same_name.clone());
         // Put the same-named media on the timeline too.
-        let v1 = project.sequence.tracks[0].id;
+        let v1 = project.first_sequence().tracks[0].id;
         let cmd = crate::edit::EditCommand::InsertMedia {
             media_id: same_name.id,
             start: 200,

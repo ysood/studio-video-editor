@@ -187,7 +187,7 @@ pub fn refresh<R: Runtime>(app: &AppHandle<R>, snapshot: &Snapshot) {
     };
     let has_clips = snapshot
         .project
-        .sequence
+        .first_sequence()
         .tracks
         .iter()
         .any(|t| !t.clips.is_empty());

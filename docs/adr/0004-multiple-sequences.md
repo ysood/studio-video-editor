@@ -1,6 +1,6 @@
 # ADR-0004: Several sequences in a project, addressed by id
 
-Status: Proposed
+Status: Accepted
 Date: 2026-10-17
 Deciders: yuvraj
 

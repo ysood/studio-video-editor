@@ -7,6 +7,7 @@ import type { MediaAsset } from "../bindings/MediaAsset";
 import type { Project } from "../bindings/Project";
 import type { Track } from "../bindings/Track";
 import { framesToSeconds } from "../format";
+import { firstSequence } from "../sequences";
 
 export interface ActiveClip {
   clip: Clip;
@@ -22,7 +23,7 @@ function active(project: Project, track: Track, frame: number): ActiveClip | nul
   if (!clip) return null;
   const media = project.media.find((m) => m.id === clip.source.mediaId);
   if (!media) return null;
-  const rate = project.sequence.format.frameRate;
+  const rate = firstSequence(project).format.frameRate;
   return {
     clip,
     track,
@@ -32,7 +33,7 @@ function active(project: Project, track: Track, frame: number): ActiveClip | nul
 }
 
 export function videoAt(project: Project, frame: number): ActiveClip | null {
-  const video = project.sequence.tracks.filter((t) => t.kind === "video");
+  const video = firstSequence(project).tracks.filter((t) => t.kind === "video");
   for (let i = video.length - 1; i >= 0; i--) {
     const hit = active(project, video[i]!, frame);
     if (hit) return hit;
@@ -41,12 +42,12 @@ export function videoAt(project: Project, frame: number): ActiveClip | null {
 }
 
 export function audioAt(project: Project, frame: number): ActiveClip[] {
-  return project.sequence.tracks
+  return firstSequence(project).tracks
     .filter((t) => t.kind === "audio")
     .map((t) => active(project, t, frame))
     .filter((a): a is ActiveClip => a !== null);
 }
 
 export function sequenceEnd(project: Project): number {
-  return Math.max(0, ...project.sequence.tracks.flatMap((t) => t.clips.map((c) => c.start + c.duration)));
+  return Math.max(0, ...firstSequence(project).tracks.flatMap((t) => t.clips.map((c) => c.start + c.duration)));
 }

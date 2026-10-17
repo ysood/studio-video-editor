@@ -203,12 +203,14 @@ fn apply_in_place(p: &mut Project, command: &EditCommand) -> Result<EditReport, 
             p.name = checked_name(name)?;
         }
         EditCommand::SetSequenceFormat { format } => {
-            if format.frame_rate != p.sequence.format.frame_rate && p.all_clips().next().is_some() {
+            if format.frame_rate != p.first_sequence().format.frame_rate
+                && p.all_clips().next().is_some()
+            {
                 return Err(invalid(
                     "frame rate can change only while the timeline is empty",
                 ));
             }
-            p.sequence.format = *format;
+            p.first_sequence_mut().format = *format;
         }
         EditCommand::ImportMedia { assets } => {
             for asset in assets {
@@ -234,7 +236,7 @@ fn apply_in_place(p: &mut Project, command: &EditCommand) -> Result<EditReport, 
         }
         EditCommand::RemoveTrack { track_id } => {
             ensure_unlocked(p, *track_id)?;
-            p.sequence.tracks.retain(|t| t.id != *track_id);
+            p.first_sequence_mut().tracks.retain(|t| t.id != *track_id);
         }
         EditCommand::SetTrackState {
             track_id,
@@ -316,7 +318,12 @@ fn checked_name(name: &str) -> Result<String, EditError> {
 }
 
 fn add_track(p: &mut Project, kind: TrackKind) -> TrackId {
-    let count = p.sequence.tracks.iter().filter(|t| t.kind == kind).count();
+    let count = p
+        .first_sequence()
+        .tracks
+        .iter()
+        .filter(|t| t.kind == kind)
+        .count();
     let prefix = match kind {
         TrackKind::Video => "V",
         TrackKind::Audio => "A",
@@ -327,14 +334,14 @@ fn add_track(p: &mut Project, kind: TrackKind) -> TrackId {
     // for video, at the bottom for audio).
     let index = match kind {
         TrackKind::Video => p
-            .sequence
+            .first_sequence()
             .tracks
             .iter()
             .rposition(|t| t.kind == TrackKind::Video)
             .map_or(0, |i| i + 1),
-        TrackKind::Audio => p.sequence.tracks.len(),
+        TrackKind::Audio => p.first_sequence().tracks.len(),
     };
-    p.sequence.tracks.insert(index, track);
+    p.first_sequence_mut().tracks.insert(index, track);
     id
 }
 
@@ -377,7 +384,7 @@ fn expand_groups(p: &Project, ids: &[ClipId]) -> Result<Vec<ClipId>, EditError> 
 
 fn for_each_clip_mut(p: &mut Project, ids: &[ClipId], mut f: impl FnMut(&mut Clip)) {
     let wanted: HashSet<_> = ids.iter().copied().collect();
-    for track in &mut p.sequence.tracks {
+    for track in &mut p.first_sequence_mut().tracks {
         for clip in &mut track.clips {
             if wanted.contains(&clip.id) {
                 f(clip);
@@ -387,7 +394,7 @@ fn for_each_clip_mut(p: &mut Project, ids: &[ClipId], mut f: impl FnMut(&mut Cli
 }
 
 fn remove_clip(p: &mut Project, id: ClipId) -> Option<(TrackId, Clip)> {
-    for track in &mut p.sequence.tracks {
+    for track in &mut p.first_sequence_mut().tracks {
         if let Some(index) = track.clips.iter().position(|c| c.id == id) {
             return Some((track.id, track.clips.remove(index)));
         }
@@ -500,7 +507,7 @@ fn dissolve_links(p: &mut Project, links: &HashSet<LinkId>) {
     if links.is_empty() {
         return;
     }
-    for track in &mut p.sequence.tracks {
+    for track in &mut p.first_sequence_mut().tracks {
         for clip in &mut track.clips {
             if clip.link.is_some_and(|l| links.contains(&l)) {
                 clip.link = None;
@@ -538,7 +545,7 @@ fn insert_media(
     let media = p
         .media(media_id)
         .ok_or_else(|| not_found("media", media_id))?;
-    let rate = p.sequence.format.frame_rate;
+    let rate = p.first_sequence().format.frame_rate;
     if start < 0 || source_start < 0 {
         return Err(invalid("start and source start must not be negative"));
     }
@@ -655,7 +662,7 @@ fn trim_clip(
     }
     let group = p.link_group(clip_id);
     ensure_clips_unlocked(p, &group)?;
-    let rate = p.sequence.format.frame_rate;
+    let rate = p.first_sequence().format.frame_rate;
     let members: HashSet<_> = group.iter().copied().collect();
 
     // Bounds are the intersection across the group so linked clips stay identical.
@@ -762,8 +769,8 @@ mod tests {
         let project = project_with(vec![media_with_av(seconds)]);
         Fixture {
             media: project.media[0].id,
-            v1: project.sequence.tracks[0].id,
-            a1: project.sequence.tracks[1].id,
+            v1: project.first_sequence().tracks[0].id,
+            a1: project.first_sequence().tracks[1].id,
             project,
         }
     }
@@ -971,7 +978,7 @@ mod tests {
     #[test]
     fn insert_still_image_defaults_to_five_seconds() {
         let mut p = project_with(vec![still_image()]);
-        let v1 = p.sequence.tracks[0].id;
+        let v1 = p.first_sequence().tracks[0].id;
         let media_id = p.media[0].id;
         let created = run(
             &mut p,
@@ -1277,10 +1284,10 @@ mod tests {
     fn frame_rate_is_frozen_once_clips_exist() {
         let mut f = fixture(10);
         insert(&mut f, 0, 0, 10);
-        let mut format = f.project.sequence.format;
+        let mut format = f.project.first_sequence().format;
         format.frame_rate = crate::time::Rational::new(25, 1);
         assert!(apply(&f.project, &EditCommand::SetSequenceFormat { format }).is_err());
-        format.frame_rate = f.project.sequence.format.frame_rate;
+        format.frame_rate = f.project.first_sequence().format.frame_rate;
         format.width = 3840;
         format.height = 2160;
         run(&mut f.project, EditCommand::SetSequenceFormat { format });
@@ -1297,7 +1304,7 @@ mod tests {
         );
         let names: Vec<_> = f
             .project
-            .sequence
+            .first_sequence()
             .tracks
             .iter()
             .map(|t| t.name.as_str())
