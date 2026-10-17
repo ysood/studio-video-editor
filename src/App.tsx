@@ -4,6 +4,7 @@ import { events } from "./ipc";
 import { useGlobalShortcuts } from "./keyboard";
 import { useEditor } from "./store";
 import { ExportDialog } from "./workspace/ExportDialog";
+import { MatchSequenceDialog } from "./workspace/MatchSequenceDialog";
 import { StatusBar } from "./workspace/StatusBar";
 import { TopBar } from "./workspace/TopBar";
 import { Workspace } from "./workspace/Workspace";
@@ -44,6 +45,7 @@ export function App() {
       <Workspace />
       <StatusBar />
       <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} />
+      <MatchSequenceDialog />
     </div>
   );
 }

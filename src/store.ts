@@ -6,6 +6,8 @@ import type { ClipId } from "./bindings/ClipId";
 import type { EditCommand } from "./bindings/EditCommand";
 import type { EditReport } from "./bindings/EditReport";
 import type { JobKind } from "./bindings/JobKind";
+import type { MediaId } from "./bindings/MediaId";
+import type { SequenceFormat } from "./bindings/SequenceFormat";
 import type { Snapshot } from "./bindings/Snapshot";
 import type { ToolsStatus } from "./bindings/ToolsStatus";
 import { errorMessage, ipc } from "./ipc";
@@ -13,6 +15,18 @@ import { errorMessage, ipc } from "./ipc";
 export interface StatusMessage {
   kind: "info" | "error";
   text: string;
+}
+
+/**
+ * An insert held back while the user decides whether the sequence should adopt the
+ * clip's format. The sequence can only change while the timeline is empty, so this
+ * question can only be asked for the first clip.
+ */
+export interface PendingInsert {
+  mediaId: MediaId;
+  frame: number;
+  targets: { video?: string | null; audio?: string | null };
+  suggested: SequenceFormat;
 }
 
 export interface JobState {
@@ -36,6 +50,7 @@ interface EditorState {
   /** The OS menu bar carries the File and Edit menus (macOS), so the top bar omits its own. */
   nativeMenu: boolean;
   exportOpen: boolean;
+  pendingInsert: PendingInsert | null;
 
   init: () => Promise<void>;
   setSnapshot: (snapshot: Snapshot) => void;
@@ -51,6 +66,7 @@ interface EditorState {
   fail: (error: unknown) => void;
   setJob: (job: JobState | null) => void;
   setExportOpen: (open: boolean) => void;
+  setPendingInsert: (pending: PendingInsert | null) => void;
 }
 
 /** Keep only selected ids that still exist after the project changed. */
@@ -74,6 +90,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   job: null,
   nativeMenu: false,
   exportOpen: false,
+  pendingInsert: null,
 
   init: async () => {
     try {
@@ -140,4 +157,5 @@ export const useEditor = create<EditorState>((set, get) => ({
   fail: (error) => set({ status: { kind: "error", text: errorMessage(error) } }),
   setJob: (job) => set({ job }),
   setExportOpen: (exportOpen) => set({ exportOpen }),
+  setPendingInsert: (pendingInsert) => set({ pendingInsert }),
 }));
