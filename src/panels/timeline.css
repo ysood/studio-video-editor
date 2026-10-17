@@ -69,10 +69,3 @@
   touch-action: none;
 }
 
-.timeline-hint {
-  position: absolute;
-  top: calc(var(--timeline-ruler-height) + var(--space-6));
-  padding-left: var(--space-7);
-  color: var(--color-text-secondary);
-  pointer-events: none;
-}

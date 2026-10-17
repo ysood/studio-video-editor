@@ -64,11 +64,14 @@ export function Gap() {
   return <span className="ui-gap" />;
 }
 
-/** Guidance shown where content will appear, with an optional action. */
-export function EmptyState({ children, action }: { children: ReactNode; action?: ReactNode }) {
+/**
+ * Guidance shown where content will appear, with an optional action. Either half may
+ * stand alone: a space whose emptiness speaks for itself needs the action and no words.
+ */
+export function EmptyState({ children, action }: { children?: ReactNode; action?: ReactNode }) {
   return (
     <div className="ui-empty">
-      <p>{children}</p>
+      {children && <p>{children}</p>}
       {action && <div>{action}</div>}
     </div>
   );

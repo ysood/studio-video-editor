@@ -206,11 +206,6 @@ export function ViewerPanel() {
               <span>{current.media.path}</span>
             </div>
           )}
-          {end === 0 && (
-            <div className="viewer-slate">
-              <span>Picture appears here once the timeline has clips.</span>
-            </div>
-          )}
         </div>
       </div>
       <div className="viewer-transport">

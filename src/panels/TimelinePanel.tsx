@@ -524,11 +524,6 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
                 onPointerCancel={() => setDrag(null)}
               />
             </ContextMenu>
-            {sequence.tracks.every((t) => t.clips.length === 0) && !drop && (
-              <p className="timeline-hint" style={{ left: frameToX(0, view) }}>
-                Drag media here from the bin, or double-click it to place it at the playhead.
-              </p>
-            )}
           </div>
         </div>
       </PanelBody>

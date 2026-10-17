@@ -3,10 +3,11 @@ import { importMedia } from "../actions";
 import type { MediaAsset } from "../bindings/MediaAsset";
 import type { MediaId } from "../bindings/MediaId";
 import { insertMedia, MEDIA_DRAG_TYPE, mediaDrag } from "../edits";
+import { chord } from "../keyboard";
 import { formatDuration, formatRate } from "../format";
 import { useEditor } from "../store";
 import { useTheme } from "../theme";
-import { Button, ContextMenu, EmptyState, Icon, IconButton, Menu, type MenuEntry, Panel, PanelToolbar, Segmented, Slider, Spacer, TextInput, Well } from "../ui";
+import { ContextMenu, EmptyState, Icon, IconButton, Menu, type MenuEntry, Panel, PanelToolbar, Segmented, Slider, Spacer, TextInput, Well } from "../ui";
 import { activeSequence } from "../sequences";
 import { smartBins, sortLabels, TIMELINES_BIN, type BinId, type SortKey } from "./bins";
 import { MediaTile } from "./MediaTile";
@@ -108,8 +109,6 @@ export function MediaBinPanel() {
   const usedIds = new Set(
     snapshot ? snapshot.project.sequences.flatMap((q) => q.tracks.flatMap((t) => t.clips.map((c) => c.source.mediaId))) : [],
   );
-  const current = media.find((m) => m.id === selected) ?? null;
-  const inUse = current !== null && usedIds.has(current.id);
   const thumbnail = Math.min(
     theme.size.thumbnailMax,
     Math.max(theme.size.thumbnailMin, prefs.thumbnail ?? theme.size.thumbnail),
@@ -161,26 +160,6 @@ export function MediaBinPanel() {
 
   return (
     <Panel>
-      <PanelToolbar>
-        <Button onClick={importMedia}>Import</Button>
-        <Button
-          disabled={!current}
-          onClick={() => current && void insertMedia(current.id, playhead)}
-          title="Place at the playhead on V1 and A1"
-        >
-          Add to timeline
-        </Button>
-        <Spacer />
-        <Button
-          variant="ghost"
-          disabled={!current || inUse}
-          title={inUse ? "Used on the timeline" : "Remove from the project"}
-          onClick={() => current && removeMedia(current.id)}
-        >
-          Remove
-        </Button>
-      </PanelToolbar>
-
       {/* The folder column shows even with an empty bin: timelines live here too, and
           they exist before any footage does. */}
       <div className="bin-layout">
@@ -222,9 +201,9 @@ export function MediaBinPanel() {
 
           <div className="bin-content">
             {media.length === 0 && !showingTimelines ? (
-              <EmptyState action={<Button variant="solid" onClick={importMedia}>Import media</Button>}>
-                Import footage, audio or stills to start cutting.
-              </EmptyState>
+              <EmptyState
+                action={<IconButton icon="plus" shape="round" label="Import media" shortcut={chord("I")} onClick={importMedia} />}
+              />
             ) : showingTimelines ? (
               <Well className="bin-list-well">
                 <ul className="bin-list" role="listbox" aria-label="Timelines">

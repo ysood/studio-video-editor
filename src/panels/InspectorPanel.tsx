@@ -248,7 +248,6 @@ function SequenceSettings({ project, sequence }: { project: Project; sequence: S
           />
         </Field>
       </Section>
-      <Note>Select a clip to see its details.</Note>
     </>
   );
 }
