@@ -24,7 +24,7 @@ import "./inspector.css";
 import type { Sequence } from "../bindings/Sequence";
 import { useActiveSequence } from "../store";
 
-const FRAME_RATES: Rational[] = [
+export const FRAME_RATES: Rational[] = [
   { num: 24000, den: 1001 },
   { num: 24, den: 1 },
   { num: 25, den: 1 },
@@ -35,7 +35,7 @@ const FRAME_RATES: Rational[] = [
   { num: 60, den: 1 },
 ];
 
-const SIZES: { label: string; width: number; height: number }[] = [
+export const SIZES: { label: string; width: number; height: number }[] = [
   { label: "HD 1920×1080", width: 1920, height: 1080 },
   { label: "UHD 3840×2160", width: 3840, height: 2160 },
   { label: "HD 1280×720", width: 1280, height: 720 },

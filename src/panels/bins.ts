@@ -5,7 +5,14 @@
 import type { MediaAsset } from "../bindings/MediaAsset";
 import type { IconName } from "../ui";
 
-export type BinId = "all" | "footage" | "audio" | "stills" | "offline";
+export type BinId = "all" | "footage" | "audio" | "stills" | "offline" | "timelines";
+
+/**
+ * Sequences live in the bin beside the footage, the way timelines do in Resolve's
+ * media pool and sequences do in Premiere's project panel. The entry is separate from
+ * the smart bins because it lists sequences rather than media.
+ */
+export const TIMELINES_BIN: BinId = "timelines";
 
 export type SortKey = "name" | "duration" | "modified";
 

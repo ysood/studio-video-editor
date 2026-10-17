@@ -7,7 +7,8 @@ export function Dialog({ open, onClose, title, children, className }: {
   open: boolean;
   onClose: () => void;
   title: string;
-  children: ReactNode;
+  /** Optional so a dialog can render closed before it has anything to show. */
+  children?: ReactNode;
   className?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);

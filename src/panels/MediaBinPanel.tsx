@@ -7,9 +7,12 @@ import { formatDuration, formatRate } from "../format";
 import { useEditor } from "../store";
 import { useTheme } from "../theme";
 import { Button, ContextMenu, EmptyState, Icon, IconButton, Menu, type MenuEntry, Panel, PanelToolbar, Segmented, Slider, Spacer, Well } from "../ui";
-import { smartBins, sortLabels, type BinId, type SortKey } from "./bins";
+import { activeSequence } from "../sequences";
+import { smartBins, sortLabels, TIMELINES_BIN, type BinId, type SortKey } from "./bins";
 import { MediaTile } from "./MediaTile";
 import "./media-bin.css";
+import type { Sequence } from "../bindings/Sequence";
+import { NewSequenceDialog } from "../workspace/NewSequenceDialog";
 
 type ViewMode = "grid" | "list";
 
@@ -36,6 +39,14 @@ function loadPrefs(): Prefs {
   }
 }
 
+/** A sequence's length in microseconds, so it reads like a clip's duration. */
+function sequenceMicros(sequence: Sequence): number | null {
+  const end = Math.max(0, ...sequence.tracks.flatMap((t) => t.clips.map((c) => c.start + c.duration)));
+  if (end === 0) return null;
+  const { num, den } = sequence.format.frameRate;
+  return Math.round((end * den * 1_000_000) / num);
+}
+
 function describe(media: MediaAsset): string {
   if (media.video && media.kind === "video") {
     return `${media.video.width}×${media.video.height}, ${formatRate(media.video.frameRate)} fps`;
@@ -54,8 +65,10 @@ export function MediaBinPanel() {
   const snapshot = useEditor((s) => s.snapshot);
   const playhead = useEditor((s) => s.playhead);
   const edit = useEditor((s) => s.edit);
+  const setExportOpen = useEditor((s) => s.setExportOpen);
   const [selected, setSelected] = useState<MediaId | null>(null);
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
+  const [newSequence, setNewSequence] = useState(false);
 
   useEffect(() => {
     try {
@@ -79,6 +92,11 @@ export function MediaBinPanel() {
       onSelect: () => setPrefs({ ...prefs, sort: key }),
     })),
   ];
+  const sequences = snapshot?.project.sequences ?? [];
+  const activeId = useEditor((st) => st.activeSequenceId);
+  const setActiveSequence = useEditor((st) => st.setActiveSequence);
+  const openSequenceId = snapshot ? activeSequence(snapshot.project, activeId).id : null;
+  const showingTimelines = prefs.bin === TIMELINES_BIN;
   const bin = bins.find((b) => b.id === prefs.bin) ?? bins[0]!;
   const usedIds = new Set(
     snapshot ? snapshot.project.sequences.flatMap((q) => q.tracks.flatMap((t) => t.clips.map((c) => c.source.mediaId))) : [],
@@ -92,6 +110,19 @@ export function MediaBinPanel() {
 
   const removeMedia = (id: MediaId) =>
     void edit({ type: "RemoveMedia", mediaId: id }).then(() => setSelected((s) => (s === id ? null : s)));
+
+  const sequenceMenu = (q: Sequence): MenuEntry[] => [
+    { label: "Open", icon: "timeline", onSelect: () => setActiveSequence(q.id) },
+    { label: "Export…", icon: "export", onSelect: () => { setActiveSequence(q.id); setExportOpen(true); } },
+    { type: "separator" },
+    {
+      label: sequences.length === 1 ? "Delete (the only timeline)" : "Delete",
+      icon: "trash",
+      tone: "danger",
+      disabled: sequences.length === 1,
+      onSelect: () => void edit({ type: "RemoveSequence", sequenceId: q.id }),
+    },
+  ];
 
   const menuFor = (m: MediaAsset): MenuEntry[] => {
     const used = usedIds.has(m.id);
@@ -154,7 +185,7 @@ export function MediaBinPanel() {
                 <li
                   key={b.id}
                   role="option"
-                  aria-selected={b.id === bin.id}
+                  aria-selected={!showingTimelines && b.id === bin.id}
                   className="bin-folder"
                   data-tone={b.id === "offline" ? "danger" : undefined}
                   onClick={() => setPrefs({ ...prefs, bin: b.id })}
@@ -164,11 +195,55 @@ export function MediaBinPanel() {
                   <span className="bin-folder-count numeric">{b.media.length}</span>
                 </li>
               ))}
+              <li
+                role="option"
+                aria-selected={showingTimelines}
+                className="bin-folder"
+                onClick={() => setPrefs({ ...prefs, bin: TIMELINES_BIN })}
+              >
+                <Icon name="timeline" />
+                <span className="bin-folder-name">Timelines</span>
+                <IconButton
+                  icon="plus"
+                  label="New timeline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setNewSequence(true);
+                  }}
+                />
+              </li>
             </ul>
           </Well>
 
           <div className="bin-content">
-            {bin.media.length === 0 ? (
+            {showingTimelines ? (
+              <Well className="bin-list-well">
+                <ul className="bin-list" role="listbox" aria-label="Timelines">
+                  {sequences.map((q) => (
+                    <ContextMenu key={q.id} entries={sequenceMenu(q)}>
+                      <li
+                        role="option"
+                        aria-selected={q.id === openSequenceId}
+                        className="bin-row"
+                        onClick={() => setActiveSequence(q.id)}
+                        title="Open this timeline"
+                      >
+                        <span className="bin-swatch" data-kind="timeline" aria-hidden>
+                          <Icon name="timeline" />
+                        </span>
+                        <span className="bin-name">{q.name}</span>
+                        <span className="bin-meta numeric">
+                          {q.format.width}×{q.format.height}, {formatRate(q.format.frameRate)} fps
+                        </span>
+                        <span className="bin-duration numeric">
+                          {formatDuration(sequenceMicros(q))}
+                        </span>
+                      </li>
+                    </ContextMenu>
+                  ))}
+                </ul>
+              </Well>
+            ) : bin.media.length === 0 ? (
               <EmptyState>Nothing in {bin.name.toLowerCase()} yet.</EmptyState>
             ) : prefs.view === "grid" ? (
               <ul
@@ -223,6 +298,8 @@ export function MediaBinPanel() {
           </div>
         </div>
       )}
+
+      <NewSequenceDialog open={newSequence} onClose={() => setNewSequence(false)} />
 
       <PanelToolbar placement="bottom">
         <Segmented
