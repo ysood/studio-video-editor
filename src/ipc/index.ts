@@ -51,6 +51,13 @@ export const ipc = {
     invoke<void>("render_start", { path, settings }),
   renderCancel: () => invoke<void>("render_cancel"),
   nativeMenuActive: () => invoke<boolean>("native_menu_active"),
+  // Native preview surface (ADR-0003). No-ops off macOS.
+  viewerSetRect: (x: number, y: number, width: number, height: number) =>
+    invoke<void>("viewer_set_rect", { x, y, width, height }),
+  viewerSync: () => invoke<void>("viewer_sync"),
+  viewerPlay: () => invoke<void>("viewer_play"),
+  viewerPause: () => invoke<void>("viewer_pause"),
+  viewerSeek: (frame: number) => invoke<void>("viewer_seek", { frame }),
 };
 
 export const events = {

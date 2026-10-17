@@ -3,7 +3,9 @@ import { useCallback, useEffect, useReducer, useRef } from "react";
 import type { MediaAsset } from "../bindings/MediaAsset";
 import { framesToSeconds } from "../format";
 import { useShortcut } from "../keyboard";
+import { useNativeViewer } from "../playback/nativeViewer";
 import { audioAt, sequenceEnd, videoAt } from "../playback/resolve";
+import { isBrowserPreview } from "../preview/mode";
 import { useEditor } from "../store";
 import { IconButton, Panel, Timecode } from "../ui";
 import "./viewer.css";
@@ -39,6 +41,9 @@ export function ViewerPanel() {
   const offline = new Set(snapshot?.offlineMedia ?? []);
   const current = project ? videoAt(project, playhead) : null;
 
+  // macOS draws the picture natively; the element path below is the browser fallback.
+  useNativeViewer(stageRef);
+
   // Clock: advance the playhead from wall time while playing.
   useEffect(() => {
     if (!playing || !project) return;
@@ -61,9 +66,12 @@ export function ViewerPanel() {
   }, [playing, project, end, rate.num, rate.den, setPlayhead, setPlaying]);
 
   // Picture: show the active media element and keep it at the right source time.
+  // Browser preview only. In the app AVFoundation owns the picture (ADR-0003), because
+  // the asset protocol cannot stream high bitrate media on macOS and an element cannot
+  // composite tracks.
   useEffect(() => {
     const stage = stageRef.current;
-    if (!stage || !project) return;
+    if (!isBrowserPreview || !stage || !project) return;
     const activeId = current && !offline.has(current.media.id) ? current.media.id : null;
     if (current && activeId && !visuals.current.has(activeId)) {
       const element =
@@ -99,8 +107,9 @@ export function ViewerPanel() {
   });
 
   // Sound: one element per audible clip, created on demand, dropped when silent.
+  // Browser preview only, for the same reason as the picture.
   useEffect(() => {
-    if (!project) return;
+    if (!isBrowserPreview || !project) return;
     const audible = playing ? audioAt(project, playhead).filter((a) => !offline.has(a.media.id)) : [];
     const keep = new Set(audible.map((a) => a.clip.id));
     for (const [id, element] of sounds.current) {
@@ -134,9 +143,22 @@ export function ViewerPanel() {
     }
   }, [project]);
 
+  // Starting from the end rewinds first, and writes the rewind to the store rather than
+  // keeping it inside the clock. Everything that reacts to `playing` (the native viewer
+  // seeks AVFoundation before it starts) then sees the frame playback really begins at.
+  const startPlaying = useCallback(() => {
+    if (end === 0) return;
+    if (useEditor.getState().playhead >= end) setPlayhead(0);
+    setPlaying(true);
+  }, [end, setPlayhead, setPlaying]);
+
   const togglePlay = useCallback(() => {
-    if (end > 0) setPlaying(!useEditor.getState().playing);
-  }, [end, setPlaying]);
+    if (useEditor.getState().playing) {
+      setPlaying(false);
+      return;
+    }
+    startPlaying();
+  }, [setPlaying, startPlaying]);
 
   useShortcut(
     useCallback(
@@ -151,12 +173,12 @@ export function ViewerPanel() {
           return true;
         }
         if (e.key === "l") {
-          if (end > 0) setPlaying(true);
+          startPlaying();
           return true;
         }
         return false;
       },
-      [togglePlay, setPlaying, end],
+      [togglePlay, setPlaying, startPlaying],
     ),
   );
 
