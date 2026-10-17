@@ -86,17 +86,39 @@ pub fn load(path: &Path) -> Result<Project, PersistError> {
 }
 
 /// Write atomically: a crash mid-save leaves the previous file intact.
+///
+/// Write the whole document to a temporary file beside the target, flush it to the
+/// disk, then rename it over the target and flush the rename itself. Every step has to
+/// be there: without the first flush the rename can land before the bytes do, and
+/// without the second the directory entry can still be pointing at neither file after a
+/// power cut. A failed write takes its temporary file with it.
 pub fn save(project: &Project, path: &Path) -> Result<(), PersistError> {
     project.validate()?;
     let json = to_json(project)?;
     let temp = temp_path(path);
-    {
-        let mut file = fs::File::create(&temp)?;
-        file.write_all(json.as_bytes())?;
-        file.sync_all()?;
+    if let Err(error) = write_all_synced(&temp, json.as_bytes()) {
+        let _ = fs::remove_file(&temp);
+        return Err(error.into());
     }
     fs::rename(&temp, path)?;
+    sync_parent(path);
     Ok(())
+}
+
+fn write_all_synced(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    let mut file = fs::File::create(path)?;
+    file.write_all(bytes)?;
+    file.sync_all()
+}
+
+/// Best effort: a platform that will not open a directory for syncing (Windows) has
+/// still done the rename, and the save is no worse off than before.
+fn sync_parent(path: &Path) {
+    if let Some(parent) = path.parent() {
+        if let Ok(dir) = fs::File::open(parent) {
+            let _ = dir.sync_all();
+        }
+    }
 }
 
 fn temp_path(path: &Path) -> PathBuf {
@@ -190,5 +212,143 @@ mod tests {
             from_json("{}").unwrap_err(),
             PersistError::MissingVersion
         ));
+    }
+
+    #[test]
+    fn saving_again_replaces_the_file_and_leaves_no_temp() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("cut.studio");
+        let mut project = edited_project();
+        save(&project, &path).unwrap();
+        project.name = "Second pass".into();
+        save(&project, &path).unwrap();
+        assert_eq!(load(&path).unwrap().name, "Second pass");
+        assert!(!temp_path(&path).exists());
+        let names: Vec<_> = fs::read_dir(dir.path())
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(names, vec!["cut.studio"]);
+    }
+
+    #[test]
+    fn a_rejected_save_leaves_the_previous_file_untouched() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("cut.studio");
+        let good = edited_project();
+        save(&good, &path).unwrap();
+
+        // Invalid: a project keeps at least one sequence.
+        let mut bad = good.clone();
+        bad.sequences.clear();
+        assert!(matches!(save(&bad, &path), Err(PersistError::Invalid(_))));
+
+        assert_eq!(load(&path).unwrap(), good, "the good file is still there");
+        assert!(
+            !temp_path(&path).exists(),
+            "and no half-written temp beside it"
+        );
+    }
+
+    #[test]
+    fn a_save_that_cannot_be_written_reports_it_rather_than_panicking() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("no such folder").join("cut.studio");
+        assert!(matches!(
+            save(&edited_project(), &path),
+            Err(PersistError::Io(_))
+        ));
+        assert!(!path.exists());
+    }
+
+    #[test]
+    fn writing_what_was_read_gives_the_same_bytes() {
+        // Save, load, save: a file that goes through Studio untouched comes out
+        // identical, so a project in version control does not churn on every open.
+        let project = edited_project();
+        let once = to_json(&project).unwrap();
+        let twice = to_json(&from_json(&once).unwrap()).unwrap();
+        assert_eq!(once, twice);
+    }
+
+    #[test]
+    fn rejects_a_truncated_file() {
+        let text = to_json(&edited_project()).unwrap();
+        let half = &text[..text.len() / 2];
+        assert!(matches!(
+            from_json(half).unwrap_err(),
+            PersistError::Parse(_)
+        ));
+    }
+
+    #[test]
+    fn rejects_a_file_that_is_not_json() {
+        assert!(matches!(
+            from_json("this is not a project").unwrap_err(),
+            PersistError::Parse(_)
+        ));
+    }
+
+    #[test]
+    fn rejects_a_document_missing_a_required_field() {
+        let mut value = serde_json::to_value(edited_project()).unwrap();
+        value.as_object_mut().unwrap().remove("sequences");
+        assert!(matches!(
+            from_json(&value.to_string()).unwrap_err(),
+            PersistError::Parse(_)
+        ));
+    }
+
+    #[test]
+    fn rejects_a_file_over_the_size_cap_without_reading_it() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("huge.studio");
+        // Sparse, so the test costs no disk: the cap is checked from the metadata.
+        let file = fs::File::create(&path).unwrap();
+        file.set_len(MAX_PROJECT_BYTES + 1).unwrap();
+        drop(file);
+        assert!(matches!(load(&path).unwrap_err(), PersistError::TooLarge));
+    }
+
+    #[test]
+    fn reports_a_missing_file_rather_than_panicking() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(matches!(
+            load(&dir.path().join("gone.studio")).unwrap_err(),
+            PersistError::Io(_)
+        ));
+    }
+
+    /// Fields this build does not know are dropped rather than refused. A file from a
+    /// newer build is already turned away by its `schemaVersion`, so what is left here
+    /// is a hand-edited file, and opening it beats refusing it.
+    #[test]
+    fn ignores_a_field_it_does_not_know() {
+        let project = edited_project();
+        let mut value = serde_json::to_value(&project).unwrap();
+        value["somethingElse"] = Value::from("from a plugin that does not exist");
+        assert_eq!(
+            from_json(&value.to_string()).expect("opens anyway"),
+            project
+        );
+    }
+
+    #[test]
+    fn a_name_in_any_script_survives_the_round_trip() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("cut.studio");
+        let mut project = edited_project();
+        project.name = "Sydney ツアー 🎬 recap".into();
+        project.media[0].path = "/footage/día uno/A001_C004 \"take 2\".mov".into();
+        save(&project, &path).unwrap();
+        assert_eq!(load(&path).unwrap(), project);
+    }
+
+    #[test]
+    fn migrating_is_idempotent_at_the_current_version() {
+        let value = serde_json::to_value(edited_project()).unwrap();
+        let mut migrated = value.clone();
+        migrate(&mut migrated, SCHEMA_VERSION);
+        assert_eq!(migrated, value);
     }
 }
