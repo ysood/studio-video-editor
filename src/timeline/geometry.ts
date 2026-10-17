@@ -11,14 +11,10 @@ import type { Project } from "../bindings/Project";
 import type { Track } from "../bindings/Track";
 import type { TrackId } from "../bindings/TrackId";
 import { microsToFrames } from "../format";
+import type { Theme } from "../theme";
 
-export const RULER_HEIGHT = 26;
-export const ROW_HEIGHT = 46;
-export const ROW_GAP = 1;
-/** Pixels from a clip edge that grab the edge for trimming. */
-export const EDGE_GRAB = 6;
-/** Snap distance in pixels. */
-export const SNAP_PX = 8;
+/** Timeline dimensions come from the theme so density and proportions are themeable. */
+export type TimelineMetrics = Theme["timeline"];
 
 export interface View {
   zoom: number; // pixels per frame
@@ -32,21 +28,21 @@ export interface Row {
 }
 
 /** Display order: video tracks from the highest down to V1, then audio from A1 down. */
-export function layoutRows(project: Project): Row[] {
+export function layoutRows(project: Project, m: TimelineMetrics): Row[] {
   const tracks = project.sequence.tracks;
   const video = tracks.filter((t) => t.kind === "video").reverse();
   const audio = tracks.filter((t) => t.kind === "audio");
-  let y = RULER_HEIGHT;
+  let y = m.rulerHeight;
   return [...video, ...audio].map((track) => {
-    const row = { track, y, height: ROW_HEIGHT };
-    y += ROW_HEIGHT + ROW_GAP;
+    const row = { track, y, height: m.rowHeight };
+    y += m.rowHeight + m.rowGap;
     return row;
   });
 }
 
-export function contentHeight(rows: Row[]): number {
+export function contentHeight(rows: Row[], m: TimelineMetrics): number {
   const last = rows[rows.length - 1];
-  return last ? last.y + last.height + ROW_GAP : RULER_HEIGHT;
+  return last ? last.y + last.height + m.rowGap : m.rulerHeight;
 }
 
 export const frameToX = (frame: number, view: View) => frame * view.zoom - view.scrollX;
@@ -63,8 +59,8 @@ export function rowAt(rows: Row[], y: number): Row | null {
   return rows.find((r) => y >= r.y && y < r.y + r.height) ?? null;
 }
 
-export function hitTest(rows: Row[], view: View, x: number, y: number): Hit {
-  if (y < RULER_HEIGHT) return { type: "ruler" };
+export function hitTest(rows: Row[], view: View, x: number, y: number, m: TimelineMetrics): Hit {
+  if (y < m.rulerHeight) return { type: "ruler" };
   const row = rowAt(rows, y);
   if (!row) return { type: "none" };
   for (const clip of row.track.clips) {
@@ -72,7 +68,7 @@ export function hitTest(rows: Row[], view: View, x: number, y: number): Hit {
     const right = frameToX(clipEnd(clip), view);
     if (x < left || x >= right) continue;
     // On short clips the edges would cover the whole body; keep a middle to grab.
-    const grab = Math.min(EDGE_GRAB, (right - left) / 3);
+    const grab = Math.min(m.edgeGrab, (right - left) / 3);
     const zone = x < left + grab ? "start" : x >= right - grab ? "end" : "body";
     return { type: "clip", clip, track: row.track, zone };
   }
@@ -199,7 +195,7 @@ export function previewTrim(project: Project, clipId: ClipId, edge: ClipEdge, ra
 }
 
 /** Ruler tick spacing in frames: the smallest step at least `minPx` apart. */
-export function tickStep(fps: number, zoom: number, minPx = 90): number {
+export function tickStep(fps: number, zoom: number, minPx: number): number {
   const steps = [1, 2, 5, 10, fps, 2 * fps, 5 * fps, 10 * fps, 30 * fps, 60 * fps, 300 * fps, 600 * fps, 1800 * fps];
   return steps.find((s) => s * zoom >= minPx) ?? steps[steps.length - 1]!;
 }

@@ -9,6 +9,7 @@ import { firstTrack, insertMedia, MEDIA_DRAG_TYPE, mediaDrag } from "../edits";
 import { microsToFrames } from "../format";
 import { useShortcut } from "../keyboard";
 import { useEditor, ZOOM_MAX, ZOOM_MIN } from "../store";
+import { useTheme, useThemeRevision } from "../theme";
 import { draw, type Ghost } from "../timeline/draw";
 import {
   clipEnd,
@@ -21,7 +22,6 @@ import {
   previewMove,
   previewTrim,
   rowAt,
-  SNAP_PX,
   xToFrame,
   type View,
 } from "../timeline/geometry";
@@ -66,9 +66,12 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
   const [drop, setDrop] = useState<DropPreview | null>(null);
   const [snap, setSnap] = useState(true);
 
+  const theme = useTheme();
+  const themeRevision = useThemeRevision();
+  const metrics = theme.timeline;
   const project = snapshot?.project ?? null;
-  const rows = useMemo(() => (project ? layoutRows(project) : []), [project]);
-  const height = contentHeight(rows);
+  const rows = useMemo(() => (project ? layoutRows(project, metrics) : []), [project, metrics]);
+  const height = contentHeight(rows, metrics);
   const view: View = useMemo(() => ({ zoom, scrollX }), [zoom, scrollX]);
   const rate = project?.sequence.format.frameRate ?? { num: 24, den: 1 };
   const selectionSet = useMemo(() => new Set(selection), [selection]);
@@ -99,8 +102,9 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
   useEffect(() => {
     if (!playing) return;
     const x = frameToX(playhead, view);
-    if (x > width - 24 || x < 0) setScrollX(playhead * zoom - 24);
-  }, [playing, playhead, view, width, zoom, setScrollX]);
+    const margin = theme.space[9];
+    if (x > width - margin || x < 0) setScrollX(playhead * zoom - margin);
+  }, [playing, playhead, view, width, zoom, setScrollX, theme]);
 
   // Ghosts for an in-progress move or trim.
   const { ghosts, lifted } = useMemo(() => {
@@ -151,6 +155,7 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     draw(ctx, {
+      theme,
       project,
       rows,
       view,
@@ -162,19 +167,19 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
       lifted,
       ghosts: [...ghosts, ...(drop?.ghosts ?? [])],
     });
-  }, [project, rows, view, width, height, playhead, selectionSet, ghosts, lifted, drop, snapshot]);
+  }, [theme, themeRevision, project, rows, view, width, height, playhead, selectionSet, ghosts, lifted, drop, snapshot]);
 
   const pointer = (e: { clientX: number; clientY: number }) => {
     const rect = canvasRef.current!.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   };
 
-  const snapThreshold = SNAP_PX / zoom;
+  const snapThreshold = metrics.snap / zoom;
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!project || e.button !== 0) return;
     const { x, y } = pointer(e);
-    const hit = hitTest(rows, view, x, y);
+    const hit = hitTest(rows, view, x, y, metrics);
     e.currentTarget.setPointerCapture(e.pointerId);
     if (hit.type === "ruler") {
       setPlayhead(xToFrame(x, view));
@@ -210,7 +215,7 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
     if (!project) return;
     const { x, y } = pointer(e);
     if (!drag) {
-      const hit = hitTest(rows, view, x, y);
+      const hit = hitTest(rows, view, x, y, metrics);
       e.currentTarget.style.cursor =
         hit.type === "clip" && !hit.track.locked
           ? hit.zone === "body"
@@ -335,9 +340,9 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
       1,
       ...project.sequence.tracks.flatMap((t) => t.clips.map(clipEnd)),
     );
-    setZoom((width - 40) / total);
+    setZoom((width - 2 * theme.space[8]) / total);
     setScrollX(0);
-  }, [project, width, setZoom, setScrollX]);
+  }, [project, width, setZoom, setScrollX, theme]);
 
   useShortcut(
     useCallback(

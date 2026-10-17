@@ -7,11 +7,12 @@ import {
   layoutRows,
   previewMove,
   previewTrim,
-  RULER_HEIGHT,
-  ROW_HEIGHT,
   snapDelta,
   tickStep,
 } from "./geometry";
+import { graphiteTheme } from "../theme/themes/graphite";
+
+const m = graphiteTheme.timeline;
 
 const MEDIA = "m-1";
 
@@ -58,25 +59,25 @@ const view = { zoom: 2, scrollX: 0 };
 
 describe("layoutRows", () => {
   it("stacks video tracks highest first, then audio", () => {
-    const rows = layoutRows(project());
+    const rows = layoutRows(project(), m);
     expect(rows.map((r) => r.track.id)).toEqual(["v2", "v1", "a1"]);
-    expect(rows[0]!.y).toBe(RULER_HEIGHT);
+    expect(rows[0]!.y).toBe(m.rulerHeight);
   });
 });
 
 describe("hitTest", () => {
-  const rows = layoutRows(project());
-  const v1Y = rows[1]!.y + ROW_HEIGHT / 2;
+  const rows = layoutRows(project(), m);
+  const v1Y = rows[1]!.y + m.rowHeight / 2;
 
   it("finds clip bodies and edges", () => {
-    expect(hitTest(rows, view, 120, v1Y)).toMatchObject({ type: "clip", zone: "body" });
-    expect(hitTest(rows, view, 101, v1Y)).toMatchObject({ type: "clip", zone: "start" });
-    expect(hitTest(rows, view, 178, v1Y)).toMatchObject({ type: "clip", zone: "end" });
+    expect(hitTest(rows, view, 120, v1Y, m)).toMatchObject({ type: "clip", zone: "body" });
+    expect(hitTest(rows, view, 101, v1Y, m)).toMatchObject({ type: "clip", zone: "start" });
+    expect(hitTest(rows, view, 178, v1Y, m)).toMatchObject({ type: "clip", zone: "end" });
   });
 
   it("reports the ruler and empty track space", () => {
-    expect(hitTest(rows, view, 10, 5)).toEqual({ type: "ruler" });
-    expect(hitTest(rows, view, 60, v1Y)).toMatchObject({ type: "track" });
+    expect(hitTest(rows, view, 10, 5, m)).toEqual({ type: "ruler" });
+    expect(hitTest(rows, view, 60, v1Y, m)).toMatchObject({ type: "track" });
   });
 });
 
@@ -127,7 +128,7 @@ describe("previewTrim", () => {
 
 describe("tickStep", () => {
   it("chooses wider steps as the view zooms out", () => {
-    expect(tickStep(24, 20)).toBe(5);
-    expect(tickStep(24, 1)).toBe(96 + 24);
+    expect(tickStep(24, 20, m.tickMinSpacing)).toBe(5);
+    expect(tickStep(24, 1, m.tickMinSpacing)).toBe(5 * 24);
   });
 });
