@@ -1,0 +1,307 @@
+//! The project document. `docs/schema.md` describes these types and their invariants;
+//! keep the two in step.
+
+use crate::ids::{ClipId, LinkId, MediaId, ProjectId, SequenceId, TrackId};
+use crate::time::{Frame, Micros, Rational};
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
+
+/// Bump when a persisted type changes, and add a migration in `persist.rs`.
+pub const SCHEMA_VERSION: u32 = 1;
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct Project {
+    pub schema_version: u32,
+    pub id: ProjectId,
+    pub name: String,
+    pub media: Vec<MediaAsset>,
+    pub sequence: Sequence,
+}
+
+impl Project {
+    /// A new project with one empty video track and one empty audio track.
+    pub fn new(name: impl Into<String>, format: SequenceFormat) -> Self {
+        Self {
+            schema_version: SCHEMA_VERSION,
+            id: ProjectId::new(),
+            name: name.into(),
+            media: Vec::new(),
+            sequence: Sequence {
+                id: SequenceId::new(),
+                name: "Sequence 1".into(),
+                format,
+                tracks: vec![
+                    Track::new(TrackKind::Video, "V1"),
+                    Track::new(TrackKind::Audio, "A1"),
+                ],
+            },
+        }
+    }
+
+    pub fn media(&self, id: MediaId) -> Option<&MediaAsset> {
+        self.media.iter().find(|m| m.id == id)
+    }
+
+    pub fn track(&self, id: TrackId) -> Option<&Track> {
+        self.sequence.tracks.iter().find(|t| t.id == id)
+    }
+
+    pub fn track_mut(&mut self, id: TrackId) -> Option<&mut Track> {
+        self.sequence.tracks.iter_mut().find(|t| t.id == id)
+    }
+
+    /// The clip and the track that holds it.
+    pub fn find_clip(&self, id: ClipId) -> Option<(&Track, &Clip)> {
+        self.sequence
+            .tracks
+            .iter()
+            .find_map(|t| t.clips.iter().find(|c| c.id == id).map(|c| (t, c)))
+    }
+
+    /// Clip ids of the clip's link group, including the clip itself.
+    pub fn link_group(&self, id: ClipId) -> Vec<ClipId> {
+        let Some((_, clip)) = self.find_clip(id) else {
+            return Vec::new();
+        };
+        match clip.link {
+            None => vec![id],
+            Some(link) => self
+                .all_clips()
+                .filter(|(_, c)| c.link == Some(link))
+                .map(|(_, c)| c.id)
+                .collect(),
+        }
+    }
+
+    pub fn all_clips(&self) -> impl Iterator<Item = (&Track, &Clip)> {
+        self.sequence
+            .tracks
+            .iter()
+            .flat_map(|t| t.clips.iter().map(move |c| (t, c)))
+    }
+
+    /// Frame after the last clip on any track; zero for an empty sequence.
+    pub fn duration(&self) -> Frame {
+        self.all_clips().map(|(_, c)| c.end()).max().unwrap_or(0)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export)]
+pub enum MediaKind {
+    /// Has a video stream, and possibly audio.
+    Video,
+    /// Audio only.
+    Audio,
+    /// A single still frame with no inherent duration.
+    Image,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct MediaAsset {
+    pub id: MediaId,
+    /// Display name, initially the file name.
+    pub name: String,
+    /// Absolute path on the machine that imported it.
+    pub path: String,
+    pub kind: MediaKind,
+    /// `None` for still images.
+    #[ts(type = "number | null")]
+    pub duration_us: Option<Micros>,
+    pub video: Option<VideoInfo>,
+    pub audio: Option<AudioInfo>,
+    /// Detects a file replaced on disk since import.
+    pub fingerprint: Fingerprint,
+}
+
+impl MediaAsset {
+    pub fn has_video(&self) -> bool {
+        self.video.is_some()
+    }
+
+    pub fn has_audio(&self) -> bool {
+        self.audio.is_some()
+    }
+
+    /// Length in frames at `rate`, or `None` when the media has no inherent duration.
+    pub fn frames_at(&self, rate: Rational) -> Option<Frame> {
+        match self.kind {
+            MediaKind::Image => None,
+            _ => self.duration_us.map(|d| rate.micros_to_frames_floor(d)),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct VideoInfo {
+    pub width: u32,
+    pub height: u32,
+    pub frame_rate: Rational,
+    pub codec: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct AudioInfo {
+    pub sample_rate: u32,
+    pub channels: u32,
+    pub codec: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct Fingerprint {
+    #[ts(type = "number")]
+    pub size_bytes: u64,
+    #[ts(type = "number")]
+    pub modified_unix_ms: i64,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct Sequence {
+    pub id: SequenceId,
+    pub name: String,
+    pub format: SequenceFormat,
+    /// Video tracks bottom to top, then audio tracks top to bottom, in one list. Order
+    /// within a kind is stacking order: a later video track covers an earlier one.
+    pub tracks: Vec<Track>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SequenceFormat {
+    pub width: u32,
+    pub height: u32,
+    pub frame_rate: Rational,
+    pub sample_rate: u32,
+}
+
+impl Default for SequenceFormat {
+    fn default() -> Self {
+        Self {
+            width: 1920,
+            height: 1080,
+            frame_rate: Rational::new(24, 1),
+            sample_rate: 48_000,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "lowercase")]
+#[ts(export)]
+pub enum TrackKind {
+    Video,
+    Audio,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct Track {
+    pub id: TrackId,
+    pub kind: TrackKind,
+    pub name: String,
+    /// Disabled tracks are not rendered, heard or exported as active.
+    pub enabled: bool,
+    /// Locked tracks reject every edit that would change their clips.
+    pub locked: bool,
+    /// Sorted by `start`, never overlapping.
+    pub clips: Vec<Clip>,
+}
+
+impl Track {
+    pub fn new(kind: TrackKind, name: impl Into<String>) -> Self {
+        Self {
+            id: TrackId::new(),
+            kind,
+            name: name.into(),
+            enabled: true,
+            locked: false,
+            clips: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct Clip {
+    pub id: ClipId,
+    pub name: String,
+    /// First frame on the timeline.
+    #[ts(type = "number")]
+    pub start: Frame,
+    /// Length on the timeline, at least one frame.
+    #[ts(type = "number")]
+    pub duration: Frame,
+    pub enabled: bool,
+    /// Clips sharing a link move, trim, split and delete together and must share
+    /// `start`, `duration` and source range.
+    pub link: Option<LinkId>,
+    pub source: ClipSource,
+}
+
+impl Clip {
+    /// Frame after the clip's last frame.
+    pub fn end(&self) -> Frame {
+        self.start + self.duration
+    }
+
+    pub fn contains(&self, frame: Frame) -> bool {
+        frame >= self.start && frame < self.end()
+    }
+}
+
+/// What a clip plays. Generated (AI) and 3D sources are planned as further variants; they
+/// will bake to media before export so interchange stays media-only.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[serde(
+    tag = "type",
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
+)]
+#[ts(export)]
+pub enum ClipSource {
+    Media {
+        media_id: MediaId,
+        /// Offset into the media where the clip begins, in sequence frames.
+        #[ts(type = "number")]
+        source_start: Frame,
+    },
+}
+
+impl ClipSource {
+    pub fn media_id(&self) -> MediaId {
+        match self {
+            ClipSource::Media { media_id, .. } => *media_id,
+        }
+    }
+
+    pub fn source_start(&self) -> Frame {
+        match self {
+            ClipSource::Media { source_start, .. } => *source_start,
+        }
+    }
+
+    pub fn with_source_start(&self, value: Frame) -> Self {
+        match self {
+            ClipSource::Media { media_id, .. } => ClipSource::Media {
+                media_id: *media_id,
+                source_start: value,
+            },
+        }
+    }
+}
