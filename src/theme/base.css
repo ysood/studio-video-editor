@@ -46,6 +46,10 @@ p {
 :focus-visible {
   outline: var(--border-focus-width) solid var(--color-accent-base);
   outline-offset: var(--border-width);
+  /* An outline paints with its own element, so the next sibling's background would
+     cover the part that sits in the gap between them. Lift the focused element. */
+  position: relative;
+  z-index: 1;
 }
 
 /* A surface redefines the color variables; re-resolve text color against them. */
