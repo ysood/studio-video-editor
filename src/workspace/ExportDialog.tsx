@@ -24,12 +24,14 @@ function safeName(name: string): string {
 
 export function ExportDialog({ open: isOpen, onClose }: { open: boolean; onClose: () => void }) {
   const [choice, setChoice] = useState<Choice>("render-h264");
-  const snapshot = useEditor((s) => s.snapshot);
   const job = useEditor((s) => s.job);
   const sequence = useActiveSequence();
   const { notify, fail, setJob } = useEditor.getState();
 
-  const name = safeName(snapshot?.project.name ?? "Untitled");
+  // Named after the sequence, not the project: every export here is of one sequence, and
+  // a project with a rough cut beside a final would otherwise write both to one filename.
+  // Premiere and Resolve both default to the timeline's name for the same reason.
+  const name = safeName(sequence?.name ?? "Untitled");
   const sequenceId = sequence?.id ?? null;
 
   const run = async () => {
