@@ -109,7 +109,8 @@ export const crimsonTheme: Theme = {
     },
   },
 
-  // Two radii, far enough apart to read as a decision: tight on anything small,
-  // looser on overlays big enough to carry it. 2, 3 and 4 were indistinguishable.
-  radius: { control: 2, panel: 2, dialog: 4, clip: 2, round: 9999 },
+  // Softened, but still restrained: enough curve to read as deliberate, not enough to
+  // turn playful. Each step is far enough from the last to be a real choice, and the
+  // radius grows with the surface, so a dialog is rounder than a button.
+  radius: { control: 4, panel: 6, dialog: 8, clip: 4, round: 9999 },
 };
