@@ -178,6 +178,14 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
 
   const snapThreshold = metrics.snap / zoom;
 
+  // The canvas is only as tall as the ruler plus the tracks, so a click in the dead
+  // space below the last track lands on the area around it and never reaches the
+  // handler above. Treat that space as "nothing selected", which brings the sequence
+  // settings back in the inspector.
+  const onAreaPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget && e.button === 0) select([]);
+  };
+
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!project || e.button !== 0) return;
     const { x, y } = pointer(e);
@@ -474,6 +482,7 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
             ref={areaRef}
             className="timeline-area"
             onWheel={onWheel}
+            onPointerDown={onAreaPointerDown}
             onDragOver={onDragOver}
             onDragLeave={() => setDrop(null)}
             onDrop={onDrop}
