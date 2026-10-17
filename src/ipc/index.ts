@@ -57,10 +57,12 @@ export const ipc = {
   // Native preview surface (ADR-0003). No-ops off macOS.
   viewerSetRect: (x: number, y: number, width: number, height: number) =>
     invoke<void>("viewer_set_rect", { x, y, width, height }),
-  viewerSync: (frame: number) => invoke<void>("viewer_sync", { frame }),
+  viewerSync: (sequenceId: string, frame: number) =>
+    invoke<void>("viewer_sync", { sequenceId, frame }),
   viewerPlay: () => invoke<void>("viewer_play"),
   viewerPause: () => invoke<void>("viewer_pause"),
-  viewerSeek: (frame: number) => invoke<void>("viewer_seek", { frame }),
+  viewerSeek: (sequenceId: string, frame: number) =>
+    invoke<void>("viewer_seek", { sequenceId, frame }),
 };
 
 export const events = {

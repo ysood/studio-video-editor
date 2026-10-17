@@ -22,6 +22,7 @@ export function useNativeViewer(stage: RefObject<HTMLElement | null>) {
   const fromPlayer = useRef<number | null>(null);
 
   const sequence = useActiveSequence();
+  const sequenceId = sequence?.id ?? null;
   const rate = sequence?.format.frameRate ?? { num: 24, den: 1 };
   const num = rate.num;
   const den = rate.den;
@@ -55,13 +56,14 @@ export function useNativeViewer(stage: RefObject<HTMLElement | null>) {
     };
   }, [stage, pushRect]);
 
-  // The composition is derived, so it is rebuilt after every edit. The playhead goes
-  // with it: rebuilding replaces the player's item, which would otherwise leave the
-  // viewer showing the first frame of the timeline instead of the frame you are on.
+  // The composition is derived, so it is rebuilt after every edit, and again when
+  // another sequence is opened. The playhead goes with it: rebuilding replaces the
+  // player's item, which would otherwise leave the viewer showing the first frame of the
+  // timeline instead of the frame you are on.
   useEffect(() => {
-    if (isBrowserPreview) return;
-    void ipc.viewerSync(useEditor.getState().playhead);
-  }, [snapshot]);
+    if (isBrowserPreview || !sequenceId) return;
+    void ipc.viewerSync(sequenceId, useEditor.getState().playhead);
+  }, [snapshot, sequenceId]);
 
   // Follow the player's clock while it runs, and stop when it reaches the end.
   useEffect(() => {
@@ -89,19 +91,19 @@ export function useNativeViewer(stage: RefObject<HTMLElement | null>) {
 
   useEffect(() => {
     if (isBrowserPreview) return;
-    if (!playing) {
+    if (!playing || !sequenceId) {
       void ipc.viewerPause();
       return;
     }
     // Start from where the playhead is, then hand timing to AVFoundation.
-    void ipc.viewerSeek(useEditor.getState().playhead).then(() => ipc.viewerPlay());
-  }, [playing]);
+    void ipc.viewerSeek(sequenceId, useEditor.getState().playhead).then(() => ipc.viewerPlay());
+  }, [playing, sequenceId]);
 
   // Scrubbing only. During playback the player is the clock, and a seek per reported
   // frame would flush the decoder.
   useEffect(() => {
-    if (isBrowserPreview || playing) return;
+    if (isBrowserPreview || playing || !sequenceId) return;
     if (fromPlayer.current === playhead) return;
-    void ipc.viewerSeek(playhead);
-  }, [playhead, playing]);
+    void ipc.viewerSeek(sequenceId, playhead);
+  }, [playhead, playing, sequenceId]);
 }

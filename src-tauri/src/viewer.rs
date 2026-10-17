@@ -32,7 +32,7 @@ use objc2_av_foundation::{
 use objc2_core_media::{CMTime, CMTimeFlags, CMTimeRange};
 use objc2_foundation::{NSPoint, NSRect, NSSize, NSString, NSURL};
 
-use studio_core::model::{MediaKind, Project, TrackKind};
+use studio_core::model::{MediaKind, Project, Sequence, TrackKind};
 
 /// Composition times are built in microseconds, matching `Micros` in the document, so a
 /// frame boundary never lands between two representable instants.
@@ -56,17 +56,19 @@ pub struct Segment {
     pub lane: usize,
 }
 
-/// Flatten the project into non-overlapping video segments plus one lane per audio track.
+/// Flatten one sequence into non-overlapping video segments plus one lane per audio track.
+///
+/// The sequence is passed in rather than looked up, because the preview shows whichever
+/// sequence is open and the document does not record that (ADR-0004).
 ///
 /// Video mirrors `playback::resolve` and `export::render`: the highest enabled video track
 /// with an enabled clip wins, so the flattened result has no overlaps and fits one
 /// composition track. Audio keeps its lanes because several clips can sound at once.
-pub fn segments(project: &Project) -> Vec<Segment> {
-    let rate = project.first_sequence().format.frame_rate;
+pub fn segments(project: &Project, sequence: &Sequence) -> Vec<Segment> {
+    let rate = sequence.format.frame_rate;
     let mut out = Vec::new();
 
-    let video: Vec<_> = project
-        .first_sequence()
+    let video: Vec<_> = sequence
         .tracks
         .iter()
         .filter(|t| t.kind == TrackKind::Video && t.enabled)
@@ -98,8 +100,7 @@ pub fn segments(project: &Project) -> Vec<Segment> {
         }
     }
 
-    for (lane, track) in project
-        .first_sequence()
+    for (lane, track) in sequence
         .tracks
         .iter()
         .filter(|t| t.kind == TrackKind::Audio && t.enabled)
@@ -381,7 +382,7 @@ mod tests {
     #[test]
     fn flattens_linked_clips_into_video_and_audio_lanes() {
         let project = sample_edit();
-        let all = segments(&project);
+        let all = segments(&project, project.first_sequence());
         let video: Vec<_> = all.iter().filter(|s| !s.audio).collect();
         let audio: Vec<_> = all.iter().filter(|s| s.audio).collect();
 
@@ -418,7 +419,7 @@ mod tests {
         // Video tracks are stored bottom to top, before the audio tracks.
         project.first_sequence_mut().tracks.insert(1, over);
 
-        let video: Vec<_> = segments(&project)
+        let video: Vec<_> = segments(&project, project.first_sequence())
             .into_iter()
             .filter(|s| !s.audio)
             .collect();
@@ -443,6 +444,6 @@ mod tests {
         for track in &mut project.first_sequence_mut().tracks {
             track.enabled = false;
         }
-        assert!(segments(&project).is_empty());
+        assert!(segments(&project, project.first_sequence()).is_empty());
     }
 }

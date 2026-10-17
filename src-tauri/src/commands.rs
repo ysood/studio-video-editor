@@ -515,23 +515,32 @@ pub fn viewer_set_rect(window: tauri::WebviewWindow, x: f64, y: f64, width: f64,
     let _ = (window, x, y, width, height);
 }
 
-/// Rebuild the preview composition from the current document. Called after any edit that
-/// changes what plays; the composition is derived, never a source of truth.
+/// Rebuild the preview composition from the sequence that is open. Called after any edit
+/// that changes what plays, and when the open sequence changes; the composition is
+/// derived, never a source of truth.
+///
+/// A sequence that has since been deleted leaves the picture alone rather than clearing
+/// it, because the UI resyncs with the sequence it falls back to.
 #[tauri::command]
-pub fn viewer_sync(window: tauri::WebviewWindow, state: State<'_, AppState>, frame: i64) {
+pub fn viewer_sync(
+    window: tauri::WebviewWindow,
+    state: State<'_, AppState>,
+    sequence_id: SequenceId,
+    frame: i64,
+) {
     #[cfg(target_os = "macos")]
     {
-        let (segments, at_us) = {
+        let Some((segments, at_us)) = ({
             let session = state.session();
             let project = session.editor.project();
-            (
-                crate::viewer::segments(project),
-                project
-                    .first_sequence()
-                    .format
-                    .frame_rate
-                    .frames_to_micros(frame),
-            )
+            project.sequence(sequence_id).map(|sequence| {
+                (
+                    crate::viewer::segments(project, sequence),
+                    sequence.format.frame_rate.frames_to_micros(frame),
+                )
+            })
+        }) else {
+            return;
         };
         let app = window.app_handle().clone();
         let _ = window.with_webview(move |webview| {
@@ -545,7 +554,7 @@ pub fn viewer_sync(window: tauri::WebviewWindow, state: State<'_, AppState>, fra
         });
     }
     #[cfg(not(target_os = "macos"))]
-    let _ = (window, state, frame);
+    let _ = (window, state, sequence_id, frame);
 }
 
 #[tauri::command]
@@ -564,26 +573,31 @@ pub fn viewer_pause(window: tauri::WebviewWindow) {
     let _ = window;
 }
 
-/// Seek the preview to a sequence frame. The frame is converted here so the surface never
-/// needs to know the sequence rate.
+/// Seek the preview to a frame of the sequence that is open. The frame is converted here
+/// so the surface never needs to know the sequence rate.
 #[tauri::command]
-pub fn viewer_seek(window: tauri::WebviewWindow, state: State<'_, AppState>, frame: i64) {
+pub fn viewer_seek(
+    window: tauri::WebviewWindow,
+    state: State<'_, AppState>,
+    sequence_id: SequenceId,
+    frame: i64,
+) {
     #[cfg(target_os = "macos")]
     {
-        let micros = {
+        let Some(micros) = ({
             let session = state.session();
             session
                 .editor
                 .project()
-                .first_sequence()
-                .format
-                .frame_rate
-                .frames_to_micros(frame)
+                .sequence(sequence_id)
+                .map(|s| s.format.frame_rate.frames_to_micros(frame))
+        }) else {
+            return;
         };
         let _ = window.with_webview(move |webview| {
             crate::viewer::seek(webview.ns_window(), micros);
         });
     }
     #[cfg(not(target_os = "macos"))]
-    let _ = (window, state, frame);
+    let _ = (window, state, sequence_id, frame);
 }
