@@ -71,9 +71,13 @@ enum exported to TypeScript. Every way of starting one ends in `runAction` in
 - **Import:** `ffprobe` (found via `STUDIO_FFPROBE`, PATH, or Homebrew paths) runs per file
   in parallel batches of four; output is parsed by `probe::parse`. Imported paths are added
   to the asset protocol scope, which starts empty.
-- **Playback:** the webview's decoders (AVFoundation on macOS) play original media through
-  the asset protocol. The highest enabled video track wins; every enabled audio clip is
-  heard. Elements are re-seeked only beyond 120 ms of drift.
+- **Playback (macOS):** `viewer.rs` flattens the timeline into segments, builds an
+  `AVMutableComposition` from them and plays it with `AVPlayer` into an `AVPlayerLayer`,
+  in a native view positioned over the viewer's matte by the web UI (ADR-0003). The
+  highest enabled video track wins, matching `render.rs`; audio keeps one lane per track.
+  The asset protocol is not on this path: it stalls on high bitrate H.264 (tauri#7355).
+- **Playback (elsewhere, and browser preview):** one muted `<video>` per visual clip
+  through the asset protocol, re-seeked only beyond 120 ms of drift.
 - **Render:** `export::render::plan` builds an FFmpeg argument vector (black canvas plus
   silent bed, one seeked input per clip, fit, offset, overlay in track order, delayed and
   mixed audio). The shell spawns it, streams `-progress` to `job://progress`, and deletes
@@ -97,13 +101,18 @@ copies used media next to both files plus a provenance manifest.
 
 ## Known limits (milestone 1)
 
-- Preview fidelity is whatever the webview decodes: no effects, transforms or transitions
-  yet. In a headless Linux WebKitGTK session video frames did not render (stills did); on
-  macOS the system webview plays H.264, HEVC and ProRes. Not yet verified on a Mac.
+- No effects, transforms or transitions in the preview yet. On macOS the picture comes
+  from AVFoundation and plays 60 Mbps H.264 smoothly; the element path used everywhere
+  else still cannot stream that bitrate through the asset protocol.
+- The preview runs two clocks: the UI advances the playhead from wall time while
+  AVFoundation keeps its own. They can drift apart. Replacing the UI clock with an
+  `AVPlayer` time observer is the fix.
+- Still images are skipped by the macOS preview; only clips with a decodable video or
+  audio track reach the composition.
 - No speed changes, ripple edits, transitions, markers, keyframes or audio levels.
 - FCP7 XML writes `in` and `out` at the sequence rate; mixed-rate footage may need conform.
 - FFmpeg must be installed; bundling it as a Tauri sidecar is planned.
 - Quitting (Cmd+Q) or closing the window does not yet ask about unsaved changes.
-- The native menu was tested on Linux (GTK) with `STUDIO_NATIVE_MENU=1`, not yet on a Mac.
+- The native menu is verified on macOS; `STUDIO_NATIVE_MENU=1` forces it elsewhere for testing.
 - Files dragged in from Finder are not accepted yet (use Import); HTML drag and drop is
   used for bin to timeline.
