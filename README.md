@@ -20,29 +20,35 @@ a React UI.
   OpenTimelineIO, and conform packages for Resolve or Premiere handoff
 - Projects saved as versioned `.studio` JSON with atomic writes
 
-## Prerequisites (macOS)
+## Run (macOS)
+
+Everything installs inside this folder. Only Apple's command line tools are needed
+system-wide (`xcode-select --install`, most Macs already have them).
 
 ```sh
-xcode-select --install                                           # compilers
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh   # Rust
-brew install node ffmpeg                                         # Node 22+, FFmpeg
+./scripts/dev.sh
 ```
 
-Studio finds `ffmpeg` and `ffprobe` on PATH or in `/opt/homebrew/bin`. Set
-`STUDIO_FFMPEG` / `STUDIO_FFPROBE` to override.
+The first run downloads Node and Rust into `.toolchain/` and FFmpeg into `node_modules/`
+(about 1 GB with the first build), then opens the app. After that it starts in seconds.
+Leave it running: UI changes appear instantly, and Rust changes rebuild and relaunch the
+app on their own.
 
-## Run
+Other modes:
 
 ```sh
-npm install
-npm run app          # tauri dev: Vite on :1420 plus the Rust shell
+./scripts/dev.sh --browser   # UI only, in a browser at localhost:1420 with sample data
+./scripts/dev.sh --setup     # install the toolchain without starting the app
 ```
+
+To remove everything it installed, delete `.toolchain/`, `node_modules/` and `target/`.
+Set `STUDIO_FFMPEG` / `STUDIO_FFPROBE` to use a different FFmpeg.
 
 ## Test
 
 ```sh
 cargo test --workspace          # core, including a real FFmpeg render when installed
-npm run check                   # typecheck, UI tests, bindings drift check
+npm run check                   # typecheck, UI tests, bindings drift, design token guard
 ```
 
 ## Layout
@@ -53,11 +59,15 @@ npm run check                   # typecheck, UI tests, bindings drift check
 | `src-tauri` | Tauri shell: IPC commands, FFmpeg process management, asset scope |
 | `src/bindings` | TypeScript types generated from Rust by ts-rs (do not edit) |
 | `src/ipc` | Typed wrappers over the IPC commands |
+| `src/theme` | Themes and design tokens: the only place visual values live |
+| `src/ui` | UI primitives (buttons, fields, panels, icons, dialog, timecode) |
+| `src/preview` | Sample backend used when the UI runs in a plain browser |
 | `docs/` | Architecture, schema reference, ADRs |
 
 ## Docs
 
 - `docs/architecture.md`: layers, data flow, known limits, how to add a clip type
+- `docs/design-system.md`: themes, tokens, UI primitives, the design gallery
 - `docs/schema.md`: the project document and its invariants
 - `docs/adr/`: decisions and why they were made
 - `AGENTS.md`: rules for coding agents, including commit identity

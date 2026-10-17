@@ -1,0 +1,6 @@
+# Pins the Rust version so every machine (and the project-local toolchain installed by
+# scripts/dev.sh) builds with the same compiler.
+[toolchain]
+channel = "1.97.0"
+profile = "minimal"
+components = ["rustfmt", "clippy"]
