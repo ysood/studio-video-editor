@@ -25,7 +25,7 @@ import {
   xToFrame,
   type View,
 } from "../timeline/geometry";
-import { Button, Gap, IconButton, Panel, PanelBody, PanelToolbar, Slider, Spacer, Timecode } from "../ui";
+import { Gap, IconButton, Menu, Panel, PanelBody, PanelToolbar, Slider, Spacer, Timecode } from "../ui";
 import "./timeline.css";
 
 /** Pointer travel before a press on a clip becomes a drag, so clicks stay clicks. */
@@ -402,18 +402,25 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
     <Panel surface="stage">
       <PanelToolbar>
         <Timecode frame={playhead} rate={rate} label="Playhead" />
-        <Button onClick={splitAtPlayhead} title="Split at playhead (S)">Split</Button>
-        <Button onClick={deleteSelection} disabled={selection.length === 0} title="Delete (⌫)">
-          Delete
-        </Button>
         <Gap />
-        <Button icon="plus" onClick={() => void edit({ type: "AddTrack", kind: "video" })}>Video track</Button>
-        <Button icon="plus" onClick={() => void edit({ type: "AddTrack", kind: "audio" })}>Audio track</Button>
+        <IconButton icon="scissors" label="Split at playhead" shortcut="S" onClick={splitAtPlayhead} />
+        <IconButton
+          icon="trash"
+          label="Delete selection"
+          shortcut="⌫"
+          onClick={deleteSelection}
+          disabled={selection.length === 0}
+        />
+        <Menu
+          trigger={<IconButton icon="plus" label="Add track" />}
+          entries={[
+            { label: "Video track", icon: "video", onSelect: () => void edit({ type: "AddTrack", kind: "video" }) },
+            { label: "Audio track", icon: "audio", onSelect: () => void edit({ type: "AddTrack", kind: "audio" }) },
+          ]}
+        />
         <Spacer />
-        <Button aria-pressed={snap} onClick={() => setSnap(!snap)} title="Snapping (N)">
-          Snap {snap ? "on" : "off"}
-        </Button>
-        <Button onClick={zoomToFit} title="Fit timeline (\)">Fit</Button>
+        <IconButton icon="magnet" label={snap ? "Snapping on" : "Snapping off"} shortcut="N" pressed={snap} onClick={() => setSnap(!snap)} />
+        <IconButton icon="fit" label="Fit timeline" shortcut="\" onClick={zoomToFit} />
         <Slider
           className="timeline-zoom"
           min={Math.log(ZOOM_MIN)}
@@ -473,18 +480,21 @@ function TrackHeader({ track, height, top }: { track: Track; height: number; top
     <div className="track-header" data-kind={track.kind} style={{ height, top }}>
       <span className="track-name">{track.name}</span>
       <IconButton
+        size="small"
         icon={isVideo ? (track.enabled ? "eye" : "eyeOff") : track.enabled ? "speaker" : "mute"}
         pressed={!track.enabled}
         label={isVideo ? (track.enabled ? "Hide track" : "Show track") : track.enabled ? "Mute track" : "Unmute track"}
         onClick={() => setState({ enabled: !track.enabled })}
       />
       <IconButton
+        size="small"
         icon={track.locked ? "lock" : "unlock"}
         pressed={track.locked}
         label={track.locked ? "Unlock track" : "Lock track"}
         onClick={() => setState({ locked: !track.locked })}
       />
       <IconButton
+        size="small"
         icon="close"
         className="track-remove"
         label="Remove track and its clips"

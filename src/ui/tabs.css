@@ -61,6 +61,6 @@
 }
 
 .ui-segment[data-state="on"] {
-  background: var(--color-surface-panel);
+  background: var(--color-surface-hover);
   color: var(--color-text-primary);
 }

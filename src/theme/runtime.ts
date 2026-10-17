@@ -48,6 +48,7 @@ export function toCssVars(theme: Theme): Record<string, string> {
   for (const [key, value] of Object.entries(theme.border)) vars[`--border-${kebab(key)}`] = px(value);
   for (const [key, value] of Object.entries(theme.size)) vars[`--size-${kebab(key)}`] = px(value);
 
+  vars["--opacity-disabled"] = String(theme.opacity.disabled);
   vars["--motion-quick"] = `${theme.motion.quick}ms`;
   vars["--motion-base"] = `${theme.motion.base}ms`;
   vars["--motion-easing"] = theme.motion.easing;

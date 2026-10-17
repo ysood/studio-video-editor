@@ -55,6 +55,32 @@ Graphite defines no overrides. Mark a new region with `<Panel surface="...">`, `
 `<Section surface="well">` or `data-surface` on any element; canvas code gets the
 resolved colors from `surfaceColors(theme, "stage")`.
 
+## Component rules
+
+These keep every panel reading as one product. The gallery shows each rule.
+
+1. **One control height.** Every button, input, select and segmented control is
+   `size.control` tall. Only icon buttons inside dense rows (track headers, list items)
+   use `size="small"` (`size.controlSmall`).
+2. **Button hierarchy.** `solid` is the one primary action in a region (Export, Import
+   media in an empty bin, a dialog's confirm). `quiet` is the default action. `ghost`
+   is for low-emphasis actions; square icon buttons are ghost. Toggles that are on show
+   accent text on the accent wash, in both buttons and icon buttons.
+3. **Disabled fades.** Disabled controls use `opacity.disabled` instead of a color, so
+   they stay legible on red, black or grey.
+4. **Inputs.** `surface.input` fill, `border.subtle` outline, `border.strong` on hover,
+   the accent focus ring on keyboard focus. Select triggers look like inputs.
+5. **Toolbars.** `PanelToolbar` at the top or bottom of a panel: `size.toolbar` tall,
+   `space.3` side padding, `space.2` between controls, `Gap` between groups. Prefer
+   icon buttons with tooltips over text buttons in toolbars.
+6. **Wells.** A panel body that holds wells uses `PanelBody layout="wells"`: `space.3`
+   inset and `space.3` between wells. Wells never set their own margins.
+7. **Overlays.** Menus, select lists, popovers and tooltips share one anatomy on the
+   well surface: `radius.dialog`, `elevation.popover`, items `size.control` tall, a
+   highlight fill instead of a focus ring, shortcuts in tertiary text on the right.
+8. **Icon buttons always explain themselves.** `IconButton` requires a label, shown as
+   a tooltip with the keyboard shortcut when there is one.
+
 ## Naming
 
 CSS variable names derive mechanically from the token path:

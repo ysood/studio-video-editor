@@ -11,20 +11,34 @@
   border-radius: var(--radius-panel);
 }
 
+/* Every toolbar: same height, padding and spacing. Use Gap between groups. */
 .ui-panel-toolbar {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   height: var(--size-toolbar);
-  padding: 0 var(--space-4);
+  padding: 0 var(--space-3);
   border-bottom: var(--border-width) solid var(--color-border-subtle);
   flex: none;
+}
+
+.ui-panel-toolbar[data-placement="bottom"] {
+  border-top: var(--border-width) solid var(--color-border-subtle);
+  border-bottom: 0;
 }
 
 .ui-panel-body {
   flex: 1;
   min-height: 0;
   overflow: auto;
+}
+
+/* A body that holds wells: one inset and one gap between them, everywhere. */
+.ui-panel-body[data-layout="wells"] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
 }
 
 .ui-spacer {
@@ -56,8 +70,8 @@
   border-bottom: var(--border-width) solid var(--color-border-subtle);
 }
 
+/* An inset section is a well; the panel body spaces wells, so no margins here. */
 .ui-section[data-surface] {
-  margin: var(--space-3) var(--space-3) 0;
   border-bottom: 0;
   border-radius: var(--radius-panel);
   background: var(--color-surface-panel);
@@ -76,7 +90,8 @@
   font: var(--type-caption);
 }
 
-.ui-section .ui-note {
+.ui-section .ui-note,
+.ui-panel-body[data-layout="wells"] > .ui-note {
   margin: var(--space-2) 0;
 }
 
@@ -84,12 +99,11 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
-  padding: var(--space-6);
 }
 
 .ui-actions[data-align="end"] {
   justify-content: flex-end;
-  padding: var(--space-7) 0 0;
+  padding-top: var(--space-7);
 }
 
 .ui-progress {

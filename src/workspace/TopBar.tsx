@@ -45,7 +45,7 @@ export function TopBar({ onExport }: { onExport: () => void }) {
       </div>
       <div className="topbar-group">
         <Button onClick={importMedia}>Import</Button>
-        <Button variant="primary" onClick={onExport} disabled={!hasClips}>
+        <Button variant="solid" onClick={onExport} disabled={!hasClips}>
           Export
         </Button>
       </div>

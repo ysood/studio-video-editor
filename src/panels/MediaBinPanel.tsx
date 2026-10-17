@@ -6,7 +6,7 @@ import { insertMedia, MEDIA_DRAG_TYPE, mediaDrag } from "../edits";
 import { formatDuration, formatRate } from "../format";
 import { useEditor } from "../store";
 import { useTheme } from "../theme";
-import { Button, EmptyState, Icon, IconButton, Panel, PanelToolbar, Slider, Spacer, Well } from "../ui";
+import { Button, EmptyState, Icon, Panel, PanelToolbar, Segmented, Slider, Spacer, Well } from "../ui";
 import { smartBins, type BinId } from "./bins";
 import { MediaTile } from "./MediaTile";
 import "./media-bin.css";
@@ -110,7 +110,7 @@ export function MediaBinPanel() {
       </PanelToolbar>
 
       {media.length === 0 ? (
-        <EmptyState action={<Button variant="primary" onClick={importMedia}>Import media</Button>}>
+        <EmptyState action={<Button variant="solid" onClick={importMedia}>Import media</Button>}>
           Import footage, audio or stills to start cutting.
         </EmptyState>
       ) : (
@@ -188,18 +188,15 @@ export function MediaBinPanel() {
         </div>
       )}
 
-      <div className="bin-footer">
-        <IconButton
-          icon="grid"
-          label="Grid view"
-          pressed={prefs.view === "grid"}
-          onClick={() => setPrefs({ ...prefs, view: "grid" })}
-        />
-        <IconButton
-          icon="list"
-          label="List view"
-          pressed={prefs.view === "list"}
-          onClick={() => setPrefs({ ...prefs, view: "list" })}
+      <PanelToolbar placement="bottom">
+        <Segmented
+          label="View"
+          value={prefs.view}
+          onChange={(view) => setPrefs({ ...prefs, view: view as ViewMode })}
+          options={[
+            { value: "grid", label: "Grid view", icon: "grid" },
+            { value: "list", label: "List view", icon: "list" },
+          ]}
         />
         <Spacer />
         {prefs.view === "grid" && (
@@ -213,7 +210,7 @@ export function MediaBinPanel() {
             onChange={(value) => setPrefs({ ...prefs, thumbnail: value })}
           />
         )}
-      </div>
+      </PanelToolbar>
     </Panel>
   );
 }

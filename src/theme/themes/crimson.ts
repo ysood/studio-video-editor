@@ -8,7 +8,6 @@ import { graphiteTheme as base } from "./graphite";
 
 const red = {
   signal: "#f8031f", // the frame
-  pressed: "#e3001b",
   deep: "#cc0018",
   gutter: "#9c010f",
   bright: "#ff1f35", // accent on dark
@@ -60,9 +59,10 @@ export const crimsonTheme: Theme = {
       base: red.gutter,
       gutter: red.gutter,
       panel: red.signal,
-      raised: red.pressed,
-      hover: red.deep,
-      input: red.pressed,
+      // Dark washes rather than other reds, so controls read clearly on the frame.
+      raised: "rgba(20, 0, 3, 0.16)",
+      hover: "rgba(20, 0, 3, 0.28)",
+      input: "rgba(20, 0, 3, 0.12)",
       overlay: ink[2],
       locked: red.deep,
     },

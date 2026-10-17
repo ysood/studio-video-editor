@@ -24,12 +24,26 @@ export function Well({ children, className }: { children: ReactNode; className?:
   );
 }
 
-export function PanelToolbar({ children }: { children: ReactNode }) {
-  return <div className="ui-panel-toolbar">{children}</div>;
+/** A row of controls at the top or bottom edge of a panel. */
+export function PanelToolbar({ children, placement = "top" }: { children: ReactNode; placement?: "top" | "bottom" }) {
+  return (
+    <div className="ui-panel-toolbar" data-placement={placement}>
+      {children}
+    </div>
+  );
 }
 
-export function PanelBody({ children, className }: { children: ReactNode; className?: string }) {
-  return <div className={className ? `ui-panel-body ${className}` : "ui-panel-body"}>{children}</div>;
+/** Scrolling panel content. `layout="wells"` stacks wells with the standard inset and gap. */
+export function PanelBody({ children, className, layout }: {
+  children: ReactNode;
+  className?: string;
+  layout?: "wells";
+}) {
+  return (
+    <div className={className ? `ui-panel-body ${className}` : "ui-panel-body"} data-layout={layout}>
+      {children}
+    </div>
+  );
 }
 
 /** Pushes following toolbar items to the far end. */

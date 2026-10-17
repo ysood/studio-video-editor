@@ -130,8 +130,8 @@ export function Gallery() {
 
         <Section title="Buttons and icons">
           <Actions>
-            <Button>Default</Button>
-            <Button variant="primary">Primary</Button>
+            <Button variant="solid">Solid</Button>
+            <Button>Quiet</Button>
             <Button variant="ghost">Ghost</Button>
             <Button aria-pressed>Pressed</Button>
             <Button disabled>Disabled</Button>
@@ -147,6 +147,7 @@ export function Gallery() {
           </div>
           <Actions>
             <IconButton icon="eye" label="Default" />
+            <IconButton icon="eye" label="Small" size="small" />
             <IconButton icon="lock" label="Pressed" pressed />
             <IconButton icon="close" label="Disabled" disabled />
             <IconButton icon="play" label="Round" shape="round" />
@@ -243,7 +244,7 @@ export function Gallery() {
             <ProgressBar fraction={0.62} />
           </div>
           <div className="gallery-empty">
-            <EmptyState action={<Button variant="primary">Import media</Button>}>
+            <EmptyState action={<Button variant="solid">Import media</Button>}>
               Import footage, audio or stills to start cutting.
             </EmptyState>
           </div>

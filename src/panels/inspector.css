@@ -1,3 +1,1 @@
-.inspector {
-  padding: var(--space-2) 0 var(--space-7);
-}
+/* The inspector uses the standard wells layout from PanelBody; nothing panel-specific. */

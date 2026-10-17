@@ -87,7 +87,6 @@ export const graphiteTheme: Theme = {
   size: {
     controlSmall: 22,
     control: 26,
-    field: 24,
     topbar: 40,
     statusbar: 24,
     toolbar: 32,
@@ -112,6 +111,8 @@ export const graphiteTheme: Theme = {
     sliderTrack: 4,
     sliderThumb: 12,
   },
+
+  opacity: { disabled: 0.4 },
 
   motion: { quick: 120, base: 200, easing: "cubic-bezier(0.2, 0, 0, 1)", tooltipDelay: 450 },
 

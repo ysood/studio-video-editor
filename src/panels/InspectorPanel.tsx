@@ -56,7 +56,7 @@ export function InspectorPanel() {
 
   return (
     <Panel>
-      <PanelBody className="inspector">
+      <PanelBody layout="wells">
         {selected.length === 0 && <SequenceSettings project={project} />}
         {selected.length > 0 && links.size === 1 && <ClipDetails project={project} entry={selected[0]!} />}
         {links.size > 1 && <MultipleClips count={links.size} ids={selection} />}

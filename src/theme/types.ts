@@ -150,8 +150,7 @@ export interface Theme {
   /** Fixed component dimensions in pixels. */
   size: {
     controlSmall: number; // icon buttons
-    control: number; // buttons
-    field: number; // text inputs and selects
+    control: number; // every button, input, select and segmented control
     topbar: number;
     statusbar: number;
     toolbar: number;
@@ -175,6 +174,11 @@ export interface Theme {
     menuMinWidth: number; // menus, select lists, popovers
     sliderTrack: number; // slider rail thickness
     sliderThumb: number; // slider handle diameter
+  };
+
+  /** Disabled controls fade instead of recoloring, so they stay legible on any surface. */
+  opacity: {
+    disabled: number;
   };
 
   motion: {

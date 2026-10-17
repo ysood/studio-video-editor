@@ -12,7 +12,6 @@ export const graphiteCompactTheme: Theme = {
     ...base.size,
     controlSmall: 20,
     control: 22,
-    field: 22,
     topbar: 34,
     statusbar: 22,
     toolbar: 28,
