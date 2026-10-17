@@ -2,7 +2,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { useRef } from "react";
 import type { MediaAsset } from "../bindings/MediaAsset";
 import { formatDuration } from "../format";
-import { Icon } from "../ui";
+import { ContextMenu, Icon, type MenuEntry } from "../ui";
 
 /** Poster frame position, a little in so fades from black still show picture. */
 const POSTER_SECONDS = 0.5;
@@ -15,6 +15,8 @@ interface MediaTileProps {
   onPlace: () => void;
   onDragStart: (event: React.DragEvent) => void;
   onDragEnd: () => void;
+  /** Right-click menu; opening it selects the tile. */
+  menu: MenuEntry[];
 }
 
 /**
@@ -22,7 +24,16 @@ interface MediaTileProps {
  * moves across them. Thumbnails come from the media itself for now; a cached thumbnail
  * service in Rust can replace this for large bins.
  */
-export function MediaTile({ media, selected, offline, onSelect, onPlace, onDragStart, onDragEnd }: MediaTileProps) {
+export function MediaTile({
+  media,
+  selected,
+  offline,
+  onSelect,
+  onPlace,
+  onDragStart,
+  onDragEnd,
+  menu,
+}: MediaTileProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const url = offline ? "" : convertFileSrc(media.path);
 
@@ -39,41 +50,44 @@ export function MediaTile({ media, selected, offline, onSelect, onPlace, onDragS
   };
 
   return (
-    <li
-      className="bin-tile"
-      role="option"
-      aria-selected={selected}
-      draggable
-      title={media.path}
-      onClick={onSelect}
-      onDoubleClick={onPlace}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-    >
-      <div
-        className="bin-tile-picture"
-        data-kind={media.kind}
-        onMouseMove={media.kind === "video" ? scrub : undefined}
-        onMouseLeave={media.kind === "video" ? resetScrub : undefined}
+    <ContextMenu entries={menu}>
+      <li
+        className="bin-tile"
+        role="option"
+        aria-selected={selected}
+        draggable
+        title={media.path}
+        onClick={onSelect}
+        onContextMenu={onSelect}
+        onDoubleClick={onPlace}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
       >
-        {!offline && media.kind === "video" && (
-          <video ref={videoRef} src={`${url}#t=${POSTER_SECONDS}`} muted preload="metadata" playsInline />
-        )}
-        {!offline && media.kind === "image" && <img src={url} alt="" draggable={false} />}
-        {(offline || media.kind === "audio") && (
-          <span className="bin-tile-glyph" aria-hidden>
-            <Icon name={offline ? "warning" : "audio"} />
+        <div
+          className="bin-tile-picture"
+          data-kind={media.kind}
+          onMouseMove={media.kind === "video" ? scrub : undefined}
+          onMouseLeave={media.kind === "video" ? resetScrub : undefined}
+        >
+          {!offline && media.kind === "video" && (
+            <video ref={videoRef} src={`${url}#t=${POSTER_SECONDS}`} muted preload="metadata" playsInline />
+          )}
+          {!offline && media.kind === "image" && <img src={url} alt="" draggable={false} />}
+          {(offline || media.kind === "audio") && (
+            <span className="bin-tile-glyph" aria-hidden>
+              <Icon name={offline ? "warning" : "audio"} />
+            </span>
+          )}
+          {offline && <span className="bin-tile-badge">Offline</span>}
+        </div>
+        <div className="bin-tile-caption" data-surface="well">
+          <span className="bin-tile-name">{media.name}</span>
+          <span className="bin-tile-meta numeric">
+            <Icon name={media.kind} />
+            {formatDuration(media.durationUs)}
           </span>
-        )}
-        {offline && <span className="bin-tile-badge">Offline</span>}
-      </div>
-      <div className="bin-tile-caption" data-surface="well">
-        <span className="bin-tile-name">{media.name}</span>
-        <span className="bin-tile-meta numeric">
-          <Icon name={media.kind} />
-          {formatDuration(media.durationUs)}
-        </span>
-      </div>
-    </li>
+        </div>
+      </li>
+    </ContextMenu>
   );
 }

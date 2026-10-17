@@ -43,12 +43,15 @@
   background: var(--color-surface-hover);
 }
 
-.ui-menu-item[data-disabled] {
-  color: var(--color-text-tertiary);
+.ui-menu-item[data-tone="danger"],
+.ui-menu-item[data-tone="danger"] .ui-menu-icon {
+  color: var(--color-status-danger);
 }
 
-.ui-menu-item[data-tone="danger"] {
-  color: var(--color-status-danger);
+/* After the tone rule so a disabled destructive item reads as disabled, not as a warning. */
+.ui-menu-item[data-disabled],
+.ui-menu-item[data-disabled] .ui-menu-icon {
+  color: var(--color-text-tertiary);
 }
 
 .ui-menu-icon {

@@ -7,7 +7,7 @@ import type { Track } from "../bindings/Track";
 import type { TrackId } from "../bindings/TrackId";
 import { firstTrack, insertMedia, MEDIA_DRAG_TYPE, mediaDrag } from "../edits";
 import { microsToFrames } from "../format";
-import { useShortcut } from "../keyboard";
+import { chord, useShortcut } from "../keyboard";
 import { useEditor, ZOOM_MAX, ZOOM_MIN } from "../store";
 import { surfaceColors, useTheme, useThemeRevision } from "../theme";
 import { draw, type Ghost } from "../timeline/draw";
@@ -25,7 +25,7 @@ import {
   xToFrame,
   type View,
 } from "../timeline/geometry";
-import { Gap, IconButton, Menu, Panel, PanelBody, PanelToolbar, Slider, Spacer, Timecode } from "../ui";
+import { ContextMenu, Gap, IconButton, Menu, type MenuEntry, Panel, PanelBody, PanelToolbar, Slider, Spacer, Timecode } from "../ui";
 import "./timeline.css";
 
 /** Pointer travel before a press on a clip becomes a drag, so clicks stay clicks. */
@@ -65,6 +65,7 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
   const [drag, setDrag] = useState<Drag | null>(null);
   const [drop, setDrop] = useState<DropPreview | null>(null);
   const [snap, setSnap] = useState(true);
+  const [menuOnClip, setMenuOnClip] = useState(false);
 
   const theme = useTheme();
   const themeRevision = useThemeRevision();
@@ -210,6 +211,16 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
       const frame = hit.zone === "start" ? hit.clip.start : clipEnd(hit.clip);
       setDrag({ kind: "trim", clipId: hit.clip.id, edge: hit.zone, frame });
     }
+  };
+
+  // Runs before the context menu opens: a right click on a clip selects it (and its
+  // link group) unless it is already part of the selection, like Finder and Resolve.
+  const onContextMenu = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!project) return;
+    const { x, y } = pointer(e);
+    const hit = hitTest(rows, view, x, y, metrics);
+    setMenuOnClip(hit.type === "clip");
+    if (hit.type === "clip" && !selectionSet.has(hit.clip.id)) select(linkGroup(project, hit.clip.id));
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -398,6 +409,32 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
 
   if (!project) return <Panel surface="stage" />;
 
+  const selectedClips = project.sequence.tracks.flatMap((t) => t.clips.filter((c) => selectionSet.has(c.id)));
+  const addTrackEntries: MenuEntry[] = [
+    { label: "Video track", icon: "video", onSelect: () => void edit({ type: "AddTrack", kind: "video" }) },
+    { label: "Audio track", icon: "audio", onSelect: () => void edit({ type: "AddTrack", kind: "audio" }) },
+  ];
+  const contextEntries: MenuEntry[] =
+    menuOnClip && selectedClips.length > 0
+      ? clipMenu(selectedClips, playhead, {
+          split: splitAtPlayhead,
+          remove: deleteSelection,
+          setEnabled: (enabled) => void edit({ type: "SetClipsEnabled", clipIds: selection, enabled }),
+          unlink: () => void edit({ type: "UnlinkClips", clipIds: selection }),
+        })
+      : [
+          { type: "label", label: "Add" },
+          ...addTrackEntries,
+          { type: "separator" },
+          { label: snap ? "Turn snapping off" : "Turn snapping on", icon: "magnet", shortcut: "N", onSelect: () => setSnap(!snap) },
+          { label: "Fit timeline", icon: "fit", shortcut: "\\", onSelect: zoomToFit },
+          {
+            label: "Select all",
+            shortcut: chord("A"),
+            onSelect: () => select(project.sequence.tracks.flatMap((t) => t.clips.map((c) => c.id))),
+          },
+        ];
+
   return (
     <Panel surface="stage">
       <PanelToolbar>
@@ -411,13 +448,7 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
           onClick={deleteSelection}
           disabled={selection.length === 0}
         />
-        <Menu
-          trigger={<IconButton icon="plus" label="Add track" />}
-          entries={[
-            { label: "Video track", icon: "video", onSelect: () => void edit({ type: "AddTrack", kind: "video" }) },
-            { label: "Audio track", icon: "audio", onSelect: () => void edit({ type: "AddTrack", kind: "audio" }) },
-          ]}
-        />
+        <Menu trigger={<IconButton icon="plus" label="Add track" />} entries={addTrackEntries} />
         <Spacer />
         <IconButton icon="magnet" label={snap ? "Snapping on" : "Snapping off"} shortcut="N" pressed={snap} onClick={() => setSnap(!snap)} />
         <IconButton icon="fit" label="Fit timeline" shortcut="\" onClick={zoomToFit} />
@@ -447,13 +478,16 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
             onDragLeave={() => setDrop(null)}
             onDrop={onDrop}
           >
-            <canvas
-              ref={canvasRef}
-              onPointerDown={onPointerDown}
-              onPointerMove={onPointerMove}
-              onPointerUp={onPointerUp}
-              onPointerCancel={() => setDrag(null)}
-            />
+            <ContextMenu entries={contextEntries}>
+              <canvas
+                ref={canvasRef}
+                onContextMenu={onContextMenu}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerCancel={() => setDrag(null)}
+              />
+            </ContextMenu>
             {project.sequence.tracks.every((t) => t.clips.length === 0) && !drop && (
               <p className="timeline-hint" style={{ left: frameToX(0, view) }}>
                 Drag media here from the bin, or double-click it to place it at the playhead.
@@ -466,6 +500,35 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
   );
 }
 
+type Clip = Project["sequence"]["tracks"][number]["clips"][number];
+
+/** Right-click menu for the selected clips. Labels follow the selection's current state. */
+function clipMenu(
+  clips: Clip[],
+  playhead: number,
+  actions: { split: () => void; remove: () => void; setEnabled: (enabled: boolean) => void; unlink: () => void },
+): MenuEntry[] {
+  const allEnabled = clips.every((c) => c.enabled);
+  const plural = clips.length > 1 ? "clips" : "clip";
+  return [
+    {
+      label: "Split at playhead",
+      icon: "scissors",
+      shortcut: "S",
+      disabled: !clips.some((c) => c.start < playhead && playhead < clipEnd(c)),
+      onSelect: actions.split,
+    },
+    {
+      label: allEnabled ? `Disable ${plural}` : `Enable ${plural}`,
+      icon: allEnabled ? "eyeOff" : "eye",
+      onSelect: () => actions.setEnabled(!allEnabled),
+    },
+    { label: "Unlink", icon: "unlink", disabled: !clips.some((c) => c.link !== null), onSelect: actions.unlink },
+    { type: "separator" },
+    { label: `Delete ${plural}`, icon: "trash", shortcut: "⌫", tone: "danger", onSelect: actions.remove },
+  ];
+}
+
 function TrackHeader({ track, height, top }: { track: Track; height: number; top: number }) {
   const edit = useEditor((s) => s.edit);
   const setState = (patch: { enabled?: boolean; locked?: boolean }) =>
@@ -476,31 +539,53 @@ function TrackHeader({ track, height, top }: { track: Track; height: number; top
       locked: patch.locked ?? null,
     });
   const isVideo = track.kind === "video";
+  const entries: MenuEntry[] = [
+    {
+      label: isVideo ? (track.enabled ? "Hide track" : "Show track") : track.enabled ? "Mute track" : "Unmute track",
+      icon: isVideo ? (track.enabled ? "eyeOff" : "eye") : track.enabled ? "mute" : "speaker",
+      onSelect: () => setState({ enabled: !track.enabled }),
+    },
+    {
+      label: track.locked ? "Unlock track" : "Lock track",
+      icon: track.locked ? "unlock" : "lock",
+      onSelect: () => setState({ locked: !track.locked }),
+    },
+    { type: "separator" },
+    {
+      label: "Remove track and its clips",
+      icon: "trash",
+      tone: "danger",
+      disabled: track.locked,
+      onSelect: () => void edit({ type: "RemoveTrack", trackId: track.id }),
+    },
+  ];
   return (
-    <div className="track-header" data-kind={track.kind} style={{ height, top }}>
-      <span className="track-name">{track.name}</span>
-      <IconButton
-        size="small"
-        icon={isVideo ? (track.enabled ? "eye" : "eyeOff") : track.enabled ? "speaker" : "mute"}
-        pressed={!track.enabled}
-        label={isVideo ? (track.enabled ? "Hide track" : "Show track") : track.enabled ? "Mute track" : "Unmute track"}
-        onClick={() => setState({ enabled: !track.enabled })}
-      />
-      <IconButton
-        size="small"
-        icon={track.locked ? "lock" : "unlock"}
-        pressed={track.locked}
-        label={track.locked ? "Unlock track" : "Lock track"}
-        onClick={() => setState({ locked: !track.locked })}
-      />
-      <IconButton
-        size="small"
-        icon="close"
-        className="track-remove"
-        label="Remove track and its clips"
-        onClick={() => void edit({ type: "RemoveTrack", trackId: track.id })}
-        disabled={track.locked}
-      />
-    </div>
+    <ContextMenu entries={entries}>
+      <div className="track-header" data-kind={track.kind} style={{ height, top }}>
+        <span className="track-name">{track.name}</span>
+        <IconButton
+          size="small"
+          icon={isVideo ? (track.enabled ? "eye" : "eyeOff") : track.enabled ? "speaker" : "mute"}
+          pressed={!track.enabled}
+          label={isVideo ? (track.enabled ? "Hide track" : "Show track") : track.enabled ? "Mute track" : "Unmute track"}
+          onClick={() => setState({ enabled: !track.enabled })}
+        />
+        <IconButton
+          size="small"
+          icon={track.locked ? "lock" : "unlock"}
+          pressed={track.locked}
+          label={track.locked ? "Unlock track" : "Lock track"}
+          onClick={() => setState({ locked: !track.locked })}
+        />
+        <IconButton
+          size="small"
+          icon="close"
+          className="track-remove"
+          label="Remove track and its clips"
+          onClick={() => void edit({ type: "RemoveTrack", trackId: track.id })}
+          disabled={track.locked}
+        />
+      </div>
+    </ContextMenu>
   );
 }

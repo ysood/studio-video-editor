@@ -6,7 +6,7 @@ import { insertMedia, MEDIA_DRAG_TYPE, mediaDrag } from "../edits";
 import { formatDuration, formatRate } from "../format";
 import { useEditor } from "../store";
 import { useTheme } from "../theme";
-import { Button, EmptyState, Icon, Panel, PanelToolbar, Segmented, Slider, Spacer, Well } from "../ui";
+import { Button, ContextMenu, EmptyState, Icon, type MenuEntry, Panel, PanelToolbar, Segmented, Slider, Spacer, Well } from "../ui";
 import { smartBins, type BinId } from "./bins";
 import { MediaTile } from "./MediaTile";
 import "./media-bin.css";
@@ -73,6 +73,24 @@ export function MediaBinPanel() {
     Math.max(theme.size.thumbnailMin, prefs.thumbnail ?? theme.size.thumbnail),
   );
 
+  const removeMedia = (id: MediaId) =>
+    void edit({ type: "RemoveMedia", mediaId: id }).then(() => setSelected((s) => (s === id ? null : s)));
+
+  const menuFor = (m: MediaAsset): MenuEntry[] => {
+    const used = usedIds.has(m.id);
+    return [
+      { label: "Add to timeline", icon: "plus", onSelect: () => void insertMedia(m.id, playhead) },
+      { type: "separator" },
+      {
+        label: used ? "Remove (used on the timeline)" : "Remove from project",
+        icon: "trash",
+        tone: "danger",
+        disabled: used,
+        onSelect: () => removeMedia(m.id),
+      },
+    ];
+  };
+
   const dragProps = (m: MediaAsset) => ({
     onDragStart: (e: React.DragEvent) => {
       e.dataTransfer.setData(MEDIA_DRAG_TYPE, m.id);
@@ -100,10 +118,7 @@ export function MediaBinPanel() {
         <Button
           disabled={!current || inUse}
           title={inUse ? "Used on the timeline" : "Remove from the project"}
-          onClick={() => {
-            if (!current) return;
-            void edit({ type: "RemoveMedia", mediaId: current.id }).then(() => setSelected(null));
-          }}
+          onClick={() => current && removeMedia(current.id)}
         >
           Remove
         </Button>
@@ -152,6 +167,7 @@ export function MediaBinPanel() {
                     offline={offline.has(m.id)}
                     onSelect={() => setSelected(m.id)}
                     onPlace={() => void insertMedia(m.id, playhead)}
+                    menu={menuFor(m)}
                     {...dragProps(m)}
                   />
                 ))}
@@ -160,26 +176,28 @@ export function MediaBinPanel() {
               <Well className="bin-list-well">
                 <ul className="bin-list" role="listbox" aria-label={bin.name}>
                   {bin.media.map((m) => (
-                    <li
-                      key={m.id}
-                      role="option"
-                      aria-selected={m.id === selected}
-                      className="bin-row"
-                      draggable
-                      onClick={() => setSelected(m.id)}
-                      onDoubleClick={() => void insertMedia(m.id, playhead)}
-                      title={m.path}
-                      {...dragProps(m)}
-                    >
-                      <span className="bin-swatch" data-kind={m.kind} aria-hidden>
-                        <Icon name={m.kind} />
-                      </span>
-                      <span className="bin-name">{m.name}</span>
-                      <span className="bin-meta numeric">{describe(m)}</span>
-                      <span className="bin-duration numeric">
-                        {offline.has(m.id) ? <em className="bin-offline">Offline</em> : formatDuration(m.durationUs)}
-                      </span>
-                    </li>
+                    <ContextMenu key={m.id} entries={menuFor(m)}>
+                      <li
+                        role="option"
+                        aria-selected={m.id === selected}
+                        className="bin-row"
+                        draggable
+                        onClick={() => setSelected(m.id)}
+                        onContextMenu={() => setSelected(m.id)}
+                        onDoubleClick={() => void insertMedia(m.id, playhead)}
+                        title={m.path}
+                        {...dragProps(m)}
+                      >
+                        <span className="bin-swatch" data-kind={m.kind} aria-hidden>
+                          <Icon name={m.kind} />
+                        </span>
+                        <span className="bin-name">{m.name}</span>
+                        <span className="bin-meta numeric">{describe(m)}</span>
+                        <span className="bin-duration numeric">
+                          {offline.has(m.id) ? <em className="bin-offline">Offline</em> : formatDuration(m.durationUs)}
+                        </span>
+                      </li>
+                    </ContextMenu>
                   ))}
                 </ul>
               </Well>

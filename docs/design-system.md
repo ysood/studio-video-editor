@@ -86,6 +86,11 @@ These keep every panel reading as one product. The gallery shows each rule.
    highlight fill instead of a focus ring, shortcuts in tertiary text on the right.
 8. **Icon buttons always explain themselves.** `IconButton` requires a label, shown as
    a tooltip with the keyboard shortcut when there is one.
+9. **Menus mirror the toolbar.** A context menu or overflow menu offers the same action
+   with the same label, icon and shortcut as its button, so `chord()` from
+   `src/keyboard.ts` writes every shortcut. A right click selects what is under the
+   pointer before the menu opens. Destructive items use `tone: "danger"` and sit last,
+   after a separator; a disabled item says why in its label when that is not obvious.
 
 ## Naming
 
