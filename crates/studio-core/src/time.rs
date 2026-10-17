@@ -40,6 +40,17 @@ impl Rational {
         frames as f64 * f64::from(self.den) / f64::from(self.num)
     }
 
+    /// Microseconds at the start of a frame, rounded up when the boundary falls between
+    /// two microseconds. Seeking to the result lands on that frame rather than the one
+    /// before it, which `micros_to_frames_floor` would otherwise report. Exact rates such
+    /// as 24/1 divide evenly and are unaffected; 24000/1001 is the case that needs it.
+    pub fn frames_to_micros(self, frames: Frame) -> Micros {
+        let total = i128::from(frames) * i128::from(self.den) * 1_000_000;
+        let num = i128::from(self.num);
+        let value = total.div_euclid(num) + i128::from(total.rem_euclid(num) != 0);
+        clamp_i128(value)
+    }
+
     /// Whole frames contained in a span of microseconds, rounded down so a clip built
     /// from the result never reads past the end of its media.
     pub fn micros_to_frames_floor(self, micros: Micros) -> Frame {
@@ -92,6 +103,24 @@ pub fn timecode(frame: Frame, rate: Rational) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn frames_to_micros_round_trips_through_floor() {
+        for rate in [
+            Rational::new(24, 1),
+            Rational::new(25, 1),
+            Rational::new(24000, 1001),
+        ] {
+            for frame in [0, 1, 135, 141, 90_000] {
+                let us = rate.frames_to_micros(frame);
+                assert_eq!(
+                    rate.micros_to_frames_floor(us),
+                    frame,
+                    "{rate:?} frame {frame}"
+                );
+            }
+        }
+    }
+
     use super::*;
 
     #[test]
