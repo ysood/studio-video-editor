@@ -57,7 +57,9 @@ repository owner only:
 7. **Every visual value is a theme token.** Colors, sizes, spacing, radii, fonts, type
    roles, motion and timeline dimensions live in `src/theme/` only. Components use the
    primitives in `src/ui/` and CSS variables; the canvas reads the theme object.
-   `npm run check:design` fails on hardcoded values. See `docs/design-system.md`.
+   `npm run check:design` fails on hardcoded values. See `docs/design-system.md`, and
+   `.claude/skills/refactoring-ui/` for the visual design principles to apply when
+   deciding what a new value should be.
 
 ## Checks
 
