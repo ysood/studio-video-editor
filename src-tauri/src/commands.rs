@@ -558,6 +558,18 @@ pub fn viewer_sync(
     let _ = (window, state, sequence_id, frame);
 }
 
+/// Hide or show the native preview surface. The web layer asks for this when it draws
+/// something over the viewer, because the surface would otherwise cover it (ADR-0003).
+#[tauri::command]
+pub fn viewer_set_hidden(window: tauri::WebviewWindow, hidden: bool) {
+    #[cfg(target_os = "macos")]
+    let _ = window.with_webview(move |webview| {
+        crate::viewer::set_hidden(webview.ns_window(), hidden);
+    });
+    #[cfg(not(target_os = "macos"))]
+    let _ = (window, hidden);
+}
+
 #[tauri::command]
 pub fn viewer_play(window: tauri::WebviewWindow) {
     #[cfg(target_os = "macos")]

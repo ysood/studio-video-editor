@@ -59,6 +59,7 @@ export const ipc = {
     invoke<void>("viewer_set_rect", { x, y, width, height }),
   viewerSync: (sequenceId: string, frame: number) =>
     invoke<void>("viewer_sync", { sequenceId, frame }),
+  viewerSetHidden: (hidden: boolean) => invoke<void>("viewer_set_hidden", { hidden }),
   viewerPlay: () => invoke<void>("viewer_play"),
   viewerPause: () => invoke<void>("viewer_pause"),
   viewerSeek: (sequenceId: string, frame: number) =>

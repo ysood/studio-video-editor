@@ -6,7 +6,7 @@ import * as ContextMenuPrimitive from "@radix-ui/react-context-menu";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "./Icon";
-import { useOverlayContainer } from "./overlay";
+import { useOverlayContainer, useOverlayOpen } from "./overlay";
 import "./overlay.css";
 
 export type MenuEntry =
@@ -60,8 +60,9 @@ export function Menu({ trigger, entries, align = "start" }: {
   align?: "start" | "center" | "end";
 }) {
   const container = useOverlayContainer();
+  const [open, setOpen] = useOverlayOpen();
   return (
-    <DropdownMenuPrimitive.Root>
+    <DropdownMenuPrimitive.Root open={open} onOpenChange={setOpen}>
       <DropdownMenuPrimitive.Trigger asChild>{trigger}</DropdownMenuPrimitive.Trigger>
       <DropdownMenuPrimitive.Portal container={container}>
         <DropdownMenuPrimitive.Content className="ui-overlay ui-menu" data-surface="well" align={align} sideOffset={4}>
@@ -75,8 +76,11 @@ export function Menu({ trigger, entries, align = "start" }: {
 /** Wraps `children` so a right click (or Control-click) opens a menu. */
 export function ContextMenu({ children, entries }: { children: ReactNode; entries: MenuEntry[] }) {
   const container = useOverlayContainer();
+  // Left uncontrolled: Radix places a context menu from the event that opened it, so it
+  // only needs telling when the state changes.
+  const [, setOpen] = useOverlayOpen();
   return (
-    <ContextMenuPrimitive.Root>
+    <ContextMenuPrimitive.Root onOpenChange={setOpen}>
       <ContextMenuPrimitive.Trigger asChild>{children}</ContextMenuPrimitive.Trigger>
       <ContextMenuPrimitive.Portal container={container}>
         <ContextMenuPrimitive.Content className="ui-overlay ui-menu" data-surface="well">

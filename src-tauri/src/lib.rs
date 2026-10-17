@@ -38,6 +38,7 @@ pub fn run() {
             commands::native_menu_active,
             commands::viewer_set_rect,
             commands::viewer_sync,
+            commands::viewer_set_hidden,
             commands::viewer_play,
             commands::viewer_pause,
             commands::viewer_seek,

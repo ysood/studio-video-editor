@@ -2,7 +2,7 @@ import * as SelectPrimitive from "@radix-ui/react-select";
 import * as SliderPrimitive from "@radix-ui/react-slider";
 import { useEffect, useState, type ReactNode } from "react";
 import { Icon } from "./Icon";
-import { useOverlayContainer } from "./overlay";
+import { useOverlayContainer, useOverlayOpen } from "./overlay";
 import "./overlay.css";
 import "./field.css";
 
@@ -115,8 +115,9 @@ export function Select({ value, options, onChange, disabled, ariaLabel }: {
   ariaLabel?: string;
 }) {
   const container = useOverlayContainer();
+  const [open, setOpen] = useOverlayOpen();
   return (
-    <SelectPrimitive.Root value={value} onValueChange={onChange} disabled={disabled}>
+    <SelectPrimitive.Root value={value} onValueChange={onChange} disabled={disabled} open={open} onOpenChange={setOpen}>
       <SelectPrimitive.Trigger className="ui-input ui-select-trigger" aria-label={ariaLabel}>
         <SelectPrimitive.Value />
         <SelectPrimitive.Icon asChild>

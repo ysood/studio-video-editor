@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { OverlayContainer } from "./overlay";
+import { OverlayContainer, useOverlayOpen } from "./overlay";
 import "./dialog.css";
 
 /** Modal dialog on the native <dialog> element, which traps focus and handles Escape. */
@@ -13,6 +13,8 @@ export function Dialog({ open, onClose, title, children, className }: {
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [element, setElement] = useState<HTMLDialogElement | null>(null);
+  const [, setCounted] = useOverlayOpen();
+  useEffect(() => setCounted(open), [open, setCounted]);
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;

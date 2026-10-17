@@ -1,6 +1,6 @@
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import type { ReactNode } from "react";
-import { useOverlayContainer } from "./overlay";
+import { useOverlayContainer, useOverlayOpen } from "./overlay";
 import "./overlay.css";
 
 /** A floating panel anchored to `trigger`, for small settings that do not need a dialog. */
@@ -11,8 +11,9 @@ export function Popover({ trigger, children, align = "center", label }: {
   label: string;
 }) {
   const container = useOverlayContainer();
+  const [open, setOpen] = useOverlayOpen();
   return (
-    <PopoverPrimitive.Root>
+    <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
       <PopoverPrimitive.Trigger asChild>{trigger}</PopoverPrimitive.Trigger>
       <PopoverPrimitive.Portal container={container}>
         <PopoverPrimitive.Content

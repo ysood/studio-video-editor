@@ -472,6 +472,14 @@ pub fn set_rect(ns_window: *mut c_void, x: f64, y: f64, width: f64, height: f64)
     });
 }
 
+/// Take the surface out of the picture, or put it back.
+///
+/// The view sits above the webview, so it covers anything the web layer draws in the same
+/// place. Hiding it is how a dialog or a menu over the viewer gets to be seen whole.
+pub fn set_hidden(ns_window: *mut c_void, hidden: bool) {
+    with_surface(ns_window, |surface, _| surface.view.setHidden(hidden));
+}
+
 pub fn set_segments(ns_window: *mut c_void, segments: &[Segment], canvas: Canvas, at_us: i64) {
     with_surface(ns_window, |surface, mtm| {
         surface.set_segments(segments, canvas, at_us, mtm)
