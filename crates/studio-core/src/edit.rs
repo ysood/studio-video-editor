@@ -10,8 +10,10 @@
 //! pair underneath is overwritten whole and stays linked, unless part of it sits on a
 //! track the edit does not touch.
 
-use crate::ids::{ClipId, LinkId, MediaId, TrackId};
-use crate::model::{Clip, ClipSource, MediaAsset, Project, SequenceFormat, Track, TrackKind};
+use crate::ids::{ClipId, LinkId, MediaId, SequenceId, TrackId};
+use crate::model::{
+    Clip, ClipSource, MediaAsset, Project, Sequence, SequenceFormat, Track, TrackKind,
+};
 use crate::time::Frame;
 use crate::validate::{ValidationError, MAX_NAME_LEN};
 use serde::{Deserialize, Serialize};
@@ -37,10 +39,24 @@ pub enum EditCommand {
     RenameProject {
         name: String,
     },
-    /// The frame rate can change only while the timeline is empty, because every stored
-    /// frame count is relative to it.
+    /// The frame rate can change only while that sequence is empty, because every
+    /// frame count stored in it is relative to the rate.
     SetSequenceFormat {
+        sequence_id: SequenceId,
         format: SequenceFormat,
+    },
+    /// A new empty sequence, which becomes the last in the bin.
+    AddSequence {
+        name: String,
+        format: SequenceFormat,
+    },
+    /// Rejected for the last sequence: a project always has one.
+    RemoveSequence {
+        sequence_id: SequenceId,
+    },
+    RenameSequence {
+        sequence_id: SequenceId,
+        name: String,
     },
     /// Adds probed assets to the bin. An asset whose path is already in the bin is skipped.
     ImportMedia {
@@ -51,6 +67,7 @@ pub enum EditCommand {
         media_id: MediaId,
     },
     AddTrack {
+        sequence_id: SequenceId,
         kind: TrackKind,
     },
     RemoveTrack {
@@ -64,6 +81,7 @@ pub enum EditCommand {
     /// Places media on the timeline. Video goes to `video_track` and audio to
     /// `audio_track` when the media has those streams; both together are linked.
     InsertMedia {
+        sequence_id: SequenceId,
         media_id: MediaId,
         #[ts(type = "number")]
         start: Frame,
@@ -119,6 +137,9 @@ impl EditCommand {
         match self {
             EditCommand::RenameProject { .. } => "Rename project",
             EditCommand::SetSequenceFormat { .. } => "Change sequence settings",
+            EditCommand::AddSequence { .. } => "Add sequence",
+            EditCommand::RemoveSequence { .. } => "Remove sequence",
+            EditCommand::RenameSequence { .. } => "Rename sequence",
             EditCommand::ImportMedia { .. } => "Import media",
             EditCommand::RemoveMedia { .. } => "Remove media",
             EditCommand::AddTrack { .. } => "Add track",
@@ -144,6 +165,7 @@ pub struct EditReport {
     pub created_clips: Vec<ClipId>,
     pub created_media: Vec<MediaId>,
     pub created_track: Option<TrackId>,
+    pub created_sequence: Option<SequenceId>,
 }
 
 #[derive(Debug, Clone, PartialEq, Error, Serialize, TS)]
@@ -202,15 +224,43 @@ fn apply_in_place(p: &mut Project, command: &EditCommand) -> Result<EditReport, 
         EditCommand::RenameProject { name } => {
             p.name = checked_name(name)?;
         }
-        EditCommand::SetSequenceFormat { format } => {
-            if format.frame_rate != p.first_sequence().format.frame_rate
-                && p.all_clips().next().is_some()
+        EditCommand::SetSequenceFormat {
+            sequence_id,
+            format,
+        } => {
+            let sequence = p
+                .sequence_mut(*sequence_id)
+                .ok_or_else(|| not_found("sequence", sequence_id))?;
+            // Only this sequence's own clips matter: another sequence's frame counts
+            // are measured against its own rate and are unaffected.
+            if format.frame_rate != sequence.format.frame_rate && sequence.clips().next().is_some()
             {
                 return Err(invalid(
-                    "frame rate can change only while the timeline is empty",
+                    "frame rate can change only while the sequence is empty",
                 ));
             }
-            p.first_sequence_mut().format = *format;
+            sequence.format = *format;
+        }
+        EditCommand::AddSequence { name, format } => {
+            let sequence = Sequence::new(checked_name(name)?, *format);
+            report.created_sequence = Some(sequence.id);
+            p.sequences.push(sequence);
+        }
+        EditCommand::RemoveSequence { sequence_id } => {
+            if p.sequence(*sequence_id).is_none() {
+                return Err(not_found("sequence", sequence_id));
+            }
+            if p.sequences.len() == 1 {
+                return Err(invalid("a project keeps at least one sequence"));
+            }
+            p.sequences.retain(|s| s.id != *sequence_id);
+        }
+        EditCommand::RenameSequence { sequence_id, name } => {
+            let name = checked_name(name)?;
+            let sequence = p
+                .sequence_mut(*sequence_id)
+                .ok_or_else(|| not_found("sequence", sequence_id))?;
+            sequence.name = name;
         }
         EditCommand::ImportMedia { assets } => {
             for asset in assets {
@@ -231,12 +281,18 @@ fn apply_in_place(p: &mut Project, command: &EditCommand) -> Result<EditReport, 
             }
             p.media.retain(|m| m.id != *media_id);
         }
-        EditCommand::AddTrack { kind } => {
-            report.created_track = Some(add_track(p, *kind));
+        EditCommand::AddTrack { sequence_id, kind } => {
+            if p.sequence(*sequence_id).is_none() {
+                return Err(not_found("sequence", sequence_id));
+            }
+            report.created_track = Some(add_track(p, *sequence_id, *kind));
         }
         EditCommand::RemoveTrack { track_id } => {
             ensure_unlocked(p, *track_id)?;
-            p.first_sequence_mut().tracks.retain(|t| t.id != *track_id);
+            // The track says which sequence it is in, so the command does not have to.
+            if let Some(sequence) = p.sequence_of_track_mut(*track_id) {
+                sequence.tracks.retain(|t| t.id != *track_id);
+            }
         }
         EditCommand::SetTrackState {
             track_id,
@@ -254,6 +310,7 @@ fn apply_in_place(p: &mut Project, command: &EditCommand) -> Result<EditReport, 
             }
         }
         EditCommand::InsertMedia {
+            sequence_id,
             media_id,
             start,
             source_start,
@@ -263,6 +320,7 @@ fn apply_in_place(p: &mut Project, command: &EditCommand) -> Result<EditReport, 
         } => {
             report.created_clips = insert_media(
                 p,
+                *sequence_id,
                 *media_id,
                 *start,
                 *source_start,
@@ -317,13 +375,9 @@ fn checked_name(name: &str) -> Result<String, EditError> {
     Ok(name.to_string())
 }
 
-fn add_track(p: &mut Project, kind: TrackKind) -> TrackId {
-    let count = p
-        .first_sequence()
-        .tracks
-        .iter()
-        .filter(|t| t.kind == kind)
-        .count();
+fn add_track(p: &mut Project, sequence_id: SequenceId, kind: TrackKind) -> TrackId {
+    let sequence = p.sequence(sequence_id).expect("checked by the caller");
+    let count = sequence.tracks.iter().filter(|t| t.kind == kind).count();
     let prefix = match kind {
         TrackKind::Video => "V",
         TrackKind::Audio => "A",
@@ -333,15 +387,17 @@ fn add_track(p: &mut Project, kind: TrackKind) -> TrackId {
     // Keep video tracks before audio tracks; within a kind, new tracks go last (on top
     // for video, at the bottom for audio).
     let index = match kind {
-        TrackKind::Video => p
-            .first_sequence()
+        TrackKind::Video => sequence
             .tracks
             .iter()
             .rposition(|t| t.kind == TrackKind::Video)
             .map_or(0, |i| i + 1),
-        TrackKind::Audio => p.first_sequence().tracks.len(),
+        TrackKind::Audio => sequence.tracks.len(),
     };
-    p.first_sequence_mut().tracks.insert(index, track);
+    p.sequence_mut(sequence_id)
+        .expect("checked by the caller")
+        .tracks
+        .insert(index, track);
     id
 }
 
@@ -384,7 +440,7 @@ fn expand_groups(p: &Project, ids: &[ClipId]) -> Result<Vec<ClipId>, EditError> 
 
 fn for_each_clip_mut(p: &mut Project, ids: &[ClipId], mut f: impl FnMut(&mut Clip)) {
     let wanted: HashSet<_> = ids.iter().copied().collect();
-    for track in &mut p.first_sequence_mut().tracks {
+    for track in p.tracks_mut() {
         for clip in &mut track.clips {
             if wanted.contains(&clip.id) {
                 f(clip);
@@ -394,7 +450,7 @@ fn for_each_clip_mut(p: &mut Project, ids: &[ClipId], mut f: impl FnMut(&mut Cli
 }
 
 fn remove_clip(p: &mut Project, id: ClipId) -> Option<(TrackId, Clip)> {
-    for track in &mut p.first_sequence_mut().tracks {
+    for track in p.tracks_mut() {
         if let Some(index) = track.clips.iter().position(|c| c.id == id) {
             return Some((track.id, track.clips.remove(index)));
         }
@@ -507,7 +563,7 @@ fn dissolve_links(p: &mut Project, links: &HashSet<LinkId>) {
     if links.is_empty() {
         return;
     }
-    for track in &mut p.first_sequence_mut().tracks {
+    for track in p.tracks_mut() {
         for clip in &mut track.clips {
             if clip.link.is_some_and(|l| links.contains(&l)) {
                 clip.link = None;
@@ -535,6 +591,7 @@ fn normalize_links(p: &mut Project) {
 #[allow(clippy::too_many_arguments)]
 fn insert_media(
     p: &mut Project,
+    sequence_id: SequenceId,
     media_id: MediaId,
     start: Frame,
     source_start: Frame,
@@ -542,10 +599,13 @@ fn insert_media(
     video_track: Option<TrackId>,
     audio_track: Option<TrackId>,
 ) -> Result<Vec<ClipId>, EditError> {
+    let sequence = p
+        .sequence(sequence_id)
+        .ok_or_else(|| not_found("sequence", sequence_id))?;
+    let rate = sequence.format.frame_rate;
     let media = p
         .media(media_id)
         .ok_or_else(|| not_found("media", media_id))?;
-    let rate = p.first_sequence().format.frame_rate;
     if start < 0 || source_start < 0 {
         return Err(invalid("start and source start must not be negative"));
     }
@@ -574,6 +634,11 @@ fn insert_media(
     }
     let name = media.name.clone();
     for (track_id, kind) in &targets {
+        // A track in another sequence would put the clip somewhere the command did not
+        // name, with its frames counted at the wrong rate.
+        if p.sequence_of_track(*track_id).map(|s| s.id) != Some(sequence_id) {
+            return Err(not_found("track", track_id));
+        }
         let track = ensure_unlocked(p, *track_id)?;
         if track.kind != *kind {
             return Err(EditError::WrongTrackKind);
@@ -662,7 +727,12 @@ fn trim_clip(
     }
     let group = p.link_group(clip_id);
     ensure_clips_unlocked(p, &group)?;
-    let rate = p.first_sequence().format.frame_rate;
+    // The clip's own sequence sets the rate its frame counts are measured in.
+    let rate = p
+        .sequence_of_clip(clip_id)
+        .ok_or_else(|| not_found("clip", clip_id))?
+        .format
+        .frame_rate;
     let members: HashSet<_> = group.iter().copied().collect();
 
     // Bounds are the intersection across the group so linked clips stay identical.
@@ -761,6 +831,7 @@ mod tests {
     struct Fixture {
         project: Project,
         media: MediaId,
+        sequence: SequenceId,
         v1: TrackId,
         a1: TrackId,
     }
@@ -769,6 +840,7 @@ mod tests {
         let project = project_with(vec![media_with_av(seconds)]);
         Fixture {
             media: project.media[0].id,
+            sequence: project.first_sequence().id,
             v1: project.first_sequence().tracks[0].id,
             a1: project.first_sequence().tracks[1].id,
             project,
@@ -785,6 +857,7 @@ mod tests {
         run(
             &mut f.project,
             EditCommand::InsertMedia {
+                sequence_id: f.sequence,
                 media_id: f.media,
                 start,
                 source_start,
@@ -844,6 +917,7 @@ mod tests {
         let created = run(
             &mut f.project,
             EditCommand::InsertMedia {
+                sequence_id: f.sequence,
                 media_id: f.media,
                 start: 0,
                 source_start: 24,
@@ -916,6 +990,7 @@ mod tests {
         run(
             &mut f.project,
             EditCommand::InsertMedia {
+                sequence_id: f.sequence,
                 media_id: f.media,
                 start: 40,
                 source_start: 0,
@@ -944,6 +1019,7 @@ mod tests {
         run(
             &mut f.project,
             EditCommand::InsertMedia {
+                sequence_id: f.sequence,
                 media_id: f.media,
                 start: 40,
                 source_start: 0,
@@ -959,9 +1035,138 @@ mod tests {
     }
 
     #[test]
+    fn add_sequence_appends_an_empty_one() {
+        let mut f = fixture(10);
+        let format = f.project.first_sequence().format;
+        let report = run(
+            &mut f.project,
+            EditCommand::AddSequence {
+                name: "Sequence 2".into(),
+                format,
+            },
+        );
+        let id = report.created_sequence.expect("reports the new sequence");
+        assert_eq!(f.project.sequences.len(), 2);
+        let added = f.project.sequence(id).expect("findable by id");
+        assert_eq!(added.name, "Sequence 2");
+        assert!(added.clips().next().is_none(), "starts empty");
+        assert_eq!(added.tracks.len(), 2, "starts with V1 and A1");
+    }
+
+    #[test]
+    fn remove_sequence_refuses_the_last_one() {
+        let f = fixture(10);
+        let id = f.sequence;
+        assert!(apply(&f.project, &EditCommand::RemoveSequence { sequence_id: id }).is_err());
+    }
+
+    #[test]
+    fn remove_sequence_drops_only_the_named_one() {
+        let mut f = fixture(10);
+        let format = f.project.first_sequence().format;
+        let report = run(
+            &mut f.project,
+            EditCommand::AddSequence {
+                name: "Sequence 2".into(),
+                format,
+            },
+        );
+        let added = report.created_sequence.expect("reports the new sequence");
+        run(
+            &mut f.project,
+            EditCommand::RemoveSequence {
+                sequence_id: f.sequence,
+            },
+        );
+        assert_eq!(f.project.sequences.len(), 1);
+        assert_eq!(f.project.first_sequence().id, added);
+    }
+
+    #[test]
+    fn a_sequence_rate_is_locked_only_by_its_own_clips() {
+        // Clips in another sequence are counted against that sequence's rate, so they
+        // have no say in whether this one can change.
+        let mut f = fixture(10);
+        let format = f.project.first_sequence().format;
+        let report = run(
+            &mut f.project,
+            EditCommand::AddSequence {
+                name: "Sequence 2".into(),
+                format,
+            },
+        );
+        let empty = report.created_sequence.expect("reports the new sequence");
+
+        // Put a clip in the first sequence only.
+        run(
+            &mut f.project,
+            EditCommand::InsertMedia {
+                sequence_id: f.sequence,
+                media_id: f.media,
+                start: 0,
+                source_start: 0,
+                duration: Some(24),
+                video_track: Some(f.v1),
+                audio_track: None,
+            },
+        );
+
+        let mut faster = format;
+        faster.frame_rate = crate::time::Rational::new(25, 1);
+        assert!(
+            apply(
+                &f.project,
+                &EditCommand::SetSequenceFormat {
+                    sequence_id: f.sequence,
+                    format: faster,
+                },
+            )
+            .is_err(),
+            "the sequence holding the clip stays locked"
+        );
+        assert!(
+            apply(
+                &f.project,
+                &EditCommand::SetSequenceFormat {
+                    sequence_id: empty,
+                    format: faster,
+                },
+            )
+            .is_ok(),
+            "the empty sequence is free to change"
+        );
+    }
+
+    #[test]
+    fn insert_rejects_a_track_from_another_sequence() {
+        let mut f = fixture(10);
+        let format = f.project.first_sequence().format;
+        let report = run(
+            &mut f.project,
+            EditCommand::AddSequence {
+                name: "Sequence 2".into(),
+                format,
+            },
+        );
+        let other = report.created_sequence.expect("reports the new sequence");
+        // f.v1 belongs to the first sequence, so naming the second is a contradiction.
+        let cmd = EditCommand::InsertMedia {
+            sequence_id: other,
+            media_id: f.media,
+            start: 0,
+            source_start: 0,
+            duration: Some(24),
+            video_track: Some(f.v1),
+            audio_track: None,
+        };
+        assert!(apply(&f.project, &cmd).is_err());
+    }
+
+    #[test]
     fn insert_rejects_range_past_media_end() {
         let f = fixture(2);
         let cmd = EditCommand::InsertMedia {
+            sequence_id: f.sequence,
             media_id: f.media,
             start: 0,
             source_start: 10,
@@ -978,11 +1183,13 @@ mod tests {
     #[test]
     fn insert_still_image_defaults_to_five_seconds() {
         let mut p = project_with(vec![still_image()]);
+        let sequence_id = p.first_sequence().id;
         let v1 = p.first_sequence().tracks[0].id;
         let media_id = p.media[0].id;
         let created = run(
             &mut p,
             EditCommand::InsertMedia {
+                sequence_id,
                 media_id,
                 start: 0,
                 source_start: 0,
@@ -1018,6 +1225,7 @@ mod tests {
         let v2 = run(
             &mut f.project,
             EditCommand::AddTrack {
+                sequence_id: f.sequence,
                 kind: TrackKind::Video,
             },
         )
@@ -1069,6 +1277,7 @@ mod tests {
         let lone = run(
             &mut f.project,
             EditCommand::InsertMedia {
+                sequence_id: f.sequence,
                 media_id: f.media,
                 start: 100,
                 source_start: 0,
@@ -1286,11 +1495,24 @@ mod tests {
         insert(&mut f, 0, 0, 10);
         let mut format = f.project.first_sequence().format;
         format.frame_rate = crate::time::Rational::new(25, 1);
-        assert!(apply(&f.project, &EditCommand::SetSequenceFormat { format }).is_err());
+        assert!(apply(
+            &f.project,
+            &EditCommand::SetSequenceFormat {
+                sequence_id: f.sequence,
+                format,
+            }
+        )
+        .is_err());
         format.frame_rate = f.project.first_sequence().format.frame_rate;
         format.width = 3840;
         format.height = 2160;
-        run(&mut f.project, EditCommand::SetSequenceFormat { format });
+        run(
+            &mut f.project,
+            EditCommand::SetSequenceFormat {
+                sequence_id: f.sequence,
+                format,
+            },
+        );
     }
 
     #[test]
@@ -1299,6 +1521,7 @@ mod tests {
         run(
             &mut f.project,
             EditCommand::AddTrack {
+                sequence_id: f.sequence,
                 kind: TrackKind::Video,
             },
         );

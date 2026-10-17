@@ -119,9 +119,11 @@ mod tests {
             project.first_sequence().tracks[0].id,
             project.first_sequence().tracks[1].id,
         );
+        let sequence_id = project.first_sequence().id;
         let mut editor = Editor::new(project);
         editor
             .apply(&EditCommand::InsertMedia {
+                sequence_id,
                 media_id,
                 start: 12,
                 source_start: 6,

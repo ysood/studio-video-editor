@@ -4,10 +4,11 @@ import type { ClipId } from "./ClipId";
 import type { MediaAsset } from "./MediaAsset";
 import type { MediaId } from "./MediaId";
 import type { SequenceFormat } from "./SequenceFormat";
+import type { SequenceId } from "./SequenceId";
 import type { TrackId } from "./TrackId";
 import type { TrackKind } from "./TrackKind";
 
-export type EditCommand = { "type": "RenameProject", name: string, } | { "type": "SetSequenceFormat", format: SequenceFormat, } | { "type": "ImportMedia", assets: Array<MediaAsset>, } | { "type": "RemoveMedia", mediaId: MediaId, } | { "type": "AddTrack", kind: TrackKind, } | { "type": "RemoveTrack", trackId: TrackId, } | { "type": "SetTrackState", trackId: TrackId, enabled: boolean | null, locked: boolean | null, } | { "type": "InsertMedia", mediaId: MediaId, start: number, sourceStart: number, 
+export type EditCommand = { "type": "RenameProject", name: string, } | { "type": "SetSequenceFormat", sequenceId: SequenceId, format: SequenceFormat, } | { "type": "AddSequence", name: string, format: SequenceFormat, } | { "type": "RemoveSequence", sequenceId: SequenceId, } | { "type": "RenameSequence", sequenceId: SequenceId, name: string, } | { "type": "ImportMedia", assets: Array<MediaAsset>, } | { "type": "RemoveMedia", mediaId: MediaId, } | { "type": "AddTrack", sequenceId: SequenceId, kind: TrackKind, } | { "type": "RemoveTrack", trackId: TrackId, } | { "type": "SetTrackState", trackId: TrackId, enabled: boolean | null, locked: boolean | null, } | { "type": "InsertMedia", sequenceId: SequenceId, mediaId: MediaId, start: number, sourceStart: number, 
 /**
  * Defaults to the rest of the media, or five seconds for a still image.
  */

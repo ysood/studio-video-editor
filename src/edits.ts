@@ -57,6 +57,7 @@ export async function placeMedia(
   if (!project) return;
   const report = await store.edit({
     type: "InsertMedia",
+    sequenceId: firstSequence(project).id,
     mediaId,
     start: Math.max(0, Math.round(frame)),
     sourceStart: 0,

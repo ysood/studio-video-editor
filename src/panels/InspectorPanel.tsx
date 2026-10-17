@@ -178,7 +178,11 @@ function SequenceSettings({ project }: { project: Project }) {
   const format = firstSequence(project).format;
   const hasClips = firstSequence(project).tracks.some((t) => t.clips.length > 0);
   const apply = (patch: Partial<SequenceFormat>) =>
-    void edit({ type: "SetSequenceFormat", format: { ...format, ...patch } });
+    void edit({
+      type: "SetSequenceFormat",
+      sequenceId: firstSequence(project).id,
+      format: { ...format, ...patch },
+    });
   const sizeKey = `${format.width}x${format.height}`;
   const preset = SIZES.find((s) => `${s.width}x${s.height}` === sizeKey);
   const sizeOptions = SIZES.map((s) => ({ value: `${s.width}x${s.height}`, label: s.label }));

@@ -56,12 +56,14 @@ pub fn sample_edit() -> Project {
     use crate::edit::{apply, EditCommand};
     let mut project = project_with(vec![media_with_av(10)]);
     let media_id = project.media[0].id;
+    let sequence_id = project.first_sequence().id;
     let (v1, a1) = (
         project.first_sequence().tracks[0].id,
         project.first_sequence().tracks[1].id,
     );
     for (start, source_start, duration) in [(12, 6, 48), (100, 0, 24)] {
         let command = EditCommand::InsertMedia {
+            sequence_id,
             media_id,
             start,
             source_start,

@@ -24,10 +24,16 @@ export function MatchSequenceDialog() {
   const close = () => setPendingInsert(null);
 
   const place = async (adopt: boolean) => {
-    if (!pending) return;
+    if (!pending || !project) return;
     // The format has to change before the clip arrives: once the timeline has a clip
     // the rate is locked, because every position in the document counts frames at it.
-    if (adopt) await edit({ type: "SetSequenceFormat", format: pending.suggested });
+    if (adopt) {
+      await edit({
+        type: "SetSequenceFormat",
+        sequenceId: firstSequence(project).id,
+        format: pending.suggested,
+      });
+    }
     setPendingInsert(null);
     await placeMedia(pending.mediaId, pending.frame, pending.targets);
   };

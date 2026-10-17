@@ -181,6 +181,7 @@ mod tests {
         // Put the same-named media on the timeline too.
         let v1 = project.first_sequence().tracks[0].id;
         let cmd = crate::edit::EditCommand::InsertMedia {
+            sequence_id: project.first_sequence().id,
             media_id: same_name.id,
             start: 200,
             source_start: 0,

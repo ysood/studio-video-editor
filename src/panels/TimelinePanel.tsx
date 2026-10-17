@@ -419,9 +419,10 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
   if (!project) return <Panel surface="stage" />;
 
   const selectedClips = firstSequence(project).tracks.flatMap((t) => t.clips.filter((c) => selectionSet.has(c.id)));
+  const sequenceId = firstSequence(project).id;
   const addTrackEntries: MenuEntry[] = [
-    { label: "Video track", icon: "video", onSelect: () => void edit({ type: "AddTrack", kind: "video" }) },
-    { label: "Audio track", icon: "audio", onSelect: () => void edit({ type: "AddTrack", kind: "audio" }) },
+    { label: "Video track", icon: "video", onSelect: () => void edit({ type: "AddTrack", sequenceId, kind: "video" }) },
+    { label: "Audio track", icon: "audio", onSelect: () => void edit({ type: "AddTrack", sequenceId, kind: "audio" }) },
   ];
   const contextEntries: MenuEntry[] =
     menuOnClip && selectedClips.length > 0

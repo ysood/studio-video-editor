@@ -95,6 +95,7 @@ fn renders_sequence_with_gaps_and_linked_audio() {
             assets: vec![asset],
         })
         .unwrap();
+    let sequence_id = editor.project().first_sequence().id;
     let (v1, a1) = {
         let t = &editor.project().first_sequence().tracks;
         (t[0].id, t[1].id)
@@ -102,6 +103,7 @@ fn renders_sequence_with_gaps_and_linked_audio() {
     // White from 1 s to 2 s, black before and after.
     editor
         .apply(&EditCommand::InsertMedia {
+            sequence_id,
             media_id,
             start: 24,
             source_start: 12,
@@ -112,6 +114,7 @@ fn renders_sequence_with_gaps_and_linked_audio() {
         .unwrap();
     editor
         .apply(&EditCommand::InsertMedia {
+            sequence_id,
             media_id,
             start: 60,
             source_start: 0,

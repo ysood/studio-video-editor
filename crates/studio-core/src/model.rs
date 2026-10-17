@@ -50,19 +50,38 @@ impl Project {
         self.sequences.first().expect("a project has a sequence")
     }
 
-    /// Mutable counterpart of `first_sequence`. Transitional: it disappears once every
-    /// command names its sequence, which is the next step of ADR-0004.
+    /// Mutable counterpart of `first_sequence`, for fixtures and tests that work with
+    /// the sequence a new project starts with. Commands name their sequence instead.
     pub fn first_sequence_mut(&mut self) -> &mut Sequence {
         self.sequences
             .first_mut()
             .expect("a project has a sequence")
     }
 
-    /// The sequence holding a track, for commands that address a track directly.
+    /// The sequence holding a track. A command that names a track does not need to name
+    /// a sequence as well: ids are unique, so the track already says which one.
     pub fn sequence_of_track(&self, id: TrackId) -> Option<&Sequence> {
         self.sequences
             .iter()
             .find(|s| s.tracks.iter().any(|t| t.id == id))
+    }
+
+    pub fn sequence_of_track_mut(&mut self, id: TrackId) -> Option<&mut Sequence> {
+        self.sequences
+            .iter_mut()
+            .find(|s| s.tracks.iter().any(|t| t.id == id))
+    }
+
+    /// The sequence holding a clip, and so the rate its frame counts are measured in.
+    pub fn sequence_of_clip(&self, id: ClipId) -> Option<&Sequence> {
+        self.sequences
+            .iter()
+            .find(|s| s.clips().any(|(_, c)| c.id == id))
+    }
+
+    /// Every track in the project, mutably.
+    pub fn tracks_mut(&mut self) -> impl Iterator<Item = &mut Track> {
+        self.sequences.iter_mut().flat_map(|s| s.tracks.iter_mut())
     }
 
     pub fn media(&self, id: MediaId) -> Option<&MediaAsset> {
