@@ -67,4 +67,7 @@ export const events = {
     listen<JobFinished>("job://finished", (e) => handler(e.payload)),
   onMenuAction: (handler: (action: MenuAction) => void): Promise<UnlistenFn> =>
     listen<MenuAction>("menu://action", (e) => handler(e.payload)),
+  /** Microseconds from the native player's own clock (ADR-0003). */
+  onViewerTime: (handler: (micros: number) => void): Promise<UnlistenFn> =>
+    listen<number>("viewer://time", (e) => handler(e.payload)),
 };

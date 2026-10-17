@@ -76,8 +76,11 @@ enum exported to TypeScript. Every way of starting one ends in `runAction` in
   in a native view positioned over the viewer's matte by the web UI (ADR-0003). The
   highest enabled video track wins, matching `render.rs`; audio keeps one lane per track.
   The asset protocol is not on this path: it stalls on high bitrate H.264 (tauri#7355).
+  AVFoundation is also the clock: a periodic time observer reports the player's own time
+  and the UI sets the playhead from it, so the timecode always matches the picture.
 - **Playback (elsewhere, and browser preview):** one muted `<video>` per visual clip
-  through the asset protocol, re-seeked only beyond 120 ms of drift.
+  through the asset protocol, re-seeked only beyond 120 ms of drift, with the playhead
+  advanced from wall time because there is no player to follow.
 - **Render:** `export::render::plan` builds an FFmpeg argument vector (black canvas plus
   silent bed, one seeked input per clip, fit, offset, overlay in track order, delayed and
   mixed audio). The shell spawns it, streams `-progress` to `job://progress`, and deletes
@@ -104,9 +107,8 @@ copies used media next to both files plus a provenance manifest.
 - No effects, transforms or transitions in the preview yet. On macOS the picture comes
   from AVFoundation and plays 60 Mbps H.264 smoothly; the element path used everywhere
   else still cannot stream that bitrate through the asset protocol.
-- The preview runs two clocks: the UI advances the playhead from wall time while
-  AVFoundation keeps its own. They can drift apart. Replacing the UI clock with an
-  `AVPlayer` time observer is the fix.
+- The playhead follows the player at 30 Hz, so on sequences faster than 30 fps the
+  reported frame skips one between updates. Raise `OBSERVE_HZ` if that shows.
 - Still images are skipped by the macOS preview; only clips with a decodable video or
   audio track reach the composition.
 - No speed changes, ripple edits, transitions, markers, keyframes or audio levels.

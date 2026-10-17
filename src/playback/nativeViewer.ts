@@ -1,19 +1,31 @@
 // Keeps the native preview surface in step with the UI (ADR-0003).
 //
-// The surface is an AVPlayerLayer in a native view sitting over the viewer's matte, so
-// the web side owns where it goes and when it plays, and AVFoundation owns the picture.
+// The surface is an AVPlayerLayer in a native view sitting over the viewer's matte. The
+// web side owns where it goes and when it plays; AVFoundation owns the picture and the
+// clock. The playhead follows the player rather than wall time, so there is one clock
+// and the number on screen always matches the frame being shown.
 
 import { useCallback, useEffect, useRef, type RefObject } from "react";
 
-import { ipc } from "../ipc";
+import { microsToFrames } from "../format";
+import { events, ipc } from "../ipc";
 import { isBrowserPreview } from "../preview/mode";
 import { useEditor } from "../store";
+import { sequenceEnd } from "./resolve";
 
 export function useNativeViewer(stage: RefObject<HTMLElement | null>) {
   const snapshot = useEditor((s) => s.snapshot);
   const playing = useEditor((s) => s.playing);
   const playhead = useEditor((s) => s.playhead);
   const lastRect = useRef("");
+  // The last frame the player reported, so its own updates do not bounce back as seeks.
+  const fromPlayer = useRef<number | null>(null);
+
+  const project = snapshot?.project ?? null;
+  const rate = project?.sequence.format.frameRate ?? { num: 24, den: 1 };
+  const num = rate.num;
+  const den = rate.den;
+  const end = project ? sequenceEnd(project) : 0;
 
   // The surface is positioned in CSS pixels, which match AppKit points because the
   // webview fills the window. Pushed only when it actually moves, since this runs on
@@ -49,6 +61,30 @@ export function useNativeViewer(stage: RefObject<HTMLElement | null>) {
     void ipc.viewerSync();
   }, [snapshot]);
 
+  // Follow the player's clock while it runs, and stop when it reaches the end.
+  useEffect(() => {
+    if (isBrowserPreview) return;
+    const { setPlayhead, setPlaying } = useEditor.getState();
+    let unlisten: (() => void) | undefined;
+    let cancelled = false;
+    void events
+      .onViewerTime((micros: number) => {
+        if (!useEditor.getState().playing) return;
+        const frame = Math.min(microsToFrames(micros, { num, den }), end);
+        fromPlayer.current = frame;
+        setPlayhead(frame);
+        if (frame >= end) setPlaying(false);
+      })
+      .then((fn: () => void) => {
+        if (cancelled) fn();
+        else unlisten = fn;
+      });
+    return () => {
+      cancelled = true;
+      unlisten?.();
+    };
+  }, [num, den, end]);
+
   useEffect(() => {
     if (isBrowserPreview) return;
     if (!playing) {
@@ -59,10 +95,11 @@ export function useNativeViewer(stage: RefObject<HTMLElement | null>) {
     void ipc.viewerSeek(useEditor.getState().playhead).then(() => ipc.viewerPlay());
   }, [playing]);
 
-  // Scrubbing only: during playback AVFoundation runs its own clock and a seek per frame
-  // would flush the decoder.
+  // Scrubbing only. During playback the player is the clock, and a seek per reported
+  // frame would flush the decoder.
   useEffect(() => {
     if (isBrowserPreview || playing) return;
+    if (fromPlayer.current === playhead) return;
     void ipc.viewerSeek(playhead);
   }, [playhead, playing]);
 }

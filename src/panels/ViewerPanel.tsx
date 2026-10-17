@@ -45,8 +45,12 @@ export function ViewerPanel() {
   useNativeViewer(stageRef);
 
   // Clock: advance the playhead from wall time while playing.
+  //
+  // Browser preview only. In the app AVFoundation reports its own time and the playhead
+  // follows that (ADR-0003), so there is one clock and the timecode always matches the
+  // frame on screen. Wall time here would drift from the picture.
   useEffect(() => {
-    if (!playing || !project) return;
+    if (!isBrowserPreview || !playing || !project) return;
     const startFrame = useEditor.getState().playhead >= end ? 0 : useEditor.getState().playhead;
     const startTime = performance.now();
     const fps = rate.num / rate.den;
