@@ -50,6 +50,7 @@ body {
   color: var(--text);
   font: var(--text-m) / 1.4 var(--font-ui);
   -webkit-font-smoothing: antialiased;
+  accent-color: var(--time);
   user-select: none;
   overflow: hidden;
 }
