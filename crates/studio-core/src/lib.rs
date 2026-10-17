@@ -4,6 +4,7 @@
 //! document has one definition and one set of rules.
 
 pub mod edit;
+pub mod export;
 pub mod history;
 pub mod ids;
 pub mod model;

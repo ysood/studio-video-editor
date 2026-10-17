@@ -49,3 +49,24 @@ pub fn project_with(media: Vec<MediaAsset>) -> Project {
     project.media = media;
     project
 }
+
+/// Two linked video+audio clips: frames 12..60 (source from 6) and 100..124 (source 0),
+/// so V1 and A1 each read gap, clip, gap, clip.
+pub fn sample_edit() -> Project {
+    use crate::edit::{apply, EditCommand};
+    let mut project = project_with(vec![media_with_av(10)]);
+    let media_id = project.media[0].id;
+    let (v1, a1) = (project.sequence.tracks[0].id, project.sequence.tracks[1].id);
+    for (start, source_start, duration) in [(12, 6, 48), (100, 0, 24)] {
+        let command = EditCommand::InsertMedia {
+            media_id,
+            start,
+            source_start,
+            duration: Some(duration),
+            video_track: Some(v1),
+            audio_track: Some(a1),
+        };
+        project = apply(&project, &command).unwrap().0;
+    }
+    project
+}
