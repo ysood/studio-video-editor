@@ -6,8 +6,8 @@ import { insertMedia, MEDIA_DRAG_TYPE, mediaDrag } from "../edits";
 import { formatDuration, formatRate } from "../format";
 import { useEditor } from "../store";
 import { useTheme } from "../theme";
-import { Button, ContextMenu, EmptyState, Icon, type MenuEntry, Panel, PanelToolbar, Segmented, Slider, Spacer, Well } from "../ui";
-import { smartBins, type BinId } from "./bins";
+import { Button, ContextMenu, EmptyState, Icon, IconButton, Menu, type MenuEntry, Panel, PanelToolbar, Segmented, Slider, Spacer, Well } from "../ui";
+import { smartBins, sortLabels, type BinId, type SortKey } from "./bins";
 import { MediaTile } from "./MediaTile";
 import "./media-bin.css";
 
@@ -18,15 +18,21 @@ const PREFS_KEY = "studio.mediaBin";
 interface Prefs {
   bin: BinId;
   view: ViewMode;
+  sort: SortKey;
   thumbnail: number | null;
 }
 
 function loadPrefs(): Prefs {
   try {
     const parsed = JSON.parse(localStorage.getItem(PREFS_KEY) ?? "{}") as Partial<Prefs>;
-    return { bin: parsed.bin ?? "all", view: parsed.view ?? "grid", thumbnail: parsed.thumbnail ?? null };
+    return {
+      bin: parsed.bin ?? "all",
+      view: parsed.view ?? "grid",
+      sort: parsed.sort ?? "name",
+      thumbnail: parsed.thumbnail ?? null,
+    };
   } catch {
-    return { bin: "all", view: "grid", thumbnail: null };
+    return { bin: "all", view: "grid", sort: "name", thumbnail: null };
   }
 }
 
@@ -61,7 +67,18 @@ export function MediaBinPanel() {
 
   const media = useMemo(() => snapshot?.project.media ?? [], [snapshot]);
   const offline = useMemo(() => new Set(snapshot?.offlineMedia ?? []), [snapshot]);
-  const bins = useMemo(() => smartBins(media, offline), [media, offline]);
+  const bins = useMemo(() => smartBins(media, offline, prefs.sort), [media, offline, prefs.sort]);
+
+  // A check against the active key rather than a separate radio control: the menu is
+  // only ever three mutually exclusive choices.
+  const sortEntries: MenuEntry[] = [
+    { type: "label", label: "Sort by" },
+    ...(Object.keys(sortLabels) as SortKey[]).map((key) => ({
+      label: sortLabels[key],
+      icon: key === prefs.sort ? ("check" as const) : undefined,
+      onSelect: () => setPrefs({ ...prefs, sort: key }),
+    })),
+  ];
   const bin = bins.find((b) => b.id === prefs.bin) ?? bins[0]!;
   const usedIds = new Set(
     snapshot?.project.sequence.tracks.flatMap((t) => t.clips.map((c) => c.source.mediaId)) ?? [],
@@ -216,6 +233,10 @@ export function MediaBinPanel() {
             { value: "grid", label: "Grid view", icon: "grid" },
             { value: "list", label: "List view", icon: "list" },
           ]}
+        />
+        <Menu
+          trigger={<IconButton icon="sort" label={`Sort by ${sortLabels[prefs.sort].toLowerCase()}`} />}
+          entries={sortEntries}
         />
         <Spacer />
         {prefs.view === "grid" && (
