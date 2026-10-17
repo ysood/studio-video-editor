@@ -1,0 +1,19 @@
+# Rust
+/target/
+**/target/
+
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Tauri generated
+src-tauri/gen/schemas/
+
+# Local
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+/scratch/
