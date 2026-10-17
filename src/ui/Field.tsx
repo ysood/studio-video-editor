@@ -23,9 +23,14 @@ export function Value({ children, numeric, truncate = "end", title }: {
   truncate?: "end" | "start";
   title?: string;
 }) {
+  // Truncating at the start is done by flipping the element to RTL so the ellipsis
+  // lands on the left. That also reorders the text's own runs, which turns "14.mp4"
+  // into "mp4.14", so the content is isolated in a <bdi>: it keeps its own left to
+  // right order while the element still clips from the left.
+  const content = truncate === "start" ? <bdi>{children}</bdi> : children;
   return (
     <span className={numeric ? "ui-value numeric" : "ui-value"} data-truncate={truncate} title={title}>
-      {children}
+      {content}
     </span>
   );
 }
