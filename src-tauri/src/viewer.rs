@@ -127,6 +127,14 @@ pub fn segments(project: &Project) -> Vec<Segment> {
     out
 }
 
+/// Zero tolerance, so a seek lands on the frame asked for.
+const EXACT: CMTime = CMTime {
+    value: 0,
+    timescale: 1,
+    flags: CMTimeFlags::Valid,
+    epoch: 0,
+};
+
 fn time(us: i64) -> CMTime {
     CMTime {
         value: us,
@@ -222,7 +230,10 @@ impl Surface {
         unsafe { self.player.replaceCurrentItemWithPlayerItem(Some(&item)) };
         // Replacing the item rewinds the player to zero. Put it back under the playhead,
         // here rather than from the UI, so the seek cannot race the swap.
-        unsafe { self.player.seekToTime(time(at_us)) };
+        unsafe {
+            self.player
+                .seekToTime_toleranceBefore_toleranceAfter(time(at_us), EXACT, EXACT)
+        };
     }
 }
 
@@ -347,9 +358,14 @@ pub fn pause(ns_window: *mut c_void) {
     with_surface(ns_window, |surface, _| unsafe { surface.player.pause() });
 }
 
+/// Seeking with zero tolerance costs more than the default, which is free to land on the
+/// nearest keyframe. On long GOP footage that default is seconds away from the frame
+/// asked for, which showed up as playback resuming before where it was paused.
 pub fn seek(ns_window: *mut c_void, us: i64) {
     with_surface(ns_window, |surface, _| unsafe {
-        surface.player.seekToTime(time(us))
+        surface
+            .player
+            .seekToTime_toleranceBefore_toleranceAfter(time(us), EXACT, EXACT)
     });
 }
 
