@@ -67,6 +67,18 @@ const paths = {
     </>
   ),
   plus: <path d="M8 3v10M3 8h10" />,
+  grid: (
+    <>
+      <rect x="2.5" y="2.5" width="4.5" height="4.5" rx="0.6" />
+      <rect x="9" y="2.5" width="4.5" height="4.5" rx="0.6" />
+      <rect x="2.5" y="9" width="4.5" height="4.5" rx="0.6" />
+      <rect x="9" y="9" width="4.5" height="4.5" rx="0.6" />
+    </>
+  ),
+  list: <path d="M5.5 4h8M5.5 8h8M5.5 12h8M2.5 4h0.5M2.5 8h0.5M2.5 12h0.5" />,
+  folder: <path d="M2 4.5a1 1 0 0 1 1-1h3l1.5 1.5H13a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" />,
+  stack: <path d="M8 2.5l5.5 3L8 8.5l-5.5-3zM2.5 8.5L8 11.5l5.5-3M2.5 11L8 14l5.5-3" />,
+  warning: <path d="M8 2.5l6 11H2zM8 6.5v3.5M8 12h0" />,
 } as const;
 
 export type IconName = keyof typeof paths;

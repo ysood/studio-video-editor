@@ -104,6 +104,10 @@ export const graphiteTheme: Theme = {
     zoomSlider: 120,
     timecodeMin: 96,
     viewerPadding: 16,
+    binPane: 136,
+    thumbnail: 128,
+    thumbnailMin: 96,
+    thumbnailMax: 288,
   },
 
   motion: { quick: 120, base: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" },

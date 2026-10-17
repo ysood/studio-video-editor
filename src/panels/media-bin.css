@@ -1,3 +1,172 @@
+/* Two panes: bins on the left in a well, the gallery or list on the right. */
+.bin-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: var(--size-bin-pane) minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+/* Bins */
+.bin-folders {
+  overflow: auto;
+}
+
+.bin-folders ul {
+  margin: 0;
+  padding: var(--space-2) 0;
+  list-style: none;
+}
+
+.bin-folder {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: var(--size-control);
+  padding: 0 var(--space-5);
+  border-left: var(--border-focus-width) solid transparent;
+  color: var(--color-text-secondary);
+  font: var(--type-label);
+}
+
+.bin-folder:hover {
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+}
+
+.bin-folder[aria-selected="true"] {
+  border-left-color: var(--color-accent-base);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+}
+
+.bin-folder .ui-icon {
+  color: var(--color-accent-base);
+}
+
+.bin-folder[data-tone="danger"] .ui-icon {
+  color: var(--color-status-danger);
+}
+
+.bin-folder-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bin-folder-count {
+  color: var(--color-text-tertiary);
+  font: var(--type-caption);
+}
+
+/* Gallery */
+.bin-content {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.bin-grid {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bin-tile {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-panel);
+  overflow: hidden;
+  outline: var(--border-focus-width) solid transparent;
+  outline-offset: calc(-1 * var(--border-focus-width));
+  transition: outline-color var(--motion-quick) var(--motion-easing);
+}
+
+.bin-tile[aria-selected="true"] {
+  outline-color: var(--color-selection);
+}
+
+.bin-tile-picture {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  max-width: 100%;
+  background: var(--color-viewer-matte);
+  overflow: hidden;
+}
+
+.bin-tile-picture video,
+.bin-tile-picture img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.bin-tile-picture[data-kind="audio"] {
+  background: var(--color-media-audio);
+}
+
+.bin-tile-glyph {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--color-text-on-media);
+}
+
+.bin-tile-glyph .ui-icon {
+  width: calc(var(--size-icon) * 2);
+  height: calc(var(--size-icon) * 2);
+}
+
+.bin-tile-badge {
+  position: absolute;
+  left: var(--space-3);
+  top: var(--space-3);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-control);
+  background: var(--color-status-danger);
+  color: var(--color-text-on-accent);
+  font: var(--type-caption);
+}
+
+.bin-tile-caption {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-panel);
+}
+
+.bin-tile-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: var(--type-label);
+}
+
+.bin-tile-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font: var(--type-caption);
+}
+
+.bin-tile-meta .ui-icon {
+  width: var(--type-caption-size);
+  height: var(--type-caption-size);
+}
+
+/* List */
+.bin-list-well {
+  min-height: 100%;
+}
+
 .bin-list {
   margin: 0;
   padding: var(--space-2) 0;
@@ -6,7 +175,7 @@
 
 .bin-row {
   display: grid;
-  grid-template-columns: var(--size-swatch) 1fr auto;
+  grid-template-columns: var(--size-swatch) minmax(0, 1fr) auto;
   grid-template-areas:
     "swatch name duration"
     "swatch meta duration";
@@ -32,7 +201,6 @@
   width: var(--size-swatch);
   height: var(--size-swatch);
   border-radius: var(--radius-control);
-  font: var(--type-caption);
   color: var(--color-text-on-media);
 }
 
@@ -70,4 +238,19 @@
 .bin-offline {
   color: var(--color-status-danger);
   font-style: normal;
+}
+
+/* Footer: view mode and thumbnail size */
+.bin-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--size-toolbar);
+  padding: 0 var(--space-3);
+  border-top: var(--border-width) solid var(--color-border-subtle);
+  flex: none;
+}
+
+.bin-size {
+  width: var(--size-zoom-slider);
 }

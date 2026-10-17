@@ -168,6 +168,10 @@ export interface Theme {
     zoomSlider: number;
     timecodeMin: number;
     viewerPadding: number;
+    binPane: number; // width of the media bin's folder column
+    thumbnail: number; // default gallery tile width
+    thumbnailMin: number;
+    thumbnailMax: number;
   };
 
   motion: {

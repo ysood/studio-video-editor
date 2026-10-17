@@ -13,7 +13,7 @@ import { TimelinePanel } from "../panels/TimelinePanel";
 import { ViewerPanel } from "../panels/ViewerPanel";
 
 // Bump when panels are added or renamed so stale saved layouts are discarded.
-const LAYOUT_KEY = "studio.layout.v1";
+const LAYOUT_KEY = "studio.layout.v2";
 
 const components: Record<string, FunctionComponent<IDockviewPanelProps>> = {
   bin: MediaBinPanel,
@@ -36,7 +36,7 @@ function defaultLayout(api: DockviewApi) {
     component: "bin",
     title: "Media",
     position: { referencePanel: "viewer", direction: "left" },
-    initialWidth: 320,
+    initialWidth: 440,
   });
   api.addPanel({
     id: "inspector",

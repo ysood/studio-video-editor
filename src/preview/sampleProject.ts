@@ -61,13 +61,31 @@ const media: MediaAsset[] = [
 
 const [stageMedia, crowdMedia, mixMedia, titleMedia] = media as [MediaAsset, MediaAsset, MediaAsset, MediaAsset];
 
+const urls = new Map<string, string>([
+  [stageMedia.path, stage],
+  [crowdMedia.path, crowd],
+  [mixMedia.path, boardMix],
+  [titleMedia.path, titleCard],
+]);
+
+// Extra bin-only clips so the gallery holds a realistic amount of footage. They reuse
+// the sample files.
+function extra(name: string, from: MediaAsset, seconds: number): MediaAsset {
+  const asset = { ...from, id: id(), name, path: `/Volumes/Shoot/${name}`, durationUs: seconds * 1_000_000 };
+  urls.set(asset.path, urls.get(from.path) ?? "");
+  return asset;
+}
+media.push(
+  extra("A003_C016_closeup.mov", crowdMedia, 6),
+  extra("A006_C018_backstage.mov", stageMedia, 10),
+  extra("A005_C021_skyline.mov", stageMedia, 12),
+  extra("A006_C003_lights.mov", crowdMedia, 8),
+  extra("A007_C028_silhouette.mov", stageMedia, 11),
+  extra("crowd_ambience.wav", mixMedia, 20),
+);
+
 /** Where the browser preview finds each sample file. */
-export const previewMediaUrls: Record<string, string> = {
-  [stageMedia.path]: stage,
-  [crowdMedia.path]: crowd,
-  [mixMedia.path]: boardMix,
-  [titleMedia.path]: titleCard,
-};
+export const previewMediaUrls: Record<string, string> = Object.fromEntries(urls);
 
 function clip(m: MediaAsset, start: number, duration: number, sourceStart: number, link: string | null = null): Clip {
   return {

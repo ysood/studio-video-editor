@@ -19,8 +19,8 @@ src/theme/
   fonts/            self-hosted font files (the app is offline; no font CDNs)
 
 src/ui/             primitives built only from tokens: Button, IconButton, Icon, Field,
-                    TextInput, NumberInput, Select, Checkbox, Slider, Panel, PanelToolbar,
-                    PanelBody, Spacer, Gap, EmptyState, Section, Note, Actions,
+                    TextInput, NumberInput, Select, Checkbox, Slider, Panel, Well,
+                    PanelToolbar, PanelBody, Spacer, Gap, EmptyState, Section, Note, Actions,
                     ProgressBar, Dialog, Timecode
 src/panels/         compose primitives; their CSS is layout only
 src/timeline/draw.ts paints the canvas from the theme object
@@ -35,6 +35,25 @@ Tiers inside a theme:
 3. **Component tokens**: knobs specific to one part, kept in their own group. Today that
    is `timeline.*` (row and ruler height, header width, clip inset, band height, playhead
    and selection widths, ghost dash, alphas).
+
+## Surfaces
+
+A theme can color regions differently. Every element marked `data-surface="<name>"` gets
+the base colors merged with that surface's overrides from `theme.surfaces`:
+
+| Surface | Where |
+|---|---|
+| `chrome` | top bar, status bar, panel tab strips, gaps between panels |
+| `panel` | panel bodies (the default) |
+| `well` | inset content: bin folders, list view, inspector groups, dialogs, tile captions |
+| `stage` | picture and time: the viewer frame and the timeline |
+
+Components keep using the same variables (`--color-surface-panel`,
+`--color-text-primary`, `--color-accent-base`); the surface decides their values. Crimson
+uses this for a red frame with dark text around near-black wells with a red accent;
+Graphite defines no overrides. Mark a new region with `<Panel surface="...">`, `<Well>`,
+`<Section surface="well">` or `data-surface` on any element; canvas code gets the
+resolved colors from `surfaceColors(theme, "stage")`.
 
 ## Naming
 
@@ -58,7 +77,7 @@ letter-spacing: var(--type-label-tracking);`. In TypeScript, read the object wit
 
 | To change | Edit |
 |---|---|
-| The palette | `color` in your theme file |
+| The palette | `color` in your theme file, and `surfaces` for per-region colors |
 | Fonts | `font.ui` / `font.display` / `font.numeric`, plus `font.faces` for bundled files |
 | Type scale or weights | `type` roles |
 | Density | `size` (control and bar heights) and `timeline.rowHeight` / `rulerHeight` |
