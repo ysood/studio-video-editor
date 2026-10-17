@@ -5,6 +5,7 @@
 
 pub mod fcp7;
 pub mod otio;
+pub mod render;
 mod url;
 
 pub use url::file_url;
