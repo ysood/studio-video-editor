@@ -13,8 +13,10 @@ pub mod probe;
 pub mod time;
 pub mod validate;
 
-#[cfg(test)]
-pub(crate) mod testing;
+// Public under the `testing` feature so the Tauri shell's tests can build the same
+// fixtures instead of duplicating them.
+#[cfg(any(test, feature = "testing"))]
+pub mod testing;
 
 pub use edit::{apply, ClipEdge, EditCommand, EditError, EditReport};
 pub use history::{Editor, HistoryState};
