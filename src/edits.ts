@@ -3,16 +3,16 @@
 
 import type { MediaAsset } from "./bindings/MediaAsset";
 import type { MediaId } from "./bindings/MediaId";
-import type { Project } from "./bindings/Project";
 import type { SequenceFormat } from "./bindings/SequenceFormat";
 import type { TrackId } from "./bindings/TrackId";
 import type { TrackKind } from "./bindings/TrackKind";
 import { useEditor } from "./store";
-import { firstSequence } from "./sequences";
+import { activeSequence } from "./sequences";
+import type { Sequence } from "./bindings/Sequence";
 
 /** First unlocked track of a kind in document order (V1, A1). */
-export function firstTrack(project: Project, kind: TrackKind): TrackId | null {
-  return firstSequence(project).tracks.find((t) => t.kind === kind && !t.locked)?.id ?? null;
+export function firstTrack(sequence: Sequence, kind: TrackKind): TrackId | null {
+  return sequence.tracks.find((t) => t.kind === kind && !t.locked)?.id ?? null;
 }
 
 export const MEDIA_DRAG_TYPE = "application/x-studio-media";
@@ -30,10 +30,10 @@ export const mediaDrag: { current: MediaId | null } = { current: null };
  * because every position in the document is a frame count at that rate. So this is the
  * one moment the sequence can still adopt the footage, and the one moment worth asking.
  */
-export function formatMismatch(project: Project, media: MediaAsset): SequenceFormat | null {
+export function formatMismatch(sequence: Sequence, media: MediaAsset): SequenceFormat | null {
   if (!media.video) return null;
-  if (firstSequence(project).tracks.some((t) => t.clips.length > 0)) return null;
-  const current = firstSequence(project).format;
+  if (sequence.tracks.some((t) => t.clips.length > 0)) return null;
+  const current = sequence.format;
   const { width, height, frameRate } = media.video;
   const matches =
     width === current.width &&
@@ -55,15 +55,16 @@ export async function placeMedia(
   const store = useEditor.getState();
   const project = store.snapshot?.project;
   if (!project) return;
+  const sequence = activeSequence(project, store.activeSequenceId);
   const report = await store.edit({
     type: "InsertMedia",
-    sequenceId: firstSequence(project).id,
+    sequenceId: sequence.id,
     mediaId,
     start: Math.max(0, Math.round(frame)),
     sourceStart: 0,
     duration: null,
-    videoTrack: targets.video ?? firstTrack(project, "video"),
-    audioTrack: targets.audio ?? firstTrack(project, "audio"),
+    videoTrack: targets.video ?? firstTrack(sequence, "video"),
+    audioTrack: targets.audio ?? firstTrack(sequence, "audio"),
   });
   if (report && report.createdClips.length > 0) {
     store.select(report.createdClips);
@@ -83,8 +84,9 @@ export async function insertMedia(
   const store = useEditor.getState();
   const project = store.snapshot?.project;
   if (!project) return;
+  const sequence = activeSequence(project, store.activeSequenceId);
   const media = project.media.find((m) => m.id === mediaId);
-  const suggested = media ? formatMismatch(project, media) : null;
+  const suggested = media ? formatMismatch(sequence, media) : null;
   if (suggested) {
     store.setPendingInsert({ mediaId, frame, targets, suggested });
     return;

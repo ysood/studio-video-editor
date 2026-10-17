@@ -10,7 +10,6 @@ import { Button, ContextMenu, EmptyState, Icon, IconButton, Menu, type MenuEntry
 import { smartBins, sortLabels, type BinId, type SortKey } from "./bins";
 import { MediaTile } from "./MediaTile";
 import "./media-bin.css";
-import { firstSequence } from "../sequences";
 
 type ViewMode = "grid" | "list";
 
@@ -82,7 +81,7 @@ export function MediaBinPanel() {
   ];
   const bin = bins.find((b) => b.id === prefs.bin) ?? bins[0]!;
   const usedIds = new Set(
-    snapshot ? firstSequence(snapshot.project).tracks.flatMap((t) => t.clips.map((c) => c.source.mediaId)) : [],
+    snapshot ? snapshot.project.sequences.flatMap((q) => q.tracks.flatMap((t) => t.clips.map((c) => c.source.mediaId))) : [],
   );
   const current = media.find((m) => m.id === selected) ?? null;
   const inUse = current !== null && usedIds.has(current.id);

@@ -8,7 +8,7 @@ import type { MenuAction } from "./bindings/MenuAction";
 import type { SequenceFormat } from "./bindings/SequenceFormat";
 import { isTextInput } from "./focus";
 import { resetLayout } from "./workspace/layout";
-import { firstSequence } from "./sequences";
+import { activeSequence } from "./sequences";
 
 const PROJECT_FILTER = { name: "Studio project", extensions: ["studio"] };
 
@@ -148,7 +148,8 @@ export function runAction(action: MenuAction, from: "ui" | "keyboard" | "menu" =
     case "export": {
       const project = store.snapshot?.project;
       const hasClips =
-        project !== undefined && firstSequence(project).tracks.some((t) => t.clips.length > 0);
+        project !== undefined &&
+        activeSequence(project, store.activeSequenceId).tracks.some((t) => t.clips.length > 0);
       if (hasClips) store.setExportOpen(true);
       return;
     }

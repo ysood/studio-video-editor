@@ -11,7 +11,8 @@ import type { SequenceFormat } from "./bindings/SequenceFormat";
 import type { Snapshot } from "./bindings/Snapshot";
 import type { ToolsStatus } from "./bindings/ToolsStatus";
 import { errorMessage, ipc } from "./ipc";
-import { firstSequence } from "./sequences";
+import type { Sequence } from "./bindings/Sequence";
+import { activeSequence } from "./sequences";
 
 export interface StatusMessage {
   kind: "info" | "error";
@@ -52,6 +53,8 @@ interface EditorState {
   nativeMenu: boolean;
   exportOpen: boolean;
   pendingInsert: PendingInsert | null;
+  /// Which sequence the window is showing. UI state: switching is not an edit.
+  activeSequenceId: string | null;
 
   init: () => Promise<void>;
   setSnapshot: (snapshot: Snapshot) => void;
@@ -68,12 +71,13 @@ interface EditorState {
   setJob: (job: JobState | null) => void;
   setExportOpen: (open: boolean) => void;
   setPendingInsert: (pending: PendingInsert | null) => void;
+  setActiveSequence: (id: string) => void;
 }
 
 /** Keep only selected ids that still exist after the project changed. */
 function pruneSelection(selection: ClipId[], snapshot: Snapshot): ClipId[] {
   const live = new Set<string>();
-  for (const track of firstSequence(snapshot.project).tracks) {
+  for (const track of snapshot.project.sequences.flatMap((q) => q.tracks)) {
     for (const clip of track.clips) live.add(clip.id);
   }
   return selection.filter((id) => live.has(id));
@@ -92,6 +96,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   nativeMenu: false,
   exportOpen: false,
   pendingInsert: null,
+  activeSequenceId: null,
 
   init: async () => {
     try {
@@ -110,7 +115,15 @@ export const useEditor = create<EditorState>((set, get) => ({
   },
 
   setSnapshot: (snapshot) =>
-    set((state) => ({ snapshot, selection: pruneSelection(state.selection, snapshot) })),
+    set((state) => ({
+      snapshot,
+      selection: pruneSelection(state.selection, snapshot),
+      // A sequence can be removed, or a different project opened, while one is shown.
+      // Forgetting it falls back to the first rather than showing nothing.
+      activeSequenceId: snapshot.project.sequences.some((q) => q.id === state.activeSequenceId)
+        ? state.activeSequenceId
+        : null,
+    })),
 
   edit: async (command) => {
     try {
@@ -159,4 +172,16 @@ export const useEditor = create<EditorState>((set, get) => ({
   setJob: (job) => set({ job }),
   setExportOpen: (exportOpen) => set({ exportOpen }),
   setPendingInsert: (pendingInsert) => set({ pendingInsert }),
+  setActiveSequence: (activeSequenceId) => set({ activeSequenceId }),
 }));
+
+/**
+ * The sequence this window is showing, or null before a project has loaded. Components
+ * read the timeline through this rather than reaching into the project, so switching
+ * sequences is one place rather than thirty.
+ */
+export function useActiveSequence(): Sequence | null {
+  const snapshot = useEditor((s) => s.snapshot);
+  const id = useEditor((s) => s.activeSequenceId);
+  return snapshot ? activeSequence(snapshot.project, id) : null;
+}

@@ -52,19 +52,19 @@ function project(tracks: Track[]): Project {
 describe("videoAt", () => {
   it("prefers the highest enabled video track", () => {
     const p = project([track("v1", "video", [clip("low", 0, 48)]), track("v2", "video", [clip("high", 24, 24)])]);
-    expect(videoAt(p, 10)?.clip.id).toBe("low");
-    expect(videoAt(p, 30)?.clip.id).toBe("high");
+    expect(videoAt(p, p.sequences[0]!, 10)?.clip.id).toBe("low");
+    expect(videoAt(p, p.sequences[0]!, 30)?.clip.id).toBe("high");
   });
 
   it("skips disabled tracks", () => {
     const p = project([track("v1", "video", [clip("low", 0, 48)]), track("v2", "video", [clip("high", 0, 48)], false)]);
-    expect(videoAt(p, 10)?.clip.id).toBe("low");
+    expect(videoAt(p, p.sequences[0]!, 10)?.clip.id).toBe("low");
   });
 
   it("maps the playhead into source seconds", () => {
     const p = project([track("v1", "video", [clip("c", 24, 48, 12)])]);
-    expect(videoAt(p, 36)?.sourceSeconds).toBe(1);
-    expect(videoAt(p, 72)).toBeNull();
+    expect(videoAt(p, p.sequences[0]!, 36)?.sourceSeconds).toBe(1);
+    expect(videoAt(p, p.sequences[0]!, 72)).toBeNull();
   });
 });
 
@@ -75,13 +75,13 @@ describe("audioAt", () => {
       track("a2", "audio", [clip("y", 0, 48)]),
       track("a3", "audio", [clip("z", 0, 48)], false),
     ]);
-    expect(audioAt(p, 5).map((a) => a.clip.id)).toEqual(["x", "y"]);
+    expect(audioAt(p, p.sequences[0]!, 5).map((a) => a.clip.id)).toEqual(["x", "y"]);
   });
 });
 
 describe("sequenceEnd", () => {
   it("is the end of the last clip", () => {
-    expect(sequenceEnd(project([track("v1", "video", [clip("a", 10, 20)])]))).toBe(30);
-    expect(sequenceEnd(project([]))).toBe(0);
+    expect(sequenceEnd(project([track("v1", "video", [clip("a", 10, 20)])]).sequences[0]!)).toBe(30);
+    expect(sequenceEnd(project([]).sequences[0]!)).toBe(0);
   });
 });

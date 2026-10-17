@@ -10,9 +10,8 @@ import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { microsToFrames } from "../format";
 import { events, ipc } from "../ipc";
 import { isBrowserPreview } from "../preview/mode";
-import { useEditor } from "../store";
+import { useActiveSequence, useEditor } from "../store";
 import { sequenceEnd } from "./resolve";
-import { firstSequence } from "../sequences";
 
 export function useNativeViewer(stage: RefObject<HTMLElement | null>) {
   const snapshot = useEditor((s) => s.snapshot);
@@ -22,11 +21,11 @@ export function useNativeViewer(stage: RefObject<HTMLElement | null>) {
   // The last frame the player reported, so its own updates do not bounce back as seeks.
   const fromPlayer = useRef<number | null>(null);
 
-  const project = snapshot?.project ?? null;
-  const rate = project ? firstSequence(project).format.frameRate : { num: 24, den: 1 };
+  const sequence = useActiveSequence();
+  const rate = sequence?.format.frameRate ?? { num: 24, den: 1 };
   const num = rate.num;
   const den = rate.den;
-  const end = project ? sequenceEnd(project) : 0;
+  const end = sequence ? sequenceEnd(sequence) : 0;
 
   // The surface is positioned in CSS pixels, which match AppKit points because the
   // webview fills the window. Pushed only when it actually moves, since this runs on

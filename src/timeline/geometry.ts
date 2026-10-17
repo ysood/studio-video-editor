@@ -8,11 +8,11 @@ import type { Clip } from "../bindings/Clip";
 import type { ClipEdge } from "../bindings/ClipEdge";
 import type { ClipId } from "../bindings/ClipId";
 import type { Project } from "../bindings/Project";
+import type { Sequence } from "../bindings/Sequence";
 import type { Track } from "../bindings/Track";
 import type { TrackId } from "../bindings/TrackId";
 import { microsToFrames } from "../format";
 import type { Theme } from "../theme";
-import { firstSequence } from "../sequences";
 
 /** Timeline dimensions come from the theme so density and proportions are themeable. */
 export type TimelineMetrics = Theme["timeline"];
@@ -29,8 +29,8 @@ export interface Row {
 }
 
 /** Display order: video tracks from the highest down to V1, then audio from A1 down. */
-export function layoutRows(project: Project, m: TimelineMetrics): Row[] {
-  const tracks = firstSequence(project).tracks;
+export function layoutRows(sequence: Sequence, m: TimelineMetrics): Row[] {
+  const tracks = sequence.tracks;
   const video = tracks.filter((t) => t.kind === "video").reverse();
   const audio = tracks.filter((t) => t.kind === "audio");
   let y = m.rulerHeight;
@@ -76,8 +76,8 @@ export function hitTest(rows: Row[], view: View, x: number, y: number, m: Timeli
   return { type: "track", track: row.track };
 }
 
-export function findClip(project: Project, id: ClipId): { clip: Clip; track: Track } | null {
-  for (const track of firstSequence(project).tracks) {
+export function findClip(sequence: Sequence, id: ClipId): { clip: Clip; track: Track } | null {
+  for (const track of sequence.tracks) {
     const clip = track.clips.find((c) => c.id === id);
     if (clip) return { clip, track };
   }
@@ -85,25 +85,25 @@ export function findClip(project: Project, id: ClipId): { clip: Clip; track: Tra
 }
 
 /** The clip and every clip linked to it. Mirrors Project::link_group. */
-export function linkGroup(project: Project, id: ClipId): ClipId[] {
-  const found = findClip(project, id);
+export function linkGroup(sequence: Sequence, id: ClipId): ClipId[] {
+  const found = findClip(sequence, id);
   if (!found) return [];
   const link = found.clip.link;
   if (!link) return [id];
-  return firstSequence(project).tracks.flatMap((t) => t.clips.filter((c) => c.link === link).map((c) => c.id));
+  return sequence.tracks.flatMap((t) => t.clips.filter((c) => c.link === link).map((c) => c.id));
 }
 
 /** Frames of media available at the sequence rate, or null for stills. */
-export function mediaFrames(project: Project, clip: Clip): number | null {
+export function mediaFrames(project: Project, sequence: Sequence, clip: Clip): number | null {
   const media = project.media.find((m) => m.id === clip.source.mediaId);
   if (!media || media.kind === "image" || media.durationUs === null) return null;
-  return microsToFrames(media.durationUs, firstSequence(project).format.frameRate);
+  return microsToFrames(media.durationUs, sequence.format.frameRate);
 }
 
 /** Clip edges and the playhead, excluding the clips being dragged. */
-export function snapTargets(project: Project, exclude: Set<ClipId>, playhead: number): number[] {
+export function snapTargets(sequence: Sequence, exclude: Set<ClipId>, playhead: number): number[] {
   const targets = [0, playhead];
-  for (const track of firstSequence(project).tracks) {
+  for (const track of sequence.tracks) {
     for (const clip of track.clips) {
       if (exclude.has(clip.id)) continue;
       targets.push(clip.start, clipEnd(clip));
@@ -138,24 +138,24 @@ export interface MovePreview {
  * a track of its own kind.
  */
 export function previewMove(
-  project: Project,
+  sequence: Sequence,
   clipId: ClipId,
   rawStart: number,
   overTrack: Track | null,
   snap: { enabled: boolean; playhead: number; thresholdFrames: number },
 ): MovePreview | null {
-  const found = findClip(project, clipId);
+  const found = findClip(sequence, clipId);
   if (!found) return null;
   const { clip, track } = found;
   let start = Math.round(rawStart);
   if (snap.enabled) {
-    const group = new Set(linkGroup(project, clipId));
-    const targets = snapTargets(project, group, snap.playhead);
+    const group = new Set(linkGroup(sequence, clipId));
+    const targets = snapTargets(sequence, group, snap.playhead);
     start += snapDelta([start, start + clip.duration], targets, snap.thresholdFrames);
   }
   // A linked clip moves with its group, so the earliest member bounds the move.
   const earliest = Math.min(
-    ...linkGroup(project, clipId).map((id) => findClip(project, id)?.clip.start ?? clip.start),
+    ...linkGroup(sequence, clipId).map((id) => findClip(sequence, id)?.clip.start ?? clip.start),
   );
   start = Math.max(start, clip.start - earliest);
   const trackId =
@@ -164,14 +164,20 @@ export function previewMove(
 }
 
 /** Where a dragged edge lands, clamped exactly like the core's trim. */
-export function previewTrim(project: Project, clipId: ClipId, edge: ClipEdge, rawFrame: number): number | null {
-  const group = linkGroup(project, clipId);
+export function previewTrim(
+  project: Project,
+  sequence: Sequence,
+  clipId: ClipId,
+  edge: ClipEdge,
+  rawFrame: number,
+): number | null {
+  const group = linkGroup(sequence, clipId);
   if (group.length === 0) return null;
   const members = new Set(group);
   let lower = -Infinity;
   let upper = Infinity;
   for (const id of group) {
-    const found = findClip(project, id);
+    const found = findClip(sequence, id);
     if (!found) return null;
     const { clip, track } = found;
     const others = track.clips.filter((c) => !members.has(c.id));
@@ -185,7 +191,7 @@ export function previewTrim(project: Project, clipId: ClipId, edge: ClipEdge, ra
         Infinity,
         ...others.filter((c) => c.start >= clipEnd(clip)).map((c) => c.start),
       );
-      const total = mediaFrames(project, clip);
+      const total = mediaFrames(project, sequence, clip);
       const mediaEnd = total === null ? Infinity : clip.start + total - clip.source.sourceStart;
       lower = Math.max(lower, clip.start + 1);
       upper = Math.min(upper, neighbourStart, mediaEnd);

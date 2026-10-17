@@ -16,7 +16,7 @@ import { chord } from "../keyboard";
 import { useEditor } from "../store";
 import { LAYOUT_KEY, resetLayout } from "./layout";
 import { makeHeaderActions, PanelTab } from "./PanelHeader";
-import { firstSequence } from "../sequences";
+import { activeSequence } from "../sequences";
 
 
 const components: Record<string, FunctionComponent<IDockviewPanelProps>> = {
@@ -82,7 +82,7 @@ const HeaderActions = makeHeaderActions(
     timeline: () => {
       const { edit, snapshot } = useEditor.getState();
       if (!snapshot) return [];
-      const sequenceId = firstSequence(snapshot.project).id;
+      const sequenceId = activeSequence(snapshot.project, useEditor.getState().activeSequenceId).id;
       return [
         { label: "Add video track", icon: "video", onSelect: () => void edit({ type: "AddTrack", sequenceId, kind: "video" }) },
         { label: "Add audio track", icon: "audio", onSelect: () => void edit({ type: "AddTrack", sequenceId, kind: "audio" }) },

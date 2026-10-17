@@ -1,17 +1,17 @@
 import { runAction } from "../actions";
 import { formatRate } from "../format";
 import { chord } from "../keyboard";
-import { useEditor } from "../store";
+import { useActiveSequence, useEditor } from "../store";
 import { Button, IconButton, Menu, type MenuEntry } from "../ui";
-import { firstSequence } from "../sequences";
 
 export function TopBar() {
   const snapshot = useEditor((s) => s.snapshot);
   const nativeMenu = useEditor((s) => s.nativeMenu);
+  const sequence = useActiveSequence();
   const history = snapshot?.history;
-  const format = snapshot ? firstSequence(snapshot.project).format : undefined;
+  const format = sequence?.format;
   const hasClips =
-    snapshot !== null && firstSequence(snapshot.project).tracks.some((t) => t.clips.length > 0);
+    sequence !== null && sequence.tracks.some((t) => t.clips.length > 0);
 
   const fileMenu: MenuEntry[] = [
     { label: "New project", icon: "file", shortcut: chord("N"), onSelect: () => runAction("newProject") },

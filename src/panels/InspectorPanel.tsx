@@ -21,7 +21,8 @@ import {
   Value,
 } from "../ui";
 import "./inspector.css";
-import { firstSequence } from "../sequences";
+import type { Sequence } from "../bindings/Sequence";
+import { useActiveSequence } from "../store";
 
 const FRAME_RATES: Rational[] = [
   { num: 24000, den: 1001 },
@@ -47,10 +48,11 @@ export function InspectorPanel() {
   const snapshot = useEditor((s) => s.snapshot);
   const selection = useEditor((s) => s.selection);
   const project = snapshot?.project;
-  if (!project) return <Panel />;
+  const sequence = useActiveSequence();
+  if (!project || !sequence) return <Panel />;
 
   const selected = selection
-    .map((id) => findClip(project, id))
+    .map((id) => findClip(sequence, id))
     .filter((f): f is { clip: Clip; track: Track } => f !== null);
   // A linked pair reads as one clip in the inspector.
   const links = new Set(selected.map((s) => s.clip.link ?? s.clip.id));
@@ -58,18 +60,28 @@ export function InspectorPanel() {
   return (
     <Panel>
       <PanelBody layout="sheet">
-        {selected.length === 0 && <SequenceSettings project={project} />}
-        {selected.length > 0 && links.size === 1 && <ClipDetails project={project} entry={selected[0]!} />}
+        {selected.length === 0 && <SequenceSettings project={project} sequence={sequence} />}
+        {selected.length > 0 && links.size === 1 && (
+          <ClipDetails project={project} sequence={sequence} entry={selected[0]!} />
+        )}
         {links.size > 1 && <MultipleClips count={links.size} ids={selection} />}
       </PanelBody>
     </Panel>
   );
 }
 
-function ClipDetails({ project, entry }: { project: Project; entry: { clip: Clip; track: Track } }) {
+function ClipDetails({
+  project,
+  sequence,
+  entry,
+}: {
+  project: Project;
+  sequence: Sequence;
+  entry: { clip: Clip; track: Track };
+}) {
   const edit = useEditor((s) => s.edit);
   const { clip, track } = entry;
-  const rate = firstSequence(project).format.frameRate;
+  const rate = sequence.format.frameRate;
   const media = project.media.find((m) => m.id === clip.source.mediaId);
   const locked = track.locked;
 
@@ -173,14 +185,14 @@ function MultipleClips({ count, ids }: { count: number; ids: string[] }) {
   );
 }
 
-function SequenceSettings({ project }: { project: Project }) {
+function SequenceSettings({ project, sequence }: { project: Project; sequence: Sequence }) {
   const edit = useEditor((s) => s.edit);
-  const format = firstSequence(project).format;
-  const hasClips = firstSequence(project).tracks.some((t) => t.clips.length > 0);
+  const format = sequence.format;
+  const hasClips = sequence.tracks.some((t) => t.clips.length > 0);
   const apply = (patch: Partial<SequenceFormat>) =>
     void edit({
       type: "SetSequenceFormat",
-      sequenceId: firstSequence(project).id,
+      sequenceId: sequence.id,
       format: { ...format, ...patch },
     });
   const sizeKey = `${format.width}x${format.height}`;

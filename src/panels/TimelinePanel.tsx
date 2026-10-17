@@ -8,7 +8,7 @@ import type { TrackId } from "../bindings/TrackId";
 import { firstTrack, insertMedia, MEDIA_DRAG_TYPE, mediaDrag } from "../edits";
 import { microsToFrames } from "../format";
 import { chord, useShortcut } from "../keyboard";
-import { useEditor, ZOOM_MAX, ZOOM_MIN } from "../store";
+import { useEditor, ZOOM_MAX, ZOOM_MIN, useActiveSequence } from "../store";
 import { surfaceColors, useTheme, useThemeRevision } from "../theme";
 import { draw, type Ghost } from "../timeline/draw";
 import {
@@ -27,7 +27,7 @@ import {
 } from "../timeline/geometry";
 import { ContextMenu, Gap, IconButton, Menu, type MenuEntry, Panel, PanelBody, PanelToolbar, Slider, Spacer, Timecode } from "../ui";
 import "./timeline.css";
-import { firstSequence } from "../sequences";
+import type { Sequence } from "../bindings/Sequence";
 
 /** Pointer travel before a press on a clip becomes a drag, so clicks stay clicks. */
 const DRAG_THRESHOLD_PX = 3;
@@ -44,9 +44,9 @@ interface DropPreview {
   audio: TrackId | null;
 }
 
-function mediaLength(project: Project, mediaId: string): number {
+function mediaLength(project: Project, sequence: Sequence, mediaId: string): number {
   const media = project.media.find((m) => m.id === mediaId);
-  const rate = firstSequence(project).format.frameRate;
+  const rate = sequence.format.frameRate;
   if (!media) return 0;
   if (media.durationUs === null) return Math.floor((5 * rate.num) / rate.den);
   return microsToFrames(media.durationUs, rate);
@@ -72,10 +72,11 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
   const themeRevision = useThemeRevision();
   const metrics = theme.timeline;
   const project = snapshot?.project ?? null;
-  const rows = useMemo(() => (project ? layoutRows(project, metrics) : []), [project, metrics]);
+  const sequence = useActiveSequence();
+  const rows = useMemo(() => (sequence ? layoutRows(sequence, metrics) : []), [sequence, metrics]);
   const height = contentHeight(rows, metrics);
   const view: View = useMemo(() => ({ zoom, scrollX }), [zoom, scrollX]);
-  const rate = project ? firstSequence(project).format.frameRate : { num: 24, den: 1 };
+  const rate = sequence?.format.frameRate ?? { num: 24, den: 1 };
   const selectionSet = useMemo(() => new Set(selection), [selection]);
 
   // Keep the canvas sized to its container. The area only exists once a project has
@@ -112,13 +113,13 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
   const { ghosts, lifted } = useMemo(() => {
     const ghosts: Ghost[] = [];
     const lifted = new Set<ClipId>();
-    if (!project || !drag || drag.kind === "scrub") return { ghosts, lifted };
+    if (!project || !sequence || !drag || drag.kind === "scrub") return { ghosts, lifted };
     if (drag.kind === "move" && drag.active) {
-      const dragged = findClip(project, drag.clipId);
+      const dragged = findClip(sequence, drag.clipId);
       if (!dragged) return { ghosts, lifted };
       const delta = drag.start - dragged.clip.start;
-      for (const id of linkGroup(project, drag.clipId)) {
-        const found = findClip(project, id);
+      for (const id of linkGroup(sequence, drag.clipId)) {
+        const found = findClip(sequence, id);
         if (!found) continue;
         lifted.add(id);
         ghosts.push({
@@ -131,8 +132,8 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
       }
     }
     if (drag.kind === "trim") {
-      for (const id of linkGroup(project, drag.clipId)) {
-        const found = findClip(project, id);
+      for (const id of linkGroup(sequence, drag.clipId)) {
+        const found = findClip(sequence, id);
         if (!found) continue;
         const { clip, track } = found;
         lifted.add(id);
@@ -147,7 +148,7 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
   // Paint.
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || !project) return;
+    if (!canvas || !project || !sequence) return;
     const dpr = window.devicePixelRatio || 1;
     canvas.width = Math.floor(width * dpr);
     canvas.height = Math.floor(height * dpr);
@@ -160,6 +161,7 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
       theme,
       colors: surfaceColors(theme, "stage"),
       project,
+      sequence,
       rows,
       view,
       width,
@@ -188,7 +190,7 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
   };
 
   const onPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!project || e.button !== 0) return;
+    if (!project || !sequence || e.button !== 0) return;
     const { x, y } = pointer(e);
     const hit = hitTest(rows, view, x, y, metrics);
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -202,7 +204,7 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
       return;
     }
     // Linked clips select together, as they move together. Alt selects one side only.
-    const picked = e.altKey ? [hit.clip.id] : linkGroup(project, hit.clip.id);
+    const picked = e.altKey ? [hit.clip.id] : linkGroup(sequence, hit.clip.id);
     if (e.shiftKey || e.metaKey) select(picked, "toggle");
     else if (!selectionSet.has(hit.clip.id)) select(picked);
     if (hit.track.locked) return;
@@ -225,15 +227,15 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
   // Runs before the context menu opens: a right click on a clip selects it (and its
   // link group) unless it is already part of the selection, like Finder and Resolve.
   const onContextMenu = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!project) return;
+    if (!project || !sequence) return;
     const { x, y } = pointer(e);
     const hit = hitTest(rows, view, x, y, metrics);
     setMenuOnClip(hit.type === "clip");
-    if (hit.type === "clip" && !selectionSet.has(hit.clip.id)) select(linkGroup(project, hit.clip.id));
+    if (hit.type === "clip" && !selectionSet.has(hit.clip.id)) select(linkGroup(sequence, hit.clip.id));
   };
 
   const onPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!project) return;
+    if (!project || !sequence) return;
     const { x, y } = pointer(e);
     if (!drag) {
       const hit = hitTest(rows, view, x, y, metrics);
@@ -253,7 +255,7 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
       const active = drag.active || Math.abs(x - drag.startX) > DRAG_THRESHOLD_PX;
       if (!active) return;
       const over: Track | null = rowAt(rows, y)?.track ?? null;
-      const preview = previewMove(project, drag.clipId, xToFrame(x, view) - drag.grabOffset, over, {
+      const preview = previewMove(sequence, drag.clipId, xToFrame(x, view) - drag.grabOffset, over, {
         enabled: snap,
         playhead,
         thresholdFrames: snapThreshold,
@@ -262,16 +264,16 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
     } else if (drag.kind === "trim") {
       let raw = xToFrame(x, view);
       if (snap && Math.abs(raw - playhead) <= snapThreshold) raw = playhead;
-      const frame = previewTrim(project, drag.clipId, drag.edge, raw);
+      const frame = previewTrim(project, sequence, drag.clipId, drag.edge, raw);
       if (frame !== null) setDrag({ ...drag, frame });
     }
   };
 
   const onPointerUp = () => {
-    if (!project || !drag) return;
+    if (!project || !sequence || !drag) return;
     setDrag(null);
     if (drag.kind === "move" && drag.active) {
-      const found = findClip(project, drag.clipId);
+      const found = findClip(sequence, drag.clipId);
       if (found && (found.clip.start !== drag.start || found.track.id !== drag.trackId)) {
         void edit({
           type: "MoveClip",
@@ -301,27 +303,27 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
 
   // Bin drops.
   const dropTargets = (y: number, mediaId: string) => {
-    if (!project) return null;
+    if (!project || !sequence) return null;
     const media = project.media.find((m) => m.id === mediaId);
     if (!media) return null;
     const over = rowAt(rows, y)?.track;
     const usable = (t: Track | undefined) => (t && !t.locked ? t.id : null);
-    const video = media.video ? (over?.kind === "video" ? usable(over) : firstTrack(project, "video")) : null;
-    const audio = media.audio ? (over?.kind === "audio" ? usable(over) : firstTrack(project, "audio")) : null;
+    const video = media.video ? (over?.kind === "video" ? usable(over) : firstTrack(sequence, "video")) : null;
+    const audio = media.audio ? (over?.kind === "audio" ? usable(over) : firstTrack(sequence, "audio")) : null;
     return { media, video, audio };
   };
 
   const onDragOver = (e: React.DragEvent) => {
-    if (!project || !e.dataTransfer.types.includes(MEDIA_DRAG_TYPE) || !mediaDrag.current) return;
+    if (!project || !sequence || !e.dataTransfer.types.includes(MEDIA_DRAG_TYPE) || !mediaDrag.current) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
     const { x, y } = pointer(e);
     const targets = dropTargets(y, mediaDrag.current);
     if (!targets) return;
-    const duration = mediaLength(project, targets.media.id);
+    const duration = mediaLength(project, sequence, targets.media.id);
     let start = Math.max(0, Math.round(xToFrame(x, view)));
     if (snap) {
-      const near = [0, playhead, ...firstSequence(project).tracks.flatMap((t) => t.clips.flatMap((c) => [c.start, clipEnd(c)]))];
+      const near = [0, playhead, ...sequence.tracks.flatMap((t) => t.clips.flatMap((c) => [c.start, clipEnd(c)]))];
       const hit = near.find((f) => Math.abs(f - start) <= snapThreshold);
       if (hit !== undefined) start = hit;
     }
@@ -343,8 +345,8 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
 
   // Commands
   const splitAtPlayhead = useCallback(() => {
-    if (!project) return;
-    const under = firstSequence(project).tracks
+    if (!project || !sequence) return;
+    const under = sequence.tracks
       .filter((t) => !t.locked)
       .flatMap((t) => t.clips.filter((c) => c.start < playhead && playhead < clipEnd(c)).map((c) => c.id));
     const chosen = selection.length > 0 ? under.filter((id) => selectionSet.has(id)) : under;
@@ -356,10 +358,10 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
   }, [selection, edit]);
 
   const zoomToFit = useCallback(() => {
-    if (!project) return;
+    if (!project || !sequence) return;
     const total = Math.max(
       1,
-      ...firstSequence(project).tracks.flatMap((t) => t.clips.map(clipEnd)),
+      ...sequence.tracks.flatMap((t) => t.clips.map(clipEnd)),
     );
     setZoom((width - 2 * theme.space[8]) / total);
     setScrollX(0);
@@ -388,7 +390,7 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
             setPlayhead(0);
             return true;
           case e.key === "End":
-            setPlayhead(project ? Math.max(0, ...firstSequence(project).tracks.flatMap((t) => t.clips.map(clipEnd))) : 0);
+            setPlayhead(sequence ? Math.max(0, ...sequence.tracks.flatMap((t) => t.clips.map(clipEnd))) : 0);
             return true;
           case e.key === "=" || e.key === "+":
             setZoom(useEditor.getState().zoom * 1.5);
@@ -406,7 +408,7 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
             select([]);
             return true;
           case e.key === "a" && mod:
-            select(project ? firstSequence(project).tracks.flatMap((t) => t.clips.map((c) => c.id)) : []);
+            select(sequence ? sequence.tracks.flatMap((t) => t.clips.map((c) => c.id)) : []);
             return true;
           default:
             return false;
@@ -416,10 +418,10 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
     ),
   );
 
-  if (!project) return <Panel surface="stage" />;
+  if (!project || !sequence) return <Panel surface="stage" />;
 
-  const selectedClips = firstSequence(project).tracks.flatMap((t) => t.clips.filter((c) => selectionSet.has(c.id)));
-  const sequenceId = firstSequence(project).id;
+  const selectedClips = sequence.tracks.flatMap((t) => t.clips.filter((c) => selectionSet.has(c.id)));
+  const sequenceId = sequence.id;
   const addTrackEntries: MenuEntry[] = [
     { label: "Video track", icon: "video", onSelect: () => void edit({ type: "AddTrack", sequenceId, kind: "video" }) },
     { label: "Audio track", icon: "audio", onSelect: () => void edit({ type: "AddTrack", sequenceId, kind: "audio" }) },
@@ -441,7 +443,7 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
           {
             label: "Select all",
             shortcut: chord("A"),
-            onSelect: () => select(firstSequence(project).tracks.flatMap((t) => t.clips.map((c) => c.id))),
+            onSelect: () => select(sequence.tracks.flatMap((t) => t.clips.map((c) => c.id))),
           },
         ];
 
@@ -499,7 +501,7 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
                 onPointerCancel={() => setDrag(null)}
               />
             </ContextMenu>
-            {firstSequence(project).tracks.every((t) => t.clips.length === 0) && !drop && (
+            {sequence.tracks.every((t) => t.clips.length === 0) && !drop && (
               <p className="timeline-hint" style={{ left: frameToX(0, view) }}>
                 Drag media here from the bin, or double-click it to place it at the playhead.
               </p>

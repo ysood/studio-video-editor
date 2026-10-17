@@ -11,7 +11,6 @@ import {
   tickStep,
 } from "./geometry";
 import { graphiteTheme } from "../theme/themes/graphite";
-import { firstSequence } from "../sequences";
 
 const m = graphiteTheme.timeline;
 
@@ -60,14 +59,14 @@ const view = { zoom: 2, scrollX: 0 };
 
 describe("layoutRows", () => {
   it("stacks video tracks highest first, then audio", () => {
-    const rows = layoutRows(project(), m);
+    const rows = layoutRows(project().sequences[0]!, m);
     expect(rows.map((r) => r.track.id)).toEqual(["v2", "v1", "a1"]);
     expect(rows[0]!.y).toBe(m.rulerHeight);
   });
 });
 
 describe("hitTest", () => {
-  const rows = layoutRows(project(), m);
+  const rows = layoutRows(project().sequences[0]!, m);
   const v1Y = rows[1]!.y + m.rowHeight / 2;
 
   it("finds clip bodies and edges", () => {
@@ -93,37 +92,37 @@ describe("previewMove", () => {
   const snapOff = { enabled: false, playhead: 0, thresholdFrames: 0 };
 
   it("never moves a group before zero", () => {
-    expect(previewMove(project(), "v-b", -30, null, snapOff)).toEqual({ start: 0, trackId: "v1" });
+    expect(previewMove(project().sequences[0]!, "v-b", -30, null, snapOff)).toEqual({ start: 0, trackId: "v1" });
   });
 
   it("only changes track to one of the same kind", () => {
     const p = project();
-    const a1 = firstSequence(p).tracks[2]!;
-    const v2 = firstSequence(p).tracks[1]!;
-    expect(previewMove(p, "v-b", 60, a1, snapOff)?.trackId).toBe("v1");
-    expect(previewMove(p, "v-b", 60, v2, snapOff)?.trackId).toBe("v2");
+    const a1 = p.sequences[0]!.tracks[2]!;
+    const v2 = p.sequences[0]!.tracks[1]!;
+    expect(previewMove(p.sequences[0]!, "v-b", 60, a1, snapOff)?.trackId).toBe("v1");
+    expect(previewMove(p.sequences[0]!, "v-b", 60, v2, snapOff)?.trackId).toBe("v2");
   });
 
   it("snaps to neighbouring edges", () => {
     const snap = { enabled: true, playhead: 500, thresholdFrames: 4 };
     // Start at 22 is within 4 of the end of v-a (20).
-    expect(previewMove(project(), "v-b", 22, null, snap)?.start).toBe(20);
+    expect(previewMove(project().sequences[0]!, "v-b", 22, null, snap)?.start).toBe(20);
   });
 });
 
 describe("previewTrim", () => {
   it("clamps the start edge to media start and the neighbour", () => {
     // Media allows reaching back to 20; the neighbour also ends at 20.
-    expect(previewTrim(project(), "v-b", "start", 0)).toBe(20);
+    expect(previewTrim(project(), project().sequences[0]!, "v-b", "start", 0)).toBe(20);
   });
 
   it("clamps the end edge to the media end", () => {
     // 240 frames of media, source starts at 30, clip starts at 50: last frame is 260.
-    expect(previewTrim(project(), "a-b", "end", 1000)).toBe(260);
+    expect(previewTrim(project(), project().sequences[0]!, "a-b", "end", 1000)).toBe(260);
   });
 
   it("keeps at least one frame", () => {
-    expect(previewTrim(project(), "v-b", "end", 0)).toBe(51);
+    expect(previewTrim(project(), project().sequences[0]!, "v-b", "end", 0)).toBe(51);
   });
 });
 

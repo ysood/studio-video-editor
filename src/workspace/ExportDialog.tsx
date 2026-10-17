@@ -5,7 +5,7 @@ import { ipc } from "../ipc";
 import { useEditor } from "../store";
 import { Actions, Button, Dialog } from "../ui";
 import "./export-dialog.css";
-import { firstSequence } from "../sequences";
+import { useActiveSequence } from "../store";
 
 type Choice = "render-h264" | "render-prores" | "otio" | "fcp7" | "package";
 
@@ -26,10 +26,11 @@ export function ExportDialog({ open: isOpen, onClose }: { open: boolean; onClose
   const [choice, setChoice] = useState<Choice>("render-h264");
   const snapshot = useEditor((s) => s.snapshot);
   const job = useEditor((s) => s.job);
+  const sequence = useActiveSequence();
   const { notify, fail, setJob } = useEditor.getState();
 
   const name = safeName(snapshot?.project.name ?? "Untitled");
-  const sequenceId = snapshot ? firstSequence(snapshot.project).id : null;
+  const sequenceId = sequence?.id ?? null;
 
   const run = async () => {
     if (!sequenceId) return;
