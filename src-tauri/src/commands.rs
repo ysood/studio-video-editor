@@ -507,8 +507,15 @@ pub fn viewer_sync(window: tauri::WebviewWindow, state: State<'_, AppState>) {
             let session = state.session();
             crate::viewer::segments(session.editor.project())
         };
+        let app = window.app_handle().clone();
         let _ = window.with_webview(move |webview| {
-            crate::viewer::set_segments(webview.ns_window(), &segments);
+            let ns_window = webview.ns_window();
+            crate::viewer::set_segments(ns_window, &segments);
+            // The first sync installs the player clock. AVFoundation owns playback time;
+            // the UI follows it rather than running a clock of its own.
+            crate::viewer::observe_time(ns_window, move |micros| {
+                let _ = app.emit("viewer://time", micros);
+            });
         });
     }
     #[cfg(not(target_os = "macos"))]

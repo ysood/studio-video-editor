@@ -20,7 +20,9 @@
 use std::cell::RefCell;
 use std::ffi::c_void;
 
+use block2::RcBlock;
 use objc2::rc::Retained;
+use objc2::runtime::AnyObject;
 use objc2::{MainThreadMarker, MainThreadOnly};
 use objc2_app_kit::{NSView, NSWindow, NSWindowOrderingMode};
 use objc2_av_foundation::{
@@ -137,6 +139,9 @@ fn time(us: i64) -> CMTime {
 struct Surface {
     view: Retained<NSView>,
     player: Retained<AVPlayer>,
+    /// Must be held for as long as the observer should fire, and handed back to
+    /// `removeTimeObserver` before the player goes away.
+    observer: RefCell<Option<Retained<AnyObject>>>,
 }
 
 impl Surface {
@@ -153,7 +158,11 @@ impl Surface {
         view.setLayer(Some(&layer));
 
         content.addSubview_positioned_relativeTo(&view, NSWindowOrderingMode::Above, None);
-        Some(Self { view, player })
+        Some(Self {
+            view,
+            player,
+            observer: RefCell::new(None),
+        })
     }
 
     /// Position the surface. The rect arrives in CSS pixels with a top left origin, which
@@ -225,6 +234,14 @@ fn media_type(audio: bool) -> &'static AVMediaType {
     value.expect("AVFoundation media type constant missing")
 }
 
+impl Drop for Surface {
+    fn drop(&mut self) {
+        if let Some(observer) = self.observer.borrow_mut().take() {
+            unsafe { self.player.removeTimeObserver(&observer) };
+        }
+    }
+}
+
 fn add_track(
     composition: &AVMutableComposition,
     audio: bool,
@@ -242,6 +259,40 @@ fn asset(path: &str) -> Option<Retained<AVURLAsset>> {
     let path = NSString::from_str(path);
     let url = NSURL::fileURLWithPath(&path);
     Some(unsafe { AVURLAsset::URLAssetWithURL_options(&url, None) })
+}
+
+/// How often the player reports its time. Half a frame at 60 fps is smooth for the
+/// playhead and timecode without flooding the webview with events.
+const OBSERVE_HZ: i32 = 30;
+
+impl Surface {
+    /// Report the player's own clock. AVFoundation is the only timekeeper: the UI used
+    /// to advance the playhead from wall time, which drifted from the picture and
+    /// disagreed with it about where playback restarts.
+    fn observe(&self, on_time: impl Fn(i64) + 'static) {
+        if self.observer.borrow().is_some() {
+            return;
+        }
+        let block = RcBlock::new(move |time: CMTime| {
+            if !time.flags.contains(CMTimeFlags::Valid) || time.timescale <= 0 {
+                return;
+            }
+            let micros = i128::from(time.value) * 1_000_000 / i128::from(time.timescale);
+            on_time(i64::try_from(micros).unwrap_or(0));
+        });
+        let interval = CMTime {
+            value: 1,
+            timescale: OBSERVE_HZ,
+            flags: CMTimeFlags::Valid,
+            epoch: 0,
+        };
+        // A null queue means the main queue, which is where the UI needs these anyway.
+        let token = unsafe {
+            self.player
+                .addPeriodicTimeObserverForInterval_queue_usingBlock(interval, None, &block)
+        };
+        *self.observer.borrow_mut() = Some(token);
+    }
 }
 
 /// Run `f` against the surface, creating it on first use.
@@ -278,6 +329,11 @@ pub fn set_segments(ns_window: *mut c_void, segments: &[Segment]) {
     with_surface(ns_window, |surface, mtm| {
         surface.set_segments(segments, mtm)
     });
+}
+
+/// Install the player clock reporter. Safe to call repeatedly; only the first takes.
+pub fn observe_time(ns_window: *mut c_void, on_time: impl Fn(i64) + 'static) {
+    with_surface(ns_window, |surface, _| surface.observe(on_time));
 }
 
 pub fn play(ns_window: *mut c_void) {
