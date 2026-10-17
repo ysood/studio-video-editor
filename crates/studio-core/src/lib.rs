@@ -8,6 +8,7 @@ pub mod history;
 pub mod ids;
 pub mod model;
 pub mod persist;
+pub mod probe;
 pub mod time;
 pub mod validate;
 
