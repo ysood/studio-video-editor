@@ -37,6 +37,32 @@
   text-overflow: ellipsis;
 }
 
+/* The name is the field: it reads as the title with a caret, not as a box dropped into
+   the chrome. The transparent border keeps the two states the same size, so nothing
+   shifts on the click. Width follows the text where field-sizing is supported and falls
+   back to the input's own default elsewhere, which is near enough for a project name. */
+.topbar-name {
+  cursor: text;
+}
+
+.topbar-title .ui-input {
+  flex: none;
+  width: auto;
+  max-width: 100%; /* design-allow */
+  field-sizing: content;
+  height: auto;
+  padding: 0;
+  border-color: transparent;
+  background: none;
+  font: var(--type-title);
+  letter-spacing: var(--type-title-tracking);
+}
+
+/* The format reads as one line beside the name, whatever the name is doing. */
+.topbar-title span {
+  white-space: nowrap;
+}
+
 .topbar-title span {
   color: var(--color-text-secondary);
   font: var(--type-label);

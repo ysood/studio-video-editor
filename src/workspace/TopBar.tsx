@@ -1,13 +1,18 @@
+import { useState } from "react";
 import { runAction } from "../actions";
 import { formatRate } from "../format";
 import { chord } from "../keyboard";
 import { useActiveSequence, useEditor } from "../store";
-import { Button, IconButton, Menu, type MenuEntry } from "../ui";
+import { Button, IconButton, Menu, type MenuEntry, TextInput } from "../ui";
 
 export function TopBar() {
   const snapshot = useEditor((s) => s.snapshot);
   const nativeMenu = useEditor((s) => s.nativeMenu);
+  const edit = useEditor((s) => s.edit);
   const sequence = useActiveSequence();
+  // Renamed in place, the way the timelines in the bin are: the title itself becomes
+  // the field, so there is no dialog to say what is being renamed.
+  const [renaming, setRenaming] = useState(false);
   const history = snapshot?.history;
   const format = sequence?.format;
   const hasClips =
@@ -34,7 +39,23 @@ export function TopBar() {
       {/* On macOS these live in the system menu bar instead. */}
       {!nativeMenu && <Menu trigger={<Button variant="ghost">File</Button>} entries={fileMenu} />}
       <div className="topbar-title">
-        <strong>{snapshot?.project.name ?? "Studio"}</strong>
+        {renaming && snapshot ? (
+          <TextInput
+            focused
+            value={snapshot.project.name}
+            ariaLabel="Project name"
+            onCommit={(name) => void edit({ type: "RenameProject", name })}
+            onDone={() => setRenaming(false)}
+          />
+        ) : (
+          <strong
+            className="topbar-name"
+            title={snapshot ? "Click to rename" : undefined}
+            onClick={() => snapshot && setRenaming(true)}
+          >
+            {snapshot?.project.name ?? "Studio"}
+          </strong>
+        )}
         {history?.dirty && <span className="dirty-dot" title="Unsaved changes" />}
         {format && (
           <span className="numeric">
