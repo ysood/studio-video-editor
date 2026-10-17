@@ -6,7 +6,9 @@
 //! issue these same commands.
 //!
 //! Placement onto occupied frames uses overwrite semantics, as in an NLE overwrite edit:
-//! clips underneath are trimmed, split or removed to make room.
+//! clips underneath are trimmed, split or removed to make room. A linked video and audio
+//! pair underneath is overwritten whole and stays linked, unless part of it sits on a
+//! track the edit does not touch.
 
 use crate::ids::{ClipId, LinkId, MediaId, TrackId};
 use crate::model::{Clip, ClipSource, MediaAsset, Project, SequenceFormat, Track, TrackKind};
@@ -398,62 +400,100 @@ fn insert_sorted(track: &mut Track, clip: Clip) {
     track.clips.insert(index, clip);
 }
 
-/// Make room for `[start, end)` on a track by trimming, splitting or removing clips.
-/// Clips it changes lose their link, since their partners no longer match.
+/// Make room for `[start, end)` on each of `tracks` by trimming, splitting or removing
+/// clips, the way an NLE overwrite edit does.
+///
+/// Link groups are overwritten whole. When this call clears the track of every member of
+/// a group, all members take the same cut and keep their link, so dropping a clip over
+/// part of a linked pair leaves both halves linked, as in Premiere and Resolve. A group
+/// with a member on a track this call does not clear (a locked track, or simply a track
+/// the edit never touches) cannot stay in step, since every member must share `start`,
+/// `duration` and source range, so there the clips it touches lose their link instead.
 fn clear_range(
     p: &mut Project,
-    track_id: TrackId,
+    tracks: &[TrackId],
     start: Frame,
     end: Frame,
 ) -> Result<(), EditError> {
-    ensure_unlocked(p, track_id)?;
+    for track_id in tracks {
+        ensure_unlocked(p, *track_id)?;
+    }
+    let cleared: HashSet<TrackId> = tracks.iter().copied().collect();
+    let survivors = groups_cleared_whole(p, &cleared);
+
+    // Right halves of a split group share one new link, so they stay a group as well.
+    let mut split_links: HashMap<LinkId, LinkId> = HashMap::new();
     let mut broken_links = HashSet::new();
-    let track = p.track_mut(track_id).expect("checked above");
-    let mut kept = Vec::with_capacity(track.clips.len() + 1);
-    for mut clip in std::mem::take(&mut track.clips) {
-        if clip.end() <= start || clip.start >= end {
-            kept.push(clip);
+    let mut done = HashSet::new();
+    for track_id in tracks {
+        if !done.insert(*track_id) {
             continue;
         }
-        if let Some(link) = clip.link.take() {
-            broken_links.insert(link);
+        let track = p.track_mut(*track_id).expect("checked above");
+        let mut kept = Vec::with_capacity(track.clips.len() + 1);
+        for mut clip in std::mem::take(&mut track.clips) {
+            if clip.end() <= start || clip.start >= end {
+                kept.push(clip);
+                continue;
+            }
+            if let Some(link) = clip.link.filter(|l| !survivors.contains(l)) {
+                clip.link = None;
+                broken_links.insert(link);
+            }
+            let covers_start = clip.start < start;
+            let covers_end = clip.end() > end;
+            match (covers_start, covers_end) {
+                (false, false) => {} // fully inside: removed
+                (true, false) => {
+                    clip.duration = start - clip.start;
+                    kept.push(clip);
+                }
+                (false, true) => {
+                    let cut = end - clip.start;
+                    clip.source = clip
+                        .source
+                        .with_source_start(clip.source.source_start() + cut);
+                    clip.start = end;
+                    clip.duration -= cut;
+                    kept.push(clip);
+                }
+                (true, true) => {
+                    let mut right = clip.clone();
+                    right.id = ClipId::new();
+                    right.link = clip.link.map(|l| *split_links.entry(l).or_default());
+                    let cut = end - clip.start;
+                    right.source = clip
+                        .source
+                        .with_source_start(clip.source.source_start() + cut);
+                    right.start = end;
+                    right.duration = clip.end() - end;
+                    clip.duration = start - clip.start;
+                    kept.push(clip);
+                    kept.push(right);
+                }
+            }
         }
-        let covers_start = clip.start < start;
-        let covers_end = clip.end() > end;
-        match (covers_start, covers_end) {
-            (false, false) => {} // fully inside: removed
-            (true, false) => {
-                clip.duration = start - clip.start;
-                kept.push(clip);
-            }
-            (false, true) => {
-                let cut = end - clip.start;
-                clip.source = clip
-                    .source
-                    .with_source_start(clip.source.source_start() + cut);
-                clip.start = end;
-                clip.duration -= cut;
-                kept.push(clip);
-            }
-            (true, true) => {
-                let mut right = clip.clone();
-                right.id = ClipId::new();
-                let cut = end - clip.start;
-                right.source = clip
-                    .source
-                    .with_source_start(clip.source.source_start() + cut);
-                right.start = end;
-                right.duration = clip.end() - end;
-                clip.duration = start - clip.start;
-                kept.push(clip);
-                kept.push(right);
+        kept.sort_by_key(|c| c.start);
+        track.clips = kept;
+    }
+    dissolve_links(p, &broken_links);
+    Ok(())
+}
+
+/// Links whose every member sits on a track in `cleared`. Members share `start`,
+/// `duration` and source range, so one range cuts them all the same way.
+fn groups_cleared_whole(p: &Project, cleared: &HashSet<TrackId>) -> HashSet<LinkId> {
+    let mut outside: HashSet<LinkId> = HashSet::new();
+    let mut all: HashSet<LinkId> = HashSet::new();
+    for (track, clip) in p.all_clips() {
+        if let Some(link) = clip.link {
+            all.insert(link);
+            if !cleared.contains(&track.id) {
+                outside.insert(link);
             }
         }
     }
-    kept.sort_by_key(|c| c.start);
-    track.clips = kept;
-    dissolve_links(p, &broken_links);
-    Ok(())
+    all.difference(&outside).copied().collect()
 }
 
 fn dissolve_links(p: &mut Project, links: &HashSet<LinkId>) {
@@ -535,8 +575,10 @@ fn insert_media(
 
     let link = (targets.len() > 1).then(LinkId::new);
     let mut created = Vec::new();
-    for (track_id, _) in targets {
-        clear_range(p, track_id, start, start + duration)?;
+    // One call for every target track, so a linked clip underneath is overwritten whole.
+    let destinations: Vec<_> = targets.iter().map(|(track_id, _)| *track_id).collect();
+    clear_range(p, &destinations, start, start + duration)?;
+    for track_id in destinations {
         let clip = Clip {
             id: ClipId::new(),
             name: name.clone(),
@@ -589,9 +631,13 @@ fn move_clip(
         };
         moving.push((destination, member));
     }
-    for (track_id, member) in &moving {
-        clear_range(p, *track_id, member.start, member.end())?;
-    }
+    // Group members share start and duration, so one range covers all of them.
+    let Some((_, first)) = moving.first() else {
+        return Ok(());
+    };
+    let (range_start, range_end) = (first.start, first.end());
+    let destinations: Vec<_> = moving.iter().map(|(track_id, _)| *track_id).collect();
+    clear_range(p, &destinations, range_start, range_end)?;
     for (track_id, member) in moving {
         insert_sorted(p.track_mut(track_id).expect("checked"), member);
     }
@@ -752,6 +798,28 @@ mod tests {
             .collect()
     }
 
+    /// Link of the clip that begins on `start`, which identifies a half after a split.
+    fn link_at(p: &Project, track: TrackId, start: Frame) -> Option<LinkId> {
+        p.track(track)
+            .unwrap()
+            .clips
+            .iter()
+            .find(|c| c.start == start)
+            .expect("clip at start")
+            .link
+    }
+
+    fn lock(p: &mut Project, track_id: TrackId) {
+        run(
+            p,
+            EditCommand::SetTrackState {
+                track_id,
+                enabled: None,
+                locked: Some(true),
+            },
+        );
+    }
+
     #[test]
     fn insert_creates_linked_video_and_audio() {
         let mut f = fixture(10);
@@ -798,6 +866,88 @@ mod tests {
             spans(&f.project, f.a1),
             vec![(0, 40, 0), (40, 20, 0), (60, 40, 60)]
         );
+        f.project.validate().unwrap();
+    }
+
+    #[test]
+    fn overwriting_the_middle_of_a_linked_pair_keeps_both_halves_linked() {
+        let mut f = fixture(10);
+        insert(&mut f, 0, 0, 100);
+        insert(&mut f, 40, 0, 20);
+        // Both sides of the pair were split the same way, so each pair of halves is a
+        // link group of its own: video and audio stay together on both sides of the drop.
+        let left = link_at(&f.project, f.v1, 0);
+        let right = link_at(&f.project, f.v1, 60);
+        assert!(left.is_some() && right.is_some());
+        assert_eq!(left, link_at(&f.project, f.a1, 0));
+        assert_eq!(right, link_at(&f.project, f.a1, 60));
+        assert_ne!(left, right);
+        // The halves are not linked to the clip that was dropped on them either.
+        assert_ne!(left, link_at(&f.project, f.v1, 40));
+        f.project.validate().unwrap();
+    }
+
+    #[test]
+    fn overwriting_the_end_of_a_linked_pair_keeps_the_link() {
+        let mut f = fixture(10);
+        insert(&mut f, 0, 0, 100);
+        insert(&mut f, 80, 0, 40);
+        assert_eq!(spans(&f.project, f.v1), vec![(0, 80, 0), (80, 40, 0)]);
+        assert_eq!(spans(&f.project, f.a1), vec![(0, 80, 0), (80, 40, 0)]);
+        let trimmed = link_at(&f.project, f.v1, 0);
+        assert!(trimmed.is_some());
+        assert_eq!(trimmed, link_at(&f.project, f.a1, 0));
+        f.project.validate().unwrap();
+    }
+
+    #[test]
+    fn overwriting_only_the_video_of_a_pair_unlinks_it() {
+        let mut f = fixture(10);
+        insert(&mut f, 0, 0, 100);
+        // Video only, so the audio under the drop keeps its timing and the pair cannot
+        // stay in step. The link is the thing that gives way.
+        run(
+            &mut f.project,
+            EditCommand::InsertMedia {
+                media_id: f.media,
+                start: 40,
+                source_start: 0,
+                duration: Some(20),
+                video_track: Some(f.v1),
+                audio_track: None,
+            },
+        );
+        assert_eq!(
+            spans(&f.project, f.v1),
+            vec![(0, 40, 0), (40, 20, 0), (60, 40, 60)]
+        );
+        assert_eq!(spans(&f.project, f.a1), vec![(0, 100, 0)]);
+        assert_eq!(link_at(&f.project, f.v1, 0), None);
+        assert_eq!(link_at(&f.project, f.a1, 0), None);
+        f.project.validate().unwrap();
+    }
+
+    #[test]
+    fn overwriting_a_pair_whose_audio_is_locked_unlinks_it() {
+        let mut f = fixture(10);
+        insert(&mut f, 0, 0, 100);
+        lock(&mut f.project, f.a1);
+        // A locked track is never cut, so the pair cannot be overwritten whole: the video
+        // takes the edit and the link dissolves rather than leaving the two out of sync.
+        run(
+            &mut f.project,
+            EditCommand::InsertMedia {
+                media_id: f.media,
+                start: 40,
+                source_start: 0,
+                duration: Some(20),
+                video_track: Some(f.v1),
+                audio_track: None,
+            },
+        );
+        assert_eq!(spans(&f.project, f.a1), vec![(0, 100, 0)]);
+        assert_eq!(link_at(&f.project, f.v1, 0), None);
+        assert_eq!(link_at(&f.project, f.a1, 0), None);
         f.project.validate().unwrap();
     }
 
@@ -880,7 +1030,7 @@ mod tests {
     }
 
     #[test]
-    fn move_onto_clip_overwrites_and_unlinks_the_victim() {
+    fn move_onto_a_pair_overwrites_it_whole_and_keeps_its_link() {
         let mut f = fixture(10);
         let first = insert(&mut f, 0, 0, 48);
         let second = insert(&mut f, 100, 0, 48);
@@ -893,12 +1043,46 @@ mod tests {
             },
         );
         assert_eq!(spans(&f.project, f.v1), vec![(0, 24, 0), (24, 48, 0)]);
-        // Overwrite breaks the link on every clip it touches, even when both sides of the
-        // pair were trimmed identically, because the edit was not made to the pair.
+        assert_eq!(spans(&f.project, f.a1), vec![(0, 24, 0), (24, 48, 0)]);
+        // The move cleared both tracks of the pair underneath, so it was trimmed on both
+        // sides at once and stays linked.
         let (_, trimmed) = f.project.find_clip(first[0]).unwrap();
-        assert_eq!(trimmed.link, None);
+        assert!(trimmed.link.is_some());
+        assert_eq!(trimmed.link, f.project.find_clip(first[1]).unwrap().1.link);
         let (_, moved) = f.project.find_clip(second[0]).unwrap();
         assert!(moved.link.is_some());
+        assert_ne!(moved.link, trimmed.link);
+    }
+
+    #[test]
+    fn move_onto_one_side_of_a_pair_unlinks_it() {
+        let mut f = fixture(10);
+        let pair = insert(&mut f, 0, 0, 48);
+        // A video-only clip, so moving it clears V1 alone.
+        let lone = run(
+            &mut f.project,
+            EditCommand::InsertMedia {
+                media_id: f.media,
+                start: 100,
+                source_start: 0,
+                duration: Some(48),
+                video_track: Some(f.v1),
+                audio_track: None,
+            },
+        )
+        .created_clips;
+        run(
+            &mut f.project,
+            EditCommand::MoveClip {
+                clip_id: lone[0],
+                start: 24,
+                track_id: None,
+            },
+        );
+        assert_eq!(spans(&f.project, f.v1), vec![(0, 24, 0), (24, 48, 0)]);
+        assert_eq!(spans(&f.project, f.a1), vec![(0, 48, 0)]);
+        assert_eq!(f.project.find_clip(pair[0]).unwrap().1.link, None);
+        assert_eq!(f.project.find_clip(pair[1]).unwrap().1.link, None);
     }
 
     #[test]
@@ -1050,14 +1234,7 @@ mod tests {
     fn locked_track_rejects_edits() {
         let mut f = fixture(10);
         let ids = insert(&mut f, 0, 0, 10);
-        run(
-            &mut f.project,
-            EditCommand::SetTrackState {
-                track_id: f.a1,
-                enabled: None,
-                locked: Some(true),
-            },
-        );
+        lock(&mut f.project, f.a1);
         // Moving the video moves its linked audio, which sits on a locked track.
         let cmd = EditCommand::MoveClip {
             clip_id: ids[0],

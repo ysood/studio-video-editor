@@ -53,6 +53,13 @@ Project
 | A link group has at least two clips on distinct tracks, all with equal `start`, `duration` and `source` | Linked video and audio stay in sync through every edit |
 | Names are at most 256 characters | Bounded input from the UI and from project files |
 
+Because every member of a link group shares its timing, an edit either reaches the whole
+group or the group has to give up its link. Move, trim, split and delete always apply to
+the group. An overwrite applies to it too, so dropping a clip over part of a linked pair
+trims or splits both sides and the link survives (both halves of a split pair get a link
+of their own). When part of the group sits on a track the overwrite does not clear, a
+locked track for example, those clips keep their timing and the link dissolves instead.
+
 ## Track order
 
 Tracks live in one list. Order within a kind is stacking order: a later video track
