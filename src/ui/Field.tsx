@@ -1,4 +1,9 @@
+import * as SelectPrimitive from "@radix-ui/react-select";
+import * as SliderPrimitive from "@radix-ui/react-slider";
 import { useEffect, useState, type ReactNode } from "react";
+import { Icon } from "./Icon";
+import { useOverlayContainer } from "./overlay";
+import "./overlay.css";
 import "./field.css";
 
 /** A labelled row: label on the left, control on the right. */
@@ -89,20 +94,35 @@ export function Select({ value, options, onChange, disabled, ariaLabel }: {
   disabled?: boolean;
   ariaLabel?: string;
 }) {
+  const container = useOverlayContainer();
   return (
-    <select
-      className="ui-input"
-      value={value}
-      disabled={disabled}
-      aria-label={ariaLabel}
-      onChange={(e) => onChange(e.target.value)}
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+    <SelectPrimitive.Root value={value} onValueChange={onChange} disabled={disabled}>
+      <SelectPrimitive.Trigger className="ui-input ui-select-trigger" aria-label={ariaLabel}>
+        <SelectPrimitive.Value />
+        <SelectPrimitive.Icon asChild>
+          <Icon name="chevronDown" />
+        </SelectPrimitive.Icon>
+      </SelectPrimitive.Trigger>
+      <SelectPrimitive.Portal container={container}>
+        <SelectPrimitive.Content
+          className="ui-overlay ui-select-content"
+          data-surface="well"
+          position="popper"
+          sideOffset={4}
+        >
+          <SelectPrimitive.Viewport>
+            {options.map((o) => (
+              <SelectPrimitive.Item key={o.value} value={o.value} className="ui-menu-item ui-select-item">
+                <SelectPrimitive.ItemText>{o.label}</SelectPrimitive.ItemText>
+                <SelectPrimitive.ItemIndicator>
+                  <Icon name="check" />
+                </SelectPrimitive.ItemIndicator>
+              </SelectPrimitive.Item>
+            ))}
+          </SelectPrimitive.Viewport>
+        </SelectPrimitive.Content>
+      </SelectPrimitive.Portal>
+    </SelectPrimitive.Root>
   );
 }
 
@@ -134,15 +154,18 @@ export function Slider({ value, min, max, step, onChange, ariaLabel, className }
   className?: string;
 }) {
   return (
-    <input
+    <SliderPrimitive.Root
       className={className ? `ui-slider ${className}` : "ui-slider"}
-      type="range"
       min={min}
       max={max}
       step={step}
-      value={value}
-      aria-label={ariaLabel}
-      onChange={(e) => onChange(Number(e.target.value))}
-    />
+      value={[value]}
+      onValueChange={(values) => values[0] !== undefined && onChange(values[0])}
+    >
+      <SliderPrimitive.Track className="ui-slider-track">
+        <SliderPrimitive.Range className="ui-slider-range" />
+      </SliderPrimitive.Track>
+      <SliderPrimitive.Thumb className="ui-slider-thumb" aria-label={ariaLabel} />
+    </SliderPrimitive.Root>
   );
 }

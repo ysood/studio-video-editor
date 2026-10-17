@@ -52,6 +52,7 @@ export function toCssVars(theme: Theme): Record<string, string> {
   vars["--motion-base"] = `${theme.motion.base}ms`;
   vars["--motion-easing"] = theme.motion.easing;
   vars["--elevation-dialog"] = theme.elevation.dialog;
+  vars["--elevation-popover"] = theme.elevation.popover;
 
   // Timeline sizes the DOM shares with the canvas (header column, ruler corner).
   vars["--timeline-ruler-height"] = px(theme.timeline.rulerHeight);

@@ -67,6 +67,30 @@ const paths = {
     </>
   ),
   plus: <path d="M8 3v10M3 8h10" />,
+  chevronDown: <path d="M4 6l4 4 4-4" />,
+  check: <path d="M3.5 8.5l3 3 6-7" />,
+  more: (
+    <>
+      <circle cx="3.5" cy="8" r="0.9" fill="currentColor" />
+      <circle cx="8" cy="8" r="0.9" fill="currentColor" />
+      <circle cx="12.5" cy="8" r="0.9" fill="currentColor" />
+    </>
+  ),
+  scissors: (
+    <>
+      <circle cx="4.5" cy="11.5" r="2" />
+      <circle cx="11.5" cy="11.5" r="2" />
+      <path d="M6 10L12.5 2.5M10 10L3.5 2.5" />
+    </>
+  ),
+  trash: <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 8.5h5.6l.7-8.5" />,
+  unlink: <path d="M6.5 9.5l3-3M5 7L3.8 8.2a2.5 2.5 0 0 0 3.5 3.5L8.5 10.5M11 9l1.2-1.2a2.5 2.5 0 0 0-3.5-3.5L7.5 5.5M2.5 2.5l2 2M11.5 11.5l2 2" />,
+  magnet: <path d="M3.5 3v5a4.5 4.5 0 0 0 9 0V3h-3v5a1.5 1.5 0 0 1-3 0V3zM3.5 5.5h3M9.5 5.5h3" />,
+  fit: <path d="M2.5 6V3h3M10.5 3h3v3M13.5 10v3h-3M5.5 13h-3v-3" />,
+  undo: <path d="M5.5 4L2.5 7l3 3M2.5 7h7a3.5 3.5 0 0 1 0 7H7" />,
+  redo: <path d="M10.5 4l3 3-3 3M13.5 7h-7a3.5 3.5 0 0 0 0 7H9" />,
+  export: <path d="M8 10V2.5M5 5.5l3-3 3 3M3 9.5v3.5h10V9.5" />,
+  file: <path d="M4 2.5h5l3 3v8H4zM9 2.5v3h3" />,
   grid: (
     <>
       <rect x="2.5" y="2.5" width="4.5" height="4.5" rx="0.6" />

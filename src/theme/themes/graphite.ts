@@ -108,12 +108,16 @@ export const graphiteTheme: Theme = {
     thumbnail: 128,
     thumbnailMin: 96,
     thumbnailMax: 288,
+    menuMinWidth: 184,
+    sliderTrack: 4,
+    sliderThumb: 12,
   },
 
-  motion: { quick: 120, base: 200, easing: "cubic-bezier(0.2, 0, 0, 1)" },
+  motion: { quick: 120, base: 200, easing: "cubic-bezier(0.2, 0, 0, 1)", tooltipDelay: 450 },
 
   elevation: {
     dialog: "0 24px 60px rgba(0, 0, 0, 0.5)",
+    popover: "0 8px 24px rgba(0, 0, 0, 0.45)",
   },
 
   timeline: {

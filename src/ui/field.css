@@ -44,12 +44,8 @@
   color: var(--color-text-tertiary);
 }
 
-.ui-checkbox,
-.ui-slider {
-  accent-color: var(--color-accent-base);
-}
-
 .ui-checkbox {
+  accent-color: var(--color-accent-base);
   justify-self: start;
   margin: 0;
 }

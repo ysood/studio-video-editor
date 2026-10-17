@@ -5,6 +5,7 @@ import { Gallery } from "./gallery/Gallery";
 import { installMockBackend } from "./preview/installMockBackend";
 import { isBrowserPreview } from "./preview/mode";
 import { applyTheme, initialTheme } from "./theme";
+import { TooltipProvider } from "./ui";
 import "./theme/base.css";
 import "./styles.css";
 
@@ -22,7 +23,7 @@ const subscribeHash = (onChange: () => void) => {
 /** `#gallery` shows the design gallery; anything else shows the editor. */
 function Root() {
   const hash = useSyncExternalStore(subscribeHash, () => window.location.hash);
-  return hash === "#gallery" ? <Gallery /> : <App />;
+  return <TooltipProvider>{hash === "#gallery" ? <Gallery /> : <App />}</TooltipProvider>;
 }
 
 const root = document.getElementById("root");

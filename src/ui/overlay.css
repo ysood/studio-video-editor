@@ -1,0 +1,158 @@
+/* Shared anatomy for everything that floats: menus, select lists, popovers, tooltips.
+   Overlays sit on the well surface so they read the same over any panel. */
+
+.ui-overlay {
+  z-index: 50;
+  min-width: var(--size-menu-min-width);
+  padding: var(--space-2);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-dialog);
+  background: var(--color-surface-overlay);
+  box-shadow: var(--elevation-popover);
+  font: var(--type-label);
+  letter-spacing: var(--type-label-tracking);
+  transform-origin: var(--radix-popper-transform-origin, top);
+  animation: ui-overlay-in var(--motion-quick) var(--motion-easing);
+}
+
+@keyframes ui-overlay-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+.ui-menu-item {
+  display: grid;
+  grid-template-columns: var(--size-icon) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: var(--size-control);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-control);
+  outline: none;
+  cursor: default;
+}
+
+/* Highlight, not a focus ring, marks the active item; Radix moves focus item to item. */
+.ui-menu-item:focus-visible {
+  outline: none;
+}
+
+.ui-menu-item[data-highlighted] {
+  background: var(--color-surface-hover);
+}
+
+.ui-menu-item[data-disabled] {
+  color: var(--color-text-tertiary);
+}
+
+.ui-menu-item[data-tone="danger"] {
+  color: var(--color-status-danger);
+}
+
+.ui-menu-icon {
+  display: grid;
+  place-items: center;
+  color: var(--color-text-secondary);
+}
+
+.ui-menu-shortcut {
+  margin-left: var(--space-6);
+  color: var(--color-text-tertiary);
+  font: var(--type-caption);
+}
+
+.ui-menu-separator {
+  height: var(--border-width);
+  margin: var(--space-2) calc(-1 * var(--space-2));
+  background: var(--color-border-subtle);
+}
+
+.ui-menu-label {
+  padding: var(--space-2) var(--space-4);
+  color: var(--color-text-tertiary);
+  font: var(--type-caption);
+}
+
+.ui-popover {
+  padding: var(--space-6);
+}
+
+.ui-tooltip {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  padding: var(--space-2) var(--space-4);
+  font: var(--type-caption);
+}
+
+.ui-tooltip .ui-menu-shortcut {
+  margin-left: var(--space-4);
+}
+
+/* Select */
+.ui-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  text-align: left;
+}
+
+.ui-select-trigger .ui-icon {
+  color: var(--color-text-secondary);
+}
+
+.ui-select-content {
+  min-width: var(--radix-select-trigger-width);
+  max-height: var(--radix-select-content-available-height);
+}
+
+.ui-select-item {
+  grid-template-columns: minmax(0, 1fr) var(--size-icon);
+}
+
+.ui-select-item .ui-icon {
+  color: var(--color-accent-base);
+}
+
+/* Slider */
+.ui-slider {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: var(--size-control);
+  min-width: var(--size-zoom-slider);
+  touch-action: none;
+  user-select: none;
+}
+
+.ui-slider-track {
+  position: relative;
+  flex: 1;
+  height: var(--size-slider-track);
+  border-radius: var(--radius-round);
+  background: var(--color-surface-raised);
+  overflow: hidden;
+}
+
+.ui-slider-range {
+  position: absolute;
+  height: 100%;
+  background: var(--color-accent-base);
+}
+
+.ui-slider-thumb {
+  display: block;
+  width: var(--size-slider-thumb);
+  height: var(--size-slider-thumb);
+  border-radius: var(--radius-round);
+  background: var(--color-accent-base);
+  box-shadow: 0 0 0 var(--border-focus-width) var(--color-surface-panel);
+  transition: transform var(--motion-quick) var(--motion-easing);
+}
+
+.ui-slider-thumb:hover {
+  transform: scale(1.15);
+}

@@ -16,7 +16,11 @@ import {
   Icon,
   IconButton,
   iconNames,
+  Menu,
   Note,
+  Popover,
+  Segmented,
+  Tabs,
   NumberInput,
   ProgressBar,
   Section,
@@ -56,6 +60,8 @@ export function Gallery() {
   const theme = useTheme();
   const [checked, setChecked] = useState(true);
   const [slider, setSlider] = useState(0.4);
+  const [segment, setSegment] = useState("grid");
+  const [tab, setTab] = useState("inspector");
 
   return (
     <div className="gallery">
@@ -174,6 +180,59 @@ export function Gallery() {
             <Value numeric>00:00:01:00</Value>
           </Field>
           <Note>Frame rate is fixed once the timeline has clips.</Note>
+        </Section>
+
+        <Section title="Menus and overlays">
+          <Actions>
+            <Menu
+              trigger={<Button icon="file">File</Button>}
+              entries={[
+                { label: "New project", icon: "plus", shortcut: "⌘N", onSelect: () => {} },
+                { label: "Open…", shortcut: "⌘O", onSelect: () => {} },
+                { type: "separator" },
+                { type: "label", label: "Recent" },
+                { label: "Sydney tour recap", onSelect: () => {} },
+                { type: "separator" },
+                { label: "Remove media", icon: "trash", tone: "danger", onSelect: () => {} },
+              ]}
+            />
+            <Popover label="Snapping" trigger={<Button icon="magnet">Popover</Button>}>
+              <Field label="Snap distance">
+                <NumberInput value={8} onCommit={() => {}} />
+              </Field>
+            </Popover>
+            <IconButton icon="scissors" label="Split at playhead" shortcut="S" />
+          </Actions>
+          <Actions>
+            <Segmented
+              label="View"
+              value={segment}
+              onChange={setSegment}
+              options={[
+                { value: "grid", label: "Grid view", icon: "grid" },
+                { value: "list", label: "List view", icon: "list" },
+              ]}
+            />
+            <Segmented
+              label="Edit mode"
+              value={segment}
+              onChange={setSegment}
+              options={[
+                { value: "grid", label: "Overwrite" },
+                { value: "list", label: "Insert" },
+              ]}
+            />
+          </Actions>
+          <Tabs
+            label="Inspector tabs"
+            value={tab}
+            onChange={setTab}
+            tabs={[
+              { value: "inspector", label: "Inspector", content: <Note>Clip properties go here.</Note> },
+              { value: "effects", label: "Effects", content: <Note>Effects go here.</Note> },
+              { value: "color", label: "Color", content: <Note>Color goes here.</Note> },
+            ]}
+          />
         </Section>
 
         <Section title="Readouts">

@@ -172,6 +172,9 @@ export interface Theme {
     thumbnail: number; // default gallery tile width
     thumbnailMin: number;
     thumbnailMax: number;
+    menuMinWidth: number; // menus, select lists, popovers
+    sliderTrack: number; // slider rail thickness
+    sliderThumb: number; // slider handle diameter
   };
 
   motion: {
@@ -179,10 +182,13 @@ export interface Theme {
     quick: number;
     base: number;
     easing: string;
+    /** Hover time before a tooltip appears. */
+    tooltipDelay: number;
   };
 
   elevation: {
     dialog: string;
+    popover: string; // menus, select lists, tooltips
   };
 
   timeline: {

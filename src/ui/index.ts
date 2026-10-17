@@ -19,3 +19,7 @@ export {
   Well,
 } from "./Panel";
 export { Timecode } from "./Timecode";
+export { ContextMenu, Menu, type MenuEntry } from "./Menu";
+export { Popover } from "./Popover";
+export { Segmented, Tabs, type SegmentOption, type TabSpec } from "./Tabs";
+export { Tooltip, TooltipProvider } from "./Tooltip";
