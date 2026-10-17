@@ -44,6 +44,20 @@
   padding: var(--space-3);
 }
 
+/* One surface instead of a stack of cards: the sections are separated by a divider,
+   which is quieter than a gap that lets the panel colour through between them. */
+.ui-panel-body[data-layout="sheet"] {
+  margin: var(--space-3);
+  background: var(--color-surface-panel);
+  border-radius: var(--radius-panel);
+}
+
+/* A divider earns its place only between two sections. Trailing content such as a
+   hint is not a section, so the last section before it keeps no line. */
+.ui-panel-body[data-layout="sheet"] > .ui-section:not(:has(~ .ui-section)) {
+  border-bottom: 0;
+}
+
 .ui-spacer {
   flex: 1;
 }

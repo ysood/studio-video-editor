@@ -33,14 +33,22 @@ export function PanelToolbar({ children, placement = "top" }: { children: ReactN
   );
 }
 
-/** Scrolling panel content. `layout="wells"` stacks wells with the standard inset and gap. */
+/**
+ * Scrolling panel content. `layout="wells"` stacks separate wells with the standard
+ * inset and gap. `layout="sheet"` makes the body itself one well, so the sections
+ * inside run together on a single surface and are told apart by a divider.
+ */
 export function PanelBody({ children, className, layout }: {
   children: ReactNode;
   className?: string;
-  layout?: "wells";
+  layout?: "wells" | "sheet";
 }) {
   return (
-    <div className={className ? `ui-panel-body ${className}` : "ui-panel-body"} data-layout={layout}>
+    <div
+      className={className ? `ui-panel-body ${className}` : "ui-panel-body"}
+      data-layout={layout}
+      data-surface={layout === "sheet" ? "well" : undefined}
+    >
       {children}
     </div>
   );

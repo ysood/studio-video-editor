@@ -56,7 +56,7 @@ export function InspectorPanel() {
 
   return (
     <Panel>
-      <PanelBody layout="wells">
+      <PanelBody layout="sheet">
         {selected.length === 0 && <SequenceSettings project={project} />}
         {selected.length > 0 && links.size === 1 && <ClipDetails project={project} entry={selected[0]!} />}
         {links.size > 1 && <MultipleClips count={links.size} ids={selection} />}
@@ -74,7 +74,7 @@ function ClipDetails({ project, entry }: { project: Project; entry: { clip: Clip
 
   return (
     <>
-      <Section title="Clip" surface="well">
+      <Section title="Clip">
         <Field label="Name">
           <TextInput
             value={clip.name}
@@ -96,7 +96,7 @@ function ClipDetails({ project, entry }: { project: Project; entry: { clip: Clip
           />
         </Field>
       </Section>
-      <Section title="Timing" surface="well">
+      <Section title="Timing">
         <Field label="Start (frames)">
           <NumberInput
             value={clip.start}
@@ -124,7 +124,7 @@ function ClipDetails({ project, entry }: { project: Project; entry: { clip: Clip
         </Field>
       </Section>
       {media && (
-        <Section title="Source" surface="well">
+        <Section title="Source">
           <Field label="File">
             <Value truncate="start" title={media.path}>
               {media.name}
@@ -160,7 +160,7 @@ function ClipDetails({ project, entry }: { project: Project; entry: { clip: Clip
 function MultipleClips({ count, ids }: { count: number; ids: string[] }) {
   const edit = useEditor((s) => s.edit);
   return (
-    <Section title={`${count} clips selected`} surface="well">
+    <Section title={`${count} clips selected`}>
       <Actions>
         <Button onClick={() => void edit({ type: "SetClipsEnabled", clipIds: ids, enabled: true })}>Enable</Button>
         <Button onClick={() => void edit({ type: "SetClipsEnabled", clipIds: ids, enabled: false })}>Disable</Button>
@@ -185,12 +185,12 @@ function SequenceSettings({ project }: { project: Project }) {
 
   return (
     <>
-      <Section title="Project" surface="well">
+      <Section title="Project">
         <Field label="Name">
           <TextInput value={project.name} onCommit={(name) => void edit({ type: "RenameProject", name })} />
         </Field>
       </Section>
-      <Section title="Sequence" surface="well">
+      <Section title="Sequence">
         <Field label="Frame size">
           <Select
             value={preset ? sizeKey : "custom"}
