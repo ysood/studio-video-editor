@@ -69,10 +69,13 @@ export const graphiteTheme: Theme = {
 
   type: {
     caption: { family: "ui", size: 11, weight: 400, lineHeight: 1.4, tracking: 0 },
-    label: { family: "ui", size: 12, weight: 400, lineHeight: 1.4, tracking: 0 },
+    // label and body share a size here on purpose: in a dense editor they do the same
+    // typographic job, and they are told apart by color at the point of use. They stay
+    // separate roles so a denser theme can pull them apart.
+    label: { family: "ui", size: 13, weight: 400, lineHeight: 1.4, tracking: 0 },
     body: { family: "ui", size: 13, weight: 400, lineHeight: 1.4, tracking: 0 },
-    title: { family: "display", size: 15, weight: 600, lineHeight: 1.3, tracking: 0 },
-    heading: { family: "ui", size: 12, weight: 600, lineHeight: 1.4, tracking: 0 },
+    title: { family: "display", size: 17, weight: 600, lineHeight: 1.25, tracking: 0 },
+    heading: { family: "ui", size: 13, weight: 600, lineHeight: 1.4, tracking: 0 },
     timecode: { family: "numeric", size: 15, weight: 600, lineHeight: 1.2, tracking: 0.02 },
     timecodeDisplay: { family: "numeric", size: 22, weight: 600, lineHeight: 1.1, tracking: 0.02 },
     canvas: { family: "ui", size: 11, weight: 400, lineHeight: 1, tracking: 0 },
@@ -99,7 +102,7 @@ export const graphiteTheme: Theme = {
     progressWidth: 120,
     progressHeight: 4,
     dialogWidth: 520,
-    fieldLabel: 104,
+    fieldLabel: 124,
     zoomSlider: 120,
     timecodeMin: 96,
     viewerPadding: 16,

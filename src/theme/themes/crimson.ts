@@ -42,7 +42,9 @@ const dark: DeepPartial<ColorRoles> = {
     secondary: "#a8a1a2",
     tertiary: "#6d6768",
     onAccent: "#140003",
-    heading: red.bright,
+    // Weight alone carries a section heading. Accent red here would make the label
+    // louder than the data under it, and would stop red meaning "active".
+    heading: "#f3eeee",
   },
   accent: { base: red.bright, hover: red.brightHover, wash: "rgba(255, 31, 53, 0.16)" },
   status: { danger: "#ff4d5e" },
@@ -107,5 +109,7 @@ export const crimsonTheme: Theme = {
     },
   },
 
-  radius: { control: 2, panel: 3, dialog: 4, clip: 2, round: 9999 },
+  // Two radii, far enough apart to read as a decision: tight on anything small,
+  // looser on overlays big enough to carry it. 2, 3 and 4 were indistinguishable.
+  radius: { control: 2, panel: 2, dialog: 4, clip: 2, round: 9999 },
 };
