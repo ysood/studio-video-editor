@@ -274,6 +274,6 @@ select {
 }
 
 /* Every panel is part of the editor; closing one would leave no way to get it back. */
-.app .dv-default-tab-action {
+.app .dv-tab .dv-default-tab .dv-default-tab-action {
   display: none;
 }

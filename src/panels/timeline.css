@@ -1,0 +1,88 @@
+.timeline-timecode {
+  min-width: 96px;
+  color: var(--time);
+  font-size: var(--text-l);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.toolbar-gap {
+  width: 8px;
+}
+
+.timeline-zoom {
+  width: 120px;
+  accent-color: var(--time);
+}
+
+.timeline-body {
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: var(--ink-0);
+}
+
+.timeline-grid {
+  display: grid;
+  grid-template-columns: 148px 1fr;
+  min-height: 100%;
+}
+
+.timeline-headers {
+  position: relative;
+  border-right: 1px solid var(--line-soft);
+  background: var(--ink-1);
+}
+
+.timeline-ruler-corner {
+  height: 26px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.track-header {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px 0 10px;
+  background: var(--ink-2);
+  border-left: 3px solid var(--video);
+}
+
+.track-header-audio {
+  border-left-color: var(--audio);
+}
+
+.track-name {
+  flex: 1;
+  font-weight: 600;
+  font-size: var(--text-s);
+}
+
+.track-remove {
+  visibility: hidden;
+}
+
+.track-header:hover .track-remove {
+  visibility: visible;
+}
+
+.timeline-area {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.timeline-area canvas {
+  display: block;
+  touch-action: none;
+}
+
+.timeline-hint {
+  position: absolute;
+  top: 40px;
+  margin: 0;
+  color: var(--text-muted);
+  pointer-events: none;
+}

@@ -15,6 +15,12 @@ export function firstTrack(project: Project, kind: TrackKind): TrackId | null {
 export const MEDIA_DRAG_TYPE = "application/x-studio-media";
 
 /**
+ * The media being dragged from the bin. Browsers hide drag data until drop, but the
+ * timeline needs the media's length to draw a drop preview while hovering.
+ */
+export const mediaDrag: { current: MediaId | null } = { current: null };
+
+/**
  * Place media at `frame`. Video goes to `videoTrack` (or V1) and audio to `audioTrack`
  * (or A1); the core links them and overwrites whatever is underneath.
  */

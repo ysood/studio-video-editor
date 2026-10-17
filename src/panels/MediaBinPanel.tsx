@@ -2,7 +2,7 @@ import { useState } from "react";
 import { importMedia } from "../actions";
 import type { MediaAsset } from "../bindings/MediaAsset";
 import type { MediaId } from "../bindings/MediaId";
-import { insertMedia, MEDIA_DRAG_TYPE } from "../edits";
+import { insertMedia, MEDIA_DRAG_TYPE, mediaDrag } from "../edits";
 import { formatDuration, formatRate } from "../format";
 import { useEditor } from "../store";
 import "./media-bin.css";
@@ -76,7 +76,11 @@ export function MediaBinPanel() {
                 onDragStart={(e) => {
                   e.dataTransfer.setData(MEDIA_DRAG_TYPE, m.id);
                   e.dataTransfer.effectAllowed = "copy";
+                  mediaDrag.current = m.id;
                   setSelected(m.id);
+                }}
+                onDragEnd={() => {
+                  mediaDrag.current = null;
                 }}
                 onClick={() => setSelected(m.id)}
                 onDoubleClick={() => void insertMedia(m.id, playhead)}
