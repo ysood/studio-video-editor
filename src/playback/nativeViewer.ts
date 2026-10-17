@@ -55,10 +55,12 @@ export function useNativeViewer(stage: RefObject<HTMLElement | null>) {
     };
   }, [stage, pushRect]);
 
-  // The composition is derived, so it is rebuilt after every edit.
+  // The composition is derived, so it is rebuilt after every edit. The playhead goes
+  // with it: rebuilding replaces the player's item, which would otherwise leave the
+  // viewer showing the first frame of the timeline instead of the frame you are on.
   useEffect(() => {
     if (isBrowserPreview) return;
-    void ipc.viewerSync();
+    void ipc.viewerSync(useEditor.getState().playhead);
   }, [snapshot]);
 
   // Follow the player's clock while it runs, and stop when it reaches the end.

@@ -500,17 +500,21 @@ pub fn viewer_set_rect(window: tauri::WebviewWindow, x: f64, y: f64, width: f64,
 /// Rebuild the preview composition from the current document. Called after any edit that
 /// changes what plays; the composition is derived, never a source of truth.
 #[tauri::command]
-pub fn viewer_sync(window: tauri::WebviewWindow, state: State<'_, AppState>) {
+pub fn viewer_sync(window: tauri::WebviewWindow, state: State<'_, AppState>, frame: i64) {
     #[cfg(target_os = "macos")]
     {
-        let segments = {
+        let (segments, at_us) = {
             let session = state.session();
-            crate::viewer::segments(session.editor.project())
+            let project = session.editor.project();
+            (
+                crate::viewer::segments(project),
+                project.sequence.format.frame_rate.frames_to_micros(frame),
+            )
         };
         let app = window.app_handle().clone();
         let _ = window.with_webview(move |webview| {
             let ns_window = webview.ns_window();
-            crate::viewer::set_segments(ns_window, &segments);
+            crate::viewer::set_segments(ns_window, &segments, at_us);
             // The first sync installs the player clock. AVFoundation owns playback time;
             // the UI follows it rather than running a clock of its own.
             crate::viewer::observe_time(ns_window, move |micros| {
@@ -519,7 +523,7 @@ pub fn viewer_sync(window: tauri::WebviewWindow, state: State<'_, AppState>) {
         });
     }
     #[cfg(not(target_os = "macos"))]
-    let _ = (window, state);
+    let _ = (window, state, frame);
 }
 
 #[tauri::command]

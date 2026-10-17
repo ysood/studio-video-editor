@@ -180,7 +180,7 @@ impl Surface {
         ));
     }
 
-    fn set_segments(&self, segments: &[Segment], mtm: MainThreadMarker) {
+    fn set_segments(&self, segments: &[Segment], at_us: i64, mtm: MainThreadMarker) {
         let composition = unsafe { AVMutableComposition::composition() };
         let lanes = segments.iter().filter(|s| s.audio).map(|s| s.lane).max();
 
@@ -220,6 +220,9 @@ impl Surface {
 
         let item = unsafe { AVPlayerItem::playerItemWithAsset(&composition, mtm) };
         unsafe { self.player.replaceCurrentItemWithPlayerItem(Some(&item)) };
+        // Replacing the item rewinds the player to zero. Put it back under the playhead,
+        // here rather than from the UI, so the seek cannot race the swap.
+        unsafe { self.player.seekToTime(time(at_us)) };
     }
 }
 
@@ -325,9 +328,9 @@ pub fn set_rect(ns_window: *mut c_void, x: f64, y: f64, width: f64, height: f64)
     });
 }
 
-pub fn set_segments(ns_window: *mut c_void, segments: &[Segment]) {
+pub fn set_segments(ns_window: *mut c_void, segments: &[Segment], at_us: i64) {
     with_surface(ns_window, |surface, mtm| {
-        surface.set_segments(segments, mtm)
+        surface.set_segments(segments, at_us, mtm)
     });
 }
 
