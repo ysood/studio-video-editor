@@ -81,6 +81,14 @@ export function TimelinePanel() {
     return () => observer.disconnect();
   }, []);
 
+  // Page the view along with the playhead during playback.
+  const playing = useEditor((s) => s.playing);
+  useEffect(() => {
+    if (!playing) return;
+    const x = frameToX(playhead, view);
+    if (x > width - 24 || x < 0) setScrollX(playhead * zoom - 24);
+  }, [playing, playhead, view, width, zoom, setScrollX]);
+
   // Ghosts for an in-progress move or trim.
   const { ghosts, lifted } = useMemo(() => {
     const ghosts: Ghost[] = [];
