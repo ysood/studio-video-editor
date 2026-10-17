@@ -23,16 +23,21 @@ use std::ffi::c_void;
 use block2::RcBlock;
 use objc2::rc::Retained;
 use objc2::runtime::AnyObject;
+use objc2::runtime::ProtocolObject;
 use objc2::{MainThreadMarker, MainThreadOnly};
 use objc2_app_kit::{NSView, NSWindow, NSWindowOrderingMode};
 use objc2_av_foundation::{
     AVMediaType, AVMediaTypeAudio, AVMediaTypeVideo, AVMutableComposition,
-    AVMutableCompositionTrack, AVPlayer, AVPlayerItem, AVPlayerLayer, AVURLAsset,
+    AVMutableCompositionTrack, AVMutableVideoComposition, AVMutableVideoCompositionInstruction,
+    AVMutableVideoCompositionLayerInstruction, AVPlayer, AVPlayerItem, AVPlayerLayer, AVURLAsset,
+    AVVideoCompositionLayerInstruction,
 };
+use objc2_core_foundation::{CGAffineTransform, CGSize};
 use objc2_core_media::{CMTime, CMTimeFlags, CMTimeRange};
-use objc2_foundation::{NSPoint, NSRect, NSSize, NSString, NSURL};
+use objc2_foundation::{NSArray, NSPoint, NSRect, NSSize, NSString, NSURL};
 
 use studio_core::model::{MediaKind, Project, Sequence, TrackKind};
+use studio_core::time::Rational;
 
 /// Composition times are built in microseconds, matching `Micros` in the document, so a
 /// frame boundary never lands between two representable instants.
@@ -54,6 +59,27 @@ pub struct Segment {
     pub audio: bool,
     /// Which composition track this goes on. Audio clips may overlap, video never does.
     pub lane: usize,
+}
+
+/// The sequence's picture: the frame the preview renders into.
+///
+/// The renderer fits every clip into this frame and pads the rest black, so the preview
+/// has to do the same or what plays is not what exports.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Canvas {
+    pub width: u32,
+    pub height: u32,
+    pub rate: Rational,
+}
+
+impl Canvas {
+    pub fn of(sequence: &Sequence) -> Self {
+        Self {
+            width: sequence.format.width,
+            height: sequence.format.height,
+            rate: sequence.format.frame_rate,
+        }
+    }
 }
 
 /// Flatten one sequence into non-overlapping video segments plus one lane per audio track.
@@ -189,7 +215,13 @@ impl Surface {
         ));
     }
 
-    fn set_segments(&self, segments: &[Segment], at_us: i64, mtm: MainThreadMarker) {
+    fn set_segments(
+        &self,
+        segments: &[Segment],
+        canvas: Canvas,
+        at_us: i64,
+        mtm: MainThreadMarker,
+    ) {
         let composition = unsafe { AVMutableComposition::composition() };
         let lanes = segments.iter().filter(|s| s.audio).map(|s| s.lane).max();
 
@@ -199,6 +231,10 @@ impl Surface {
         let audio: Vec<_> = (0..=lanes.unwrap_or(0))
             .map(|_| add_track(&composition, true))
             .collect();
+
+        // Where each clip's fit transform takes effect. Gathered as the clips go in,
+        // because the source size is only known once its track has been read.
+        let mut fits: Vec<(i64, CGAffineTransform)> = Vec::new();
 
         for segment in segments {
             let track = if segment.audio {
@@ -225,9 +261,23 @@ impl Surface {
             let _ = unsafe {
                 track.insertTimeRange_ofTrack_atTime_error(range, &source, time(segment.start_us))
             };
+            if !segment.audio {
+                let natural = unsafe { source.naturalSize() };
+                let preferred = unsafe { source.preferredTransform() };
+                fits.push((segment.start_us, fit(natural, preferred, canvas)));
+            }
         }
 
         let item = unsafe { AVPlayerItem::playerItemWithAsset(&composition, mtm) };
+        if let Some(track) = video.as_ref() {
+            let end = segments
+                .iter()
+                .map(|s| s.start_us + s.duration_us)
+                .max()
+                .unwrap_or(0);
+            let rendered = render_into_canvas(track, &mut fits, canvas, end);
+            unsafe { item.setVideoComposition(Some(&rendered)) };
+        }
         unsafe { self.player.replaceCurrentItemWithPlayerItem(Some(&item)) };
         // Replacing the item rewinds the player to zero. Put it back under the playhead,
         // here rather than from the UI, so the seek cannot race the swap.
@@ -236,6 +286,88 @@ impl Surface {
                 .seekToTime_toleranceBefore_toleranceAfter(time(at_us), EXACT, EXACT)
         };
     }
+}
+
+/// Put a source frame inside the sequence frame the way the renderer does: scaled to fit
+/// without cropping, centred, the rest left black.
+///
+/// `preferred` is the track's own display transform, which is how a camera records that it
+/// was held sideways. Applying it first means a portrait clip is fitted by the size it is
+/// shown at rather than the size it is stored at.
+fn fit(natural: CGSize, preferred: CGAffineTransform, canvas: Canvas) -> CGAffineTransform {
+    // The displayed size is the source rect under `preferred`, which for the quarter turns
+    // AVFoundation reports swaps width and height.
+    let shown_w = (preferred.a * natural.width).abs() + (preferred.c * natural.height).abs();
+    let shown_h = (preferred.b * natural.width).abs() + (preferred.d * natural.height).abs();
+    let frame_w = f64::from(canvas.width);
+    let frame_h = f64::from(canvas.height);
+    if shown_w <= 0.0 || shown_h <= 0.0 {
+        return preferred;
+    }
+    let scale = (frame_w / shown_w).min(frame_h / shown_h);
+    CGAffineTransform {
+        a: preferred.a * scale,
+        b: preferred.b * scale,
+        c: preferred.c * scale,
+        d: preferred.d * scale,
+        // Centring is symmetric about the middle of the frame, so it comes out the same
+        // whichever way the render space measures y.
+        tx: preferred.tx * scale + (frame_w - shown_w * scale) / 2.0,
+        ty: preferred.ty * scale + (frame_h - shown_h * scale) / 2.0,
+    }
+}
+
+/// Render the flattened video track into the sequence frame.
+///
+/// Without this AVFoundation plays the source at its own size, so a clip that did not
+/// match the sequence looked nothing like the export. Every clip shares the one flattened
+/// video track, so one layer instruction covers the timeline and the transform changes at
+/// each clip's start, which is what `setTransform:atTime:` is for. That needs the times in
+/// order, and the flattening walks tracks rather than the clock.
+fn render_into_canvas(
+    track: &AVMutableCompositionTrack,
+    fits: &mut [(i64, CGAffineTransform)],
+    canvas: Canvas,
+    end_us: i64,
+) -> Retained<AVMutableVideoComposition> {
+    let composition = unsafe { AVMutableVideoComposition::videoComposition() };
+    unsafe {
+        composition.setRenderSize(CGSize::new(
+            f64::from(canvas.width),
+            f64::from(canvas.height),
+        ));
+        composition.setFrameDuration(CMTime {
+            value: i64::from(canvas.rate.den),
+            timescale: i32::try_from(canvas.rate.num).unwrap_or(TIMESCALE),
+            flags: CMTimeFlags::Valid,
+            epoch: 0,
+        });
+    }
+
+    let layer = unsafe {
+        AVMutableVideoCompositionLayerInstruction::videoCompositionLayerInstructionWithAssetTrack(
+            track,
+        )
+    };
+    fits.sort_by_key(|(at_us, _)| *at_us);
+    for (at_us, transform) in fits.iter() {
+        unsafe { layer.setTransform_atTime(*transform, time(*at_us)) };
+    }
+    let layers: Retained<AVVideoCompositionLayerInstruction> = Retained::into_super(layer);
+
+    let instruction =
+        unsafe { AVMutableVideoCompositionInstruction::videoCompositionInstruction() };
+    unsafe {
+        instruction.setTimeRange(CMTimeRange {
+            start: time(0),
+            duration: time(end_us),
+        });
+        instruction.setLayerInstructions(&NSArray::from_retained_slice(&[layers]));
+    }
+
+    let instruction = ProtocolObject::from_retained(instruction);
+    unsafe { composition.setInstructions(&NSArray::from_retained_slice(&[instruction])) };
+    composition
 }
 
 /// The AVFoundation media type constants. They are declared optional because the symbol
@@ -340,9 +472,9 @@ pub fn set_rect(ns_window: *mut c_void, x: f64, y: f64, width: f64, height: f64)
     });
 }
 
-pub fn set_segments(ns_window: *mut c_void, segments: &[Segment], at_us: i64) {
+pub fn set_segments(ns_window: *mut c_void, segments: &[Segment], canvas: Canvas, at_us: i64) {
     with_surface(ns_window, |surface, mtm| {
-        surface.set_segments(segments, at_us, mtm)
+        surface.set_segments(segments, canvas, at_us, mtm)
     });
 }
 
@@ -445,5 +577,81 @@ mod tests {
             track.enabled = false;
         }
         assert!(segments(&project, project.first_sequence()).is_empty());
+    }
+
+    /// What AVFoundation reports for footage that was not rotated.
+    const UPRIGHT: CGAffineTransform = CGAffineTransform {
+        a: 1.0,
+        b: 0.0,
+        c: 0.0,
+        d: 1.0,
+        tx: 0.0,
+        ty: 0.0,
+    };
+
+    fn hd() -> Canvas {
+        Canvas {
+            width: 1920,
+            height: 1080,
+            rate: Rational::new(24, 1),
+        }
+    }
+
+    #[test]
+    fn a_matching_clip_is_left_alone() {
+        let t = fit(CGSize::new(1920.0, 1080.0), UPRIGHT, hd());
+        assert_eq!((t.a, t.d), (1.0, 1.0));
+        assert_eq!((t.tx, t.ty), (0.0, 0.0));
+    }
+
+    #[test]
+    fn a_larger_clip_is_scaled_down_to_the_frame() {
+        let t = fit(CGSize::new(3840.0, 2160.0), UPRIGHT, hd());
+        assert_eq!((t.a, t.d), (0.5, 0.5));
+        assert_eq!((t.tx, t.ty), (0.0, 0.0), "same aspect, so no bars");
+    }
+
+    #[test]
+    fn a_smaller_clip_is_scaled_up_the_way_the_renderer_does() {
+        // ffmpeg's force_original_aspect_ratio=decrease fits to the frame in both
+        // directions, so a small clip grows rather than sitting in the middle.
+        let t = fit(CGSize::new(640.0, 360.0), UPRIGHT, hd());
+        assert_eq!((t.a, t.d), (3.0, 3.0));
+    }
+
+    #[test]
+    fn a_portrait_clip_is_centred_between_black_bars() {
+        let t = fit(CGSize::new(1080.0, 1920.0), UPRIGHT, hd());
+        let scale = 1080.0 / 1920.0;
+        assert!((t.a - scale).abs() < 1e-9);
+        // 1080 wide at that scale is 607.5, leaving 656.25 either side.
+        assert!((t.tx - (1920.0 - 1080.0 * scale) / 2.0).abs() < 1e-9);
+        assert_eq!(t.ty, 0.0, "full height, so no bars above or below");
+    }
+
+    #[test]
+    fn a_sideways_clip_is_fitted_by_the_size_it_is_shown_at() {
+        // A phone held upright stores 1920x1080 and asks for a quarter turn. Fitting the
+        // stored size would fill the frame and show the picture on its side.
+        let quarter_turn = CGAffineTransform {
+            a: 0.0,
+            b: 1.0,
+            c: -1.0,
+            d: 0.0,
+            tx: 1080.0,
+            ty: 0.0,
+        };
+        let t = fit(CGSize::new(1920.0, 1080.0), quarter_turn, hd());
+        let scale = 1080.0 / 1920.0;
+        assert!((t.b - scale).abs() < 1e-9, "the turn is kept");
+        assert!((t.c + scale).abs() < 1e-9);
+        // Shown at 1080x1920, scaled to 607.5x1080, so it is inset horizontally.
+        assert!((t.tx - (1080.0 * scale + (1920.0 - 1080.0 * scale) / 2.0)).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_track_with_no_size_is_not_divided_by_zero() {
+        let t = fit(CGSize::new(0.0, 0.0), UPRIGHT, hd());
+        assert!(t.a.is_finite() && t.tx.is_finite());
     }
 }

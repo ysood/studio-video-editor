@@ -530,12 +530,13 @@ pub fn viewer_sync(
 ) {
     #[cfg(target_os = "macos")]
     {
-        let Some((segments, at_us)) = ({
+        let Some((segments, canvas, at_us)) = ({
             let session = state.session();
             let project = session.editor.project();
             project.sequence(sequence_id).map(|sequence| {
                 (
                     crate::viewer::segments(project, sequence),
+                    crate::viewer::Canvas::of(sequence),
                     sequence.format.frame_rate.frames_to_micros(frame),
                 )
             })
@@ -545,7 +546,7 @@ pub fn viewer_sync(
         let app = window.app_handle().clone();
         let _ = window.with_webview(move |webview| {
             let ns_window = webview.ns_window();
-            crate::viewer::set_segments(ns_window, &segments, at_us);
+            crate::viewer::set_segments(ns_window, &segments, canvas, at_us);
             // The first sync installs the player clock. AVFoundation owns playback time;
             // the UI follows it rather than running a clock of its own.
             crate::viewer::observe_time(ns_window, move |micros| {

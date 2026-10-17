@@ -41,8 +41,10 @@ objc2-foundation = { version = "0.3", features = ["NSString", "NSURL", "NSGeomet
 objc2-app-kit = { version = "0.3", features = ["NSView", "NSWindow", "NSResponder", "NSGraphics"] }
 objc2-quartz-core = { version = "0.3", features = ["CALayer"] }
 objc2-core-media = { version = "0.3", features = ["CMTime", "CMTimeRange"] }
+objc2-core-foundation = { version = "0.3", features = ["CFCGTypes"] }
 objc2-av-foundation = { version = "0.3", features = [
   "AVPlayer", "AVPlayerItem", "AVPlayerLayer", "AVAsset", "AVAssetTrack",
   "AVComposition", "AVCompositionTrack", "AVMediaFormat",
-  "objc2-core-media", "objc2-quartz-core", "block2", "dispatch2",
+  "AVVideoComposition", "AVVideoCompositing",
+  "objc2-core-media", "objc2-core-foundation", "objc2-quartz-core", "block2", "dispatch2",
 ] }
