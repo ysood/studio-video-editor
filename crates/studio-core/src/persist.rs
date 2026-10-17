@@ -108,7 +108,7 @@ fn temp_path(path: &Path) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::edit::EditCommand;
+    use crate::edit::{EditCommand, TrackChoice};
     use crate::history::Editor;
     use crate::testing::{media_with_av, project_with};
 
@@ -128,8 +128,8 @@ mod tests {
                 start: 12,
                 source_start: 6,
                 duration: Some(48),
-                video_track: Some(v1),
-                audio_track: Some(a1),
+                video_track: TrackChoice::Track(v1),
+                audio_track: TrackChoice::Track(a1),
             })
             .unwrap();
         editor.project().clone()

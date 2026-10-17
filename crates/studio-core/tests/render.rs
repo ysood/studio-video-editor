@@ -108,8 +108,8 @@ fn renders_sequence_with_gaps_and_linked_audio() {
             start: 24,
             source_start: 12,
             duration: Some(24),
-            video_track: Some(v1),
-            audio_track: Some(a1),
+            video_track: TrackChoice::Track(v1),
+            audio_track: TrackChoice::Track(a1),
         })
         .unwrap();
     editor
@@ -119,8 +119,8 @@ fn renders_sequence_with_gaps_and_linked_audio() {
             start: 60,
             source_start: 0,
             duration: Some(12),
-            video_track: None,
-            audio_track: Some(a1),
+            video_track: TrackChoice::Skip,
+            audio_track: TrackChoice::Track(a1),
         })
         .unwrap();
 

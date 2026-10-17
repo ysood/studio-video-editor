@@ -4,8 +4,10 @@ import type { ClipEdge } from "../bindings/ClipEdge";
 import type { ClipId } from "../bindings/ClipId";
 import type { Project } from "../bindings/Project";
 import type { Track } from "../bindings/Track";
+import type { TrackKind } from "../bindings/TrackKind";
+import type { TrackChoice } from "../bindings/TrackChoice";
 import type { TrackId } from "../bindings/TrackId";
-import { firstTrack, insertMedia, MEDIA_DRAG_TYPE, mediaDrag } from "../edits";
+import { insertMedia, MEDIA_DRAG_TYPE, mediaDrag, trackChoice } from "../edits";
 import { microsToFrames } from "../format";
 import { chord, useShortcut } from "../keyboard";
 import { useEditor, ZOOM_MAX, ZOOM_MIN, useActiveSequence } from "../store";
@@ -41,8 +43,8 @@ type Drag =
 interface DropPreview {
   ghosts: Ghost[];
   start: number;
-  video: TrackId | null;
-  audio: TrackId | null;
+  video: TrackChoice;
+  audio: TrackChoice;
 }
 
 function mediaLength(project: Project, sequence: Sequence, mediaId: string): number {
@@ -319,9 +321,12 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
     const media = project.media.find((m) => m.id === mediaId);
     if (!media) return null;
     const over = rowAt(rows, y)?.track;
+    // The track under the cursor claims its own kind; the other stream, and a locked
+    // track under the cursor, fall back to the first free track of that kind.
     const usable = (t: Track | undefined) => (t && !t.locked ? t.id : null);
-    const video = media.video ? (over?.kind === "video" ? usable(over) : firstTrack(sequence, "video")) : null;
-    const audio = media.audio ? (over?.kind === "audio" ? usable(over) : firstTrack(sequence, "audio")) : null;
+    const named = (kind: TrackKind) => (over?.kind === kind ? usable(over) : null);
+    const video = trackChoice(sequence, "video", media.video !== null, named("video"));
+    const audio = trackChoice(sequence, "audio", media.audio !== null, named("audio"));
     return { media, video, audio };
   };
 
@@ -340,8 +345,10 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
       if (hit !== undefined) start = hit;
     }
     const ghosts: Ghost[] = [];
-    if (targets.video) ghosts.push({ trackId: targets.video, start, duration, name: targets.media.name, kind: "video" });
-    if (targets.audio) ghosts.push({ trackId: targets.audio, start, duration, name: targets.media.name, kind: "audio" });
+    for (const [kind, choice] of [["video", targets.video], ["audio", targets.audio]] as const) {
+      if (choice.type !== "track") continue;
+      ghosts.push({ trackId: choice.trackId, start, duration, name: targets.media.name, kind });
+    }
     setDrop({ ghosts, start, video: targets.video, audio: targets.audio });
   };
 
@@ -351,7 +358,8 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
     const pending = drop;
     setDrop(null);
     mediaDrag.current = null;
-    if (!mediaId || !pending || (!pending.video && !pending.audio)) return;
+    if (!mediaId || !pending) return;
+    if (pending.video.type === "skip" && pending.audio.type === "skip") return;
     void insertMedia(mediaId, pending.start, { video: pending.video, audio: pending.audio });
   };
 

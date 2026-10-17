@@ -51,8 +51,8 @@ fn sample_project() -> Project {
                 start,
                 source_start,
                 duration: Some(duration),
-                video_track: Some(v1),
-                audio_track: Some(a1),
+                video_track: TrackChoice::Track(v1),
+                audio_track: TrackChoice::Track(a1),
             })
             .unwrap();
     }

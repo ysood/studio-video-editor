@@ -198,8 +198,8 @@ mod tests {
             start: 200,
             source_start: 0,
             duration: Some(10),
-            video_track: Some(v1),
-            audio_track: None,
+            video_track: crate::edit::TrackChoice::Track(v1),
+            audio_track: crate::edit::TrackChoice::Skip,
         };
         project = crate::edit::apply(&project, &cmd).unwrap().0;
 

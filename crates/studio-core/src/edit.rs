@@ -32,6 +32,26 @@ pub enum ClipEdge {
     End,
 }
 
+/// Where one stream of inserted media goes.
+///
+/// Explicit on purpose: "this media has no such stream, or I do not want it placed" and
+/// "I wanted to place this stream but found no track for it" are different intents, and
+/// a single "no track" value cannot tell them apart. Inferring one from the other is how
+/// a drop onto a sequence whose only audio track is locked lays down the picture and
+/// loses the sound with nothing on screen to say so.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(tag = "type", content = "trackId", rename_all = "camelCase")]
+#[ts(export)]
+pub enum TrackChoice {
+    /// Place on this track: it must be in the target sequence, of the matching kind and
+    /// unlocked.
+    Track(TrackId),
+    /// Add a track of the matching kind to the target sequence and place there.
+    New,
+    /// Leave this stream off the timeline.
+    Skip,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all_fields = "camelCase")]
 #[ts(export)]
@@ -78,8 +98,8 @@ pub enum EditCommand {
         enabled: Option<bool>,
         locked: Option<bool>,
     },
-    /// Places media on the timeline. Video goes to `video_track` and audio to
-    /// `audio_track` when the media has those streams; both together are linked.
+    /// Places media on the timeline. `video_track` and `audio_track` each say where that
+    /// stream goes, or that it is left out; two streams placed together are linked.
     InsertMedia {
         sequence_id: SequenceId,
         media_id: MediaId,
@@ -90,8 +110,8 @@ pub enum EditCommand {
         /// Defaults to the rest of the media, or five seconds for a still image.
         #[ts(type = "number | null")]
         duration: Option<Frame>,
-        video_track: Option<TrackId>,
-        audio_track: Option<TrackId>,
+        video_track: TrackChoice,
+        audio_track: TrackChoice,
     },
     /// Moves a clip and its link group in time. `track_id` moves only this clip to
     /// another track of the same kind.
@@ -164,7 +184,7 @@ impl EditCommand {
 pub struct EditReport {
     pub created_clips: Vec<ClipId>,
     pub created_media: Vec<MediaId>,
-    pub created_track: Option<TrackId>,
+    pub created_tracks: Vec<TrackId>,
     pub created_sequence: Option<SequenceId>,
 }
 
@@ -285,7 +305,9 @@ fn apply_in_place(p: &mut Project, command: &EditCommand) -> Result<EditReport, 
             if p.sequence(*sequence_id).is_none() {
                 return Err(not_found("sequence", sequence_id));
             }
-            report.created_track = Some(add_track(p, *sequence_id, *kind));
+            report
+                .created_tracks
+                .push(add_track(p, *sequence_id, *kind));
         }
         EditCommand::RemoveTrack { track_id } => {
             ensure_unlocked(p, *track_id)?;
@@ -318,7 +340,7 @@ fn apply_in_place(p: &mut Project, command: &EditCommand) -> Result<EditReport, 
             video_track,
             audio_track,
         } => {
-            report.created_clips = insert_media(
+            let (clips, tracks) = insert_media(
                 p,
                 *sequence_id,
                 *media_id,
@@ -328,6 +350,8 @@ fn apply_in_place(p: &mut Project, command: &EditCommand) -> Result<EditReport, 
                 *video_track,
                 *audio_track,
             )?;
+            report.created_clips = clips;
+            report.created_tracks = tracks;
         }
         EditCommand::MoveClip {
             clip_id,
@@ -596,9 +620,9 @@ fn insert_media(
     start: Frame,
     source_start: Frame,
     duration: Option<Frame>,
-    video_track: Option<TrackId>,
-    audio_track: Option<TrackId>,
-) -> Result<Vec<ClipId>, EditError> {
+    video_track: TrackChoice,
+    audio_track: TrackChoice,
+) -> Result<(Vec<ClipId>, Vec<TrackId>), EditError> {
     let sequence = p
         .sequence(sequence_id)
         .ok_or_else(|| not_found("sequence", sequence_id))?;
@@ -622,33 +646,46 @@ fn insert_media(
         return Err(invalid("clip extends past the end of the media"));
     }
 
-    let mut targets = Vec::new();
-    if let (true, Some(track)) = (media.has_video(), video_track) {
-        targets.push((track, TrackKind::Video));
-    }
-    if let (true, Some(track)) = (media.has_audio(), audio_track) {
-        targets.push((track, TrackKind::Audio));
-    }
-    if targets.is_empty() {
-        return Err(invalid("no track can hold this media"));
-    }
+    let streams = [
+        (media.has_video(), video_track, TrackKind::Video),
+        (media.has_audio(), audio_track, TrackKind::Audio),
+    ];
     let name = media.name.clone();
-    for (track_id, kind) in &targets {
-        // A track in another sequence would put the clip somewhere the command did not
-        // name, with its frames counted at the wrong rate.
-        if p.sequence_of_track(*track_id).map(|s| s.id) != Some(sequence_id) {
-            return Err(not_found("track", track_id));
+
+    let mut destinations = Vec::new();
+    let mut created_tracks = Vec::new();
+    for (present, choice, kind) in streams {
+        if choice != TrackChoice::Skip && !present {
+            return Err(invalid("media has no such stream to place"));
         }
-        let track = ensure_unlocked(p, *track_id)?;
-        if track.kind != *kind {
-            return Err(EditError::WrongTrackKind);
+        match choice {
+            TrackChoice::Skip => {}
+            TrackChoice::Track(track_id) => {
+                // A track in another sequence would put the clip somewhere the command
+                // did not name, with its frames counted at the wrong rate.
+                if p.sequence_of_track(track_id).map(|s| s.id) != Some(sequence_id) {
+                    return Err(not_found("track", track_id));
+                }
+                if ensure_unlocked(p, track_id)?.kind != kind {
+                    return Err(EditError::WrongTrackKind);
+                }
+                destinations.push(track_id);
+            }
+            TrackChoice::New => {
+                // Video is resolved first, so a pair of new tracks reports V before A.
+                let track_id = add_track(p, sequence_id, kind);
+                created_tracks.push(track_id);
+                destinations.push(track_id);
+            }
         }
+    }
+    if destinations.is_empty() {
+        return Err(invalid("no stream of this media is being placed"));
     }
 
-    let link = (targets.len() > 1).then(LinkId::new);
+    let link = (destinations.len() > 1).then(LinkId::new);
     let mut created = Vec::new();
     // One call for every target track, so a linked clip underneath is overwritten whole.
-    let destinations: Vec<_> = targets.iter().map(|(track_id, _)| *track_id).collect();
     clear_range(p, &destinations, start, start + duration)?;
     for track_id in destinations {
         let clip = Clip {
@@ -666,7 +703,7 @@ fn insert_media(
         created.push(clip.id);
         insert_sorted(p.track_mut(track_id).expect("checked"), clip);
     }
-    Ok(created)
+    Ok((created, created_tracks))
 }
 
 fn move_clip(
@@ -862,8 +899,8 @@ mod tests {
                 start,
                 source_start,
                 duration: Some(duration),
-                video_track: Some(f.v1),
-                audio_track: Some(f.a1),
+                video_track: TrackChoice::Track(f.v1),
+                audio_track: TrackChoice::Track(f.a1),
             },
         )
         .created_clips
@@ -912,6 +949,133 @@ mod tests {
     }
 
     #[test]
+    fn insert_onto_a_new_track_places_both_halves_and_reports_the_track() {
+        let mut f = fixture(10);
+        // The only audio track is locked, so the UI has no track to name for the sound.
+        lock(&mut f.project, f.a1);
+        let report = run(
+            &mut f.project,
+            EditCommand::InsertMedia {
+                sequence_id: f.sequence,
+                media_id: f.media,
+                start: 0,
+                source_start: 0,
+                duration: Some(48),
+                video_track: TrackChoice::Track(f.v1),
+                audio_track: TrackChoice::New,
+            },
+        );
+        let a2 = *report.created_tracks.first().expect("made an audio track");
+        assert_eq!(report.created_tracks, vec![a2]);
+        assert_eq!(f.project.track(a2).unwrap().name, "A2");
+        assert_eq!(report.created_clips.len(), 2);
+        assert_eq!(spans(&f.project, f.v1), vec![(0, 48, 0)]);
+        assert_eq!(spans(&f.project, a2), vec![(0, 48, 0)]);
+        assert!(spans(&f.project, f.a1).is_empty());
+        // Both halves landed, so they are still a linked pair.
+        let link = link_at(&f.project, f.v1, 0);
+        assert!(link.is_some());
+        assert_eq!(link, link_at(&f.project, a2, 0));
+    }
+
+    #[test]
+    fn insert_onto_two_new_tracks_keeps_video_above_audio() {
+        let mut f = fixture(10);
+        let report = run(
+            &mut f.project,
+            EditCommand::InsertMedia {
+                sequence_id: f.sequence,
+                media_id: f.media,
+                start: 0,
+                source_start: 0,
+                duration: Some(24),
+                video_track: TrackChoice::New,
+                audio_track: TrackChoice::New,
+            },
+        );
+        let names: Vec<_> = report
+            .created_tracks
+            .iter()
+            .map(|id| f.project.track(*id).unwrap().name.clone())
+            .collect();
+        assert_eq!(names, vec!["V2", "A2"]);
+        let order: Vec<_> = f
+            .project
+            .sequence(f.sequence)
+            .unwrap()
+            .tracks
+            .iter()
+            .map(|t| t.name.clone())
+            .collect();
+        assert_eq!(order, vec!["V1", "V2", "A1", "A2"]);
+    }
+
+    #[test]
+    fn insert_leaves_out_the_stream_it_is_told_to_skip() {
+        let mut f = fixture(10);
+        let report = run(
+            &mut f.project,
+            EditCommand::InsertMedia {
+                sequence_id: f.sequence,
+                media_id: f.media,
+                start: 0,
+                source_start: 0,
+                duration: Some(48),
+                video_track: TrackChoice::Track(f.v1),
+                audio_track: TrackChoice::Skip,
+            },
+        );
+        assert_eq!(report.created_clips.len(), 1);
+        assert!(report.created_tracks.is_empty());
+        assert_eq!(spans(&f.project, f.v1), vec![(0, 48, 0)]);
+        assert!(spans(&f.project, f.a1).is_empty());
+        // Nothing to link a lone picture to.
+        assert_eq!(link_at(&f.project, f.v1, 0), None);
+    }
+
+    #[test]
+    fn insert_rejects_a_stream_the_media_does_not_have() {
+        let p = project_with(vec![still_image()]);
+        let sequence_id = p.first_sequence().id;
+        let a1 = p.first_sequence().tracks[1].id;
+        let v1 = p.first_sequence().tracks[0].id;
+        let media_id = p.media[0].id;
+        let err = apply(
+            &p,
+            &EditCommand::InsertMedia {
+                sequence_id,
+                media_id,
+                start: 0,
+                source_start: 0,
+                duration: Some(24),
+                video_track: TrackChoice::Track(v1),
+                audio_track: TrackChoice::Track(a1),
+            },
+        )
+        .unwrap_err();
+        assert!(matches!(err, EditError::InvalidArgument { .. }), "{err}");
+    }
+
+    #[test]
+    fn insert_rejects_skipping_every_stream() {
+        let f = fixture(10);
+        let err = apply(
+            &f.project,
+            &EditCommand::InsertMedia {
+                sequence_id: f.sequence,
+                media_id: f.media,
+                start: 0,
+                source_start: 0,
+                duration: Some(24),
+                video_track: TrackChoice::Skip,
+                audio_track: TrackChoice::Skip,
+            },
+        )
+        .unwrap_err();
+        assert!(matches!(err, EditError::InvalidArgument { .. }), "{err}");
+    }
+
+    #[test]
     fn insert_defaults_to_rest_of_media() {
         let mut f = fixture(10);
         let created = run(
@@ -922,8 +1086,8 @@ mod tests {
                 start: 0,
                 source_start: 24,
                 duration: None,
-                video_track: Some(f.v1),
-                audio_track: None,
+                video_track: TrackChoice::Track(f.v1),
+                audio_track: TrackChoice::Skip,
             },
         )
         .created_clips;
@@ -995,8 +1159,8 @@ mod tests {
                 start: 40,
                 source_start: 0,
                 duration: Some(20),
-                video_track: Some(f.v1),
-                audio_track: None,
+                video_track: TrackChoice::Track(f.v1),
+                audio_track: TrackChoice::Skip,
             },
         );
         assert_eq!(
@@ -1024,8 +1188,8 @@ mod tests {
                 start: 40,
                 source_start: 0,
                 duration: Some(20),
-                video_track: Some(f.v1),
-                audio_track: None,
+                video_track: TrackChoice::Track(f.v1),
+                audio_track: TrackChoice::Skip,
             },
         );
         assert_eq!(spans(&f.project, f.a1), vec![(0, 100, 0)]);
@@ -1106,8 +1270,8 @@ mod tests {
                 start: 0,
                 source_start: 0,
                 duration: Some(24),
-                video_track: Some(f.v1),
-                audio_track: None,
+                video_track: TrackChoice::Track(f.v1),
+                audio_track: TrackChoice::Skip,
             },
         );
 
@@ -1156,8 +1320,8 @@ mod tests {
             start: 0,
             source_start: 0,
             duration: Some(24),
-            video_track: Some(f.v1),
-            audio_track: None,
+            video_track: TrackChoice::Track(f.v1),
+            audio_track: TrackChoice::Skip,
         };
         assert!(apply(&f.project, &cmd).is_err());
     }
@@ -1171,8 +1335,8 @@ mod tests {
             start: 0,
             source_start: 10,
             duration: Some(48),
-            video_track: Some(f.v1),
-            audio_track: None,
+            video_track: TrackChoice::Track(f.v1),
+            audio_track: TrackChoice::Skip,
         };
         assert!(matches!(
             apply(&f.project, &cmd),
@@ -1194,8 +1358,8 @@ mod tests {
                 start: 0,
                 source_start: 0,
                 duration: None,
-                video_track: Some(v1),
-                audio_track: None,
+                video_track: TrackChoice::Track(v1),
+                audio_track: TrackChoice::Skip,
             },
         )
         .created_clips;
@@ -1229,8 +1393,7 @@ mod tests {
                 kind: TrackKind::Video,
             },
         )
-        .created_track
-        .unwrap();
+        .created_tracks[0];
         run(
             &mut f.project,
             EditCommand::MoveClip {
@@ -1282,8 +1445,8 @@ mod tests {
                 start: 100,
                 source_start: 0,
                 duration: Some(48),
-                video_track: Some(f.v1),
-                audio_track: None,
+                video_track: TrackChoice::Track(f.v1),
+                audio_track: TrackChoice::Skip,
             },
         )
         .created_clips;

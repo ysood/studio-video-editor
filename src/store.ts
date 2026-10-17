@@ -9,6 +9,7 @@ import type { JobKind } from "./bindings/JobKind";
 import type { MediaId } from "./bindings/MediaId";
 import type { SequenceFormat } from "./bindings/SequenceFormat";
 import type { Snapshot } from "./bindings/Snapshot";
+import type { TrackChoice } from "./bindings/TrackChoice";
 import type { ToolsStatus } from "./bindings/ToolsStatus";
 import { errorMessage, ipc } from "./ipc";
 import type { Sequence } from "./bindings/Sequence";
@@ -27,7 +28,7 @@ export interface StatusMessage {
 export interface PendingInsert {
   mediaId: MediaId;
   frame: number;
-  targets: { video?: string | null; audio?: string | null };
+  targets: { video?: TrackChoice; audio?: TrackChoice };
   suggested: SequenceFormat;
 }
 

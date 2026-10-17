@@ -5,6 +5,7 @@ import type { MediaAsset } from "./MediaAsset";
 import type { MediaId } from "./MediaId";
 import type { SequenceFormat } from "./SequenceFormat";
 import type { SequenceId } from "./SequenceId";
+import type { TrackChoice } from "./TrackChoice";
 import type { TrackId } from "./TrackId";
 import type { TrackKind } from "./TrackKind";
 
@@ -12,4 +13,4 @@ export type EditCommand = { "type": "RenameProject", name: string, } | { "type":
 /**
  * Defaults to the rest of the media, or five seconds for a still image.
  */
-duration: number | null, videoTrack: TrackId | null, audioTrack: TrackId | null, } | { "type": "MoveClip", clipId: ClipId, start: number, trackId: TrackId | null, } | { "type": "TrimClip", clipId: ClipId, edge: ClipEdge, frame: number, } | { "type": "SplitClips", clipIds: Array<ClipId>, at: number, } | { "type": "DeleteClips", clipIds: Array<ClipId>, } | { "type": "SetClipsEnabled", clipIds: Array<ClipId>, enabled: boolean, } | { "type": "RenameClip", clipId: ClipId, name: string, } | { "type": "UnlinkClips", clipIds: Array<ClipId>, };
+duration: number | null, videoTrack: TrackChoice, audioTrack: TrackChoice, } | { "type": "MoveClip", clipId: ClipId, start: number, trackId: TrackId | null, } | { "type": "TrimClip", clipId: ClipId, edge: ClipEdge, frame: number, } | { "type": "SplitClips", clipIds: Array<ClipId>, at: number, } | { "type": "DeleteClips", clipIds: Array<ClipId>, } | { "type": "SetClipsEnabled", clipIds: Array<ClipId>, enabled: boolean, } | { "type": "RenameClip", clipId: ClipId, name: string, } | { "type": "UnlinkClips", clipIds: Array<ClipId>, };

@@ -53,7 +53,7 @@ pub fn project_with(media: Vec<MediaAsset>) -> Project {
 /// Two linked video+audio clips: frames 12..60 (source from 6) and 100..124 (source 0),
 /// so V1 and A1 each read gap, clip, gap, clip.
 pub fn sample_edit() -> Project {
-    use crate::edit::{apply, EditCommand};
+    use crate::edit::{apply, EditCommand, TrackChoice};
     let mut project = project_with(vec![media_with_av(10)]);
     let media_id = project.media[0].id;
     let sequence_id = project.first_sequence().id;
@@ -68,8 +68,8 @@ pub fn sample_edit() -> Project {
             start,
             source_start,
             duration: Some(duration),
-            video_track: Some(v1),
-            audio_track: Some(a1),
+            video_track: TrackChoice::Track(v1),
+            audio_track: TrackChoice::Track(a1),
         };
         project = apply(&project, &command).unwrap().0;
     }

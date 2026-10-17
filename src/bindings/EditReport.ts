@@ -7,4 +7,4 @@ import type { TrackId } from "./TrackId";
 /**
  * What a successful command created, so the UI can select it.
  */
-export type EditReport = { createdClips: Array<ClipId>, createdMedia: Array<MediaId>, createdTrack: TrackId | null, createdSequence: SequenceId | null, };
+export type EditReport = { createdClips: Array<ClipId>, createdMedia: Array<MediaId>, createdTracks: Array<TrackId>, createdSequence: SequenceId | null, };

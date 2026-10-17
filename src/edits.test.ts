@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MediaAsset } from "./bindings/MediaAsset";
 import type { Project } from "./bindings/Project";
-import { formatMismatch } from "./edits";
+import { formatMismatch, trackChoice } from "./edits";
 import { sampleSnapshot } from "./preview/sampleProject";
 
 /** The sample project with every clip removed, which is when the question is asked. */
@@ -62,5 +62,39 @@ describe("formatMismatch", () => {
   it("stays quiet for media with no picture", () => {
     const audioOnly = { ...video(width, height, 25), video: null } as MediaAsset;
     expect(formatMismatch(project.sequences[0]!, audioOnly)).toBeNull();
+  });
+});
+
+describe("trackChoice", () => {
+  const sequence = emptyProject().sequences[0]!;
+  const audio = sequence.tracks.filter((t) => t.kind === "audio");
+
+  it("skips a stream the media does not carry", () => {
+    expect(trackChoice(sequence, "audio", false)).toEqual({ type: "skip" });
+  });
+
+  it("skips it even when a track is free, so an empty stream places nothing", () => {
+    expect(trackChoice(sequence, "audio", false, audio[0]!.id)).toEqual({ type: "skip" });
+  });
+
+  it("takes the track it is handed", () => {
+    expect(trackChoice(sequence, "audio", true, audio[1]!.id)).toEqual({
+      type: "track",
+      trackId: audio[1]!.id,
+    });
+  });
+
+  it("falls back to the first free track of the kind", () => {
+    expect(trackChoice(sequence, "audio", true)).toEqual({ type: "track", trackId: audio[0]!.id });
+  });
+
+  it("asks for a new track when every one of the kind is locked", () => {
+    const locked = {
+      ...sequence,
+      tracks: sequence.tracks.map((t) => (t.kind === "audio" ? { ...t, locked: true } : t)),
+    };
+    // This is the case that used to lose the sound: no track to name, and "no track" read
+    // as "there is no sound".
+    expect(trackChoice(locked, "audio", true)).toEqual({ type: "new" });
   });
 });

@@ -4,6 +4,7 @@
 import type { MediaAsset } from "./bindings/MediaAsset";
 import type { MediaId } from "./bindings/MediaId";
 import type { SequenceFormat } from "./bindings/SequenceFormat";
+import type { TrackChoice } from "./bindings/TrackChoice";
 import type { TrackId } from "./bindings/TrackId";
 import type { TrackKind } from "./bindings/TrackKind";
 import { useEditor } from "./store";
@@ -13,6 +14,25 @@ import type { Sequence } from "./bindings/Sequence";
 /** First unlocked track of a kind in document order (V1, A1). */
 export function firstTrack(sequence: Sequence, kind: TrackKind): TrackId | null {
   return sequence.tracks.find((t) => t.kind === kind && !t.locked)?.id ?? null;
+}
+
+/**
+ * Where one stream of `media` goes: the track the caller named, the first free track of
+ * that kind, or a new one when the sequence has none to offer.
+ *
+ * `present` is whether the media carries the stream at all. Saying so explicitly is the
+ * point: "there is no sound to place" and "there is sound but no track free" ask for
+ * opposite things, and a target of "no track" cannot tell the core which one it meant.
+ */
+export function trackChoice(
+  sequence: Sequence,
+  kind: TrackKind,
+  present: boolean,
+  named?: TrackId | null,
+): TrackChoice {
+  if (!present) return { type: "skip" };
+  const track = named ?? firstTrack(sequence, kind);
+  return track ? { type: "track", trackId: track } : { type: "new" };
 }
 
 export const MEDIA_DRAG_TYPE = "application/x-studio-media";
@@ -44,18 +64,20 @@ export function formatMismatch(sequence: Sequence, media: MediaAsset): SequenceF
 }
 
 /**
- * Place media at `frame`. Video goes to `videoTrack` (or V1) and audio to `audioTrack`
- * (or A1). Call this when the sequence question has already been settled.
+ * Place media at `frame`. Each stream the media has goes where `targets` says, or to the
+ * first free track of its kind. Call this when the sequence question has been settled.
  */
 export async function placeMedia(
   mediaId: MediaId,
   frame: number,
-  targets: { video?: TrackId | null; audio?: TrackId | null } = {},
+  targets: { video?: TrackChoice; audio?: TrackChoice } = {},
 ) {
   const store = useEditor.getState();
   const project = store.snapshot?.project;
   if (!project) return;
   const sequence = activeSequence(project, store.activeSequenceId);
+  const media = project.media.find((m) => m.id === mediaId);
+  if (!media) return;
   const report = await store.edit({
     type: "InsertMedia",
     sequenceId: sequence.id,
@@ -63,8 +85,8 @@ export async function placeMedia(
     start: Math.max(0, Math.round(frame)),
     sourceStart: 0,
     duration: null,
-    videoTrack: targets.video ?? firstTrack(sequence, "video"),
-    audioTrack: targets.audio ?? firstTrack(sequence, "audio"),
+    videoTrack: targets.video ?? trackChoice(sequence, "video", media.video !== null),
+    audioTrack: targets.audio ?? trackChoice(sequence, "audio", media.audio !== null),
   });
   if (report && report.createdClips.length > 0) {
     store.select(report.createdClips);
@@ -79,7 +101,7 @@ export async function placeMedia(
 export async function insertMedia(
   mediaId: MediaId,
   frame: number,
-  targets: { video?: TrackId | null; audio?: TrackId | null } = {},
+  targets: { video?: TrackChoice; audio?: TrackChoice } = {},
 ) {
   const store = useEditor.getState();
   const project = store.snapshot?.project;

@@ -18,7 +18,7 @@ pub mod validate;
 #[cfg(any(test, feature = "testing"))]
 pub mod testing;
 
-pub use edit::{apply, ClipEdge, EditCommand, EditError, EditReport};
+pub use edit::{apply, ClipEdge, EditCommand, EditError, EditReport, TrackChoice};
 pub use history::{Editor, HistoryState};
 pub use ids::*;
 pub use model::*;
