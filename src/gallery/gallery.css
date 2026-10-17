@@ -1,0 +1,156 @@
+.gallery {
+  height: 100%;
+  overflow: auto;
+  background: var(--color-surface-base);
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.gallery-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  height: var(--size-topbar);
+  padding: 0 var(--space-7);
+  border-bottom: var(--border-width) solid var(--color-border-subtle);
+  background: var(--color-surface-panel);
+}
+
+.gallery-header h1 {
+  font: var(--type-title);
+  letter-spacing: var(--type-title-tracking);
+}
+
+.gallery-header .ui-input {
+  width: auto;
+}
+
+.gallery-link {
+  margin-left: auto;
+  color: var(--color-accent-base);
+  font: var(--type-label);
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--size-dialog-width) * 0.8), 1fr));
+  background: var(--color-surface-panel);
+}
+
+.gallery-grid > .ui-section {
+  border-right: var(--border-width) solid var(--color-border-subtle);
+}
+
+.gallery-swatches {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.gallery-swatch {
+  display: grid;
+  grid-template-columns: var(--size-control) 1fr auto;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.gallery-chip {
+  height: var(--size-control-small);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-control);
+}
+
+.gallery-token {
+  color: var(--color-text-secondary);
+  font: var(--type-caption);
+}
+
+.gallery-value {
+  color: var(--color-text-tertiary);
+  font: var(--type-caption);
+}
+
+.gallery-type {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) 0;
+  border-bottom: var(--border-width) solid var(--color-border-subtle);
+}
+
+.gallery-type-sample[data-role="caption"] { font: var(--type-caption); letter-spacing: var(--type-caption-tracking); }
+.gallery-type-sample[data-role="label"] { font: var(--type-label); letter-spacing: var(--type-label-tracking); }
+.gallery-type-sample[data-role="body"] { font: var(--type-body); letter-spacing: var(--type-body-tracking); }
+.gallery-type-sample[data-role="title"] { font: var(--type-title); letter-spacing: var(--type-title-tracking); }
+.gallery-type-sample[data-role="heading"] { font: var(--type-heading); letter-spacing: var(--type-heading-tracking); }
+.gallery-type-sample[data-role="timecode"] { font: var(--type-timecode); letter-spacing: var(--type-timecode-tracking); }
+.gallery-type-sample[data-role="timecode-display"],
+.gallery-type-sample[data-role="timecodeDisplay"] {
+  font: var(--type-timecode-display);
+  letter-spacing: var(--type-timecode-display-tracking);
+}
+.gallery-type-sample[data-role="canvas"] { font: var(--type-canvas); letter-spacing: var(--type-canvas-tracking); }
+
+.gallery-space {
+  display: grid;
+  grid-template-columns: var(--size-field-label) 1fr auto;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: var(--size-control-small);
+}
+
+.gallery-bar {
+  height: var(--space-4);
+  background: var(--color-accent-base);
+}
+
+.gallery-radii {
+  display: flex;
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+}
+
+.gallery-radius {
+  display: grid;
+  place-items: center;
+  width: var(--size-timecode-min);
+  height: calc(var(--size-control) * 2);
+  border: var(--border-width) solid var(--color-border-strong);
+  background: var(--color-surface-raised);
+}
+
+.gallery-icons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--size-timecode-min), 1fr));
+  gap: var(--space-3);
+  padding: 0 var(--space-6);
+}
+
+.gallery-icon {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.gallery-readouts {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-5);
+}
+
+.gallery-empty {
+  height: calc(var(--size-transport) * 3);
+  margin-top: var(--space-7);
+  border: var(--border-width) dashed var(--color-border-strong);
+  border-radius: var(--radius-dialog);
+}
+
+.gallery-timeline {
+  overflow: hidden;
+  border: var(--border-width) solid var(--color-border-subtle);
+}
+
+.gallery-timeline canvas {
+  display: block;
+}

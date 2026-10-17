@@ -54,6 +54,10 @@ repository owner only:
    vectors, never through a shell.
 6. **Untrusted input is validated at the boundary.** Paths from the UI, project files from
    disk and ffprobe output are all parsed into typed values before use.
+7. **Every visual value is a theme token.** Colors, sizes, spacing, radii, fonts, type
+   roles, motion and timeline dimensions live in `src/theme/` only. Components use the
+   primitives in `src/ui/` and CSS variables; the canvas reads the theme object.
+   `npm run check:design` fails on hardcoded values. See `docs/design-system.md`.
 
 ## Checks
 
@@ -66,6 +70,7 @@ cargo test --workspace
 npm run typecheck
 npm run test
 npm run check:bindings
+npm run check:design
 ```
 
 ## Writing style

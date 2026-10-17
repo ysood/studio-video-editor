@@ -75,6 +75,15 @@
   margin-left: auto;
 }
 
+.statusbar-link {
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.statusbar-link:hover {
+  color: var(--color-accent-base);
+}
+
 /* Dockview, mapped onto the theme. */
 .app .dockview-theme-dark {
   --dv-group-view-background-color: var(--color-surface-panel);

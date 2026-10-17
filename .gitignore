@@ -5,6 +5,7 @@
 # Node
 node_modules/
 dist/
+dist-preview/
 *.tsbuildinfo
 
 # Tauri generated

@@ -12,7 +12,9 @@
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
     "check:bindings": "node scripts/check-bindings.mjs",
-    "check": "npm run typecheck && npm run test && npm run check:bindings"
+    "check": "npm run typecheck && npm run test && npm run check:bindings && npm run check:design",
+    "check:design": "node scripts/check-design.mjs",
+    "build:preview": "vite build --base ./ --outDir dist-preview"
   },
   "dependencies": {
     "@tauri-apps/api": "2.12.4",

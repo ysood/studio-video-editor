@@ -1,3 +1,4 @@
+import { isBrowserPreview } from "../preview/mode";
 import { useEditor } from "../store";
 import { ProgressBar } from "../ui";
 
@@ -17,7 +18,14 @@ export function StatusBar() {
           <span className="numeric">{Math.round(job.fraction * 100)}%</span>
         </>
       )}
-      {snapshot && <span>{snapshot.path ?? "Not saved yet"}</span>}
+      {isBrowserPreview ? (
+        <span>Browser preview with sample data</span>
+      ) : (
+        snapshot && <span>{snapshot.path ?? "Not saved yet"}</span>
+      )}
+      <a className="statusbar-link" href="#gallery">
+        Design gallery
+      </a>
     </footer>
   );
 }
