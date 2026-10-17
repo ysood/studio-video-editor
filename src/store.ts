@@ -39,6 +39,37 @@ export interface JobState {
 export const ZOOM_MIN = 0.25; // pixels per frame
 export const ZOOM_MAX = 40;
 
+const DEFAULT_VIEW: SequenceView = { playhead: 0, zoom: 4, scrollX: 0 };
+
+/** Where you were in one timeline: kept per sequence, so switching does not move it. */
+interface SequenceView {
+  playhead: number;
+  zoom: number;
+  scrollX: number;
+}
+
+const ACTIVE_KEY = "studio.activeSequence";
+
+/** Which sequence was open, per project, so reopening lands where you left. */
+function rememberedSequence(projectId: string): string | null {
+  try {
+    const all = JSON.parse(localStorage.getItem(ACTIVE_KEY) ?? "{}") as Record<string, string>;
+    return all[projectId] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberSequence(projectId: string, sequenceId: string) {
+  try {
+    const all = JSON.parse(localStorage.getItem(ACTIVE_KEY) ?? "{}") as Record<string, string>;
+    all[projectId] = sequenceId;
+    localStorage.setItem(ACTIVE_KEY, JSON.stringify(all));
+  } catch {
+    // Remembering is a convenience; a project still opens without it.
+  }
+}
+
 interface EditorState {
   snapshot: Snapshot | null;
   tools: ToolsStatus | null;
@@ -55,6 +86,8 @@ interface EditorState {
   pendingInsert: PendingInsert | null;
   /// Which sequence the window is showing. UI state: switching is not an edit.
   activeSequenceId: string | null;
+  /// The playhead, zoom and scroll of every sequence visited this session.
+  views: Record<string, SequenceView>;
 
   init: () => Promise<void>;
   setSnapshot: (snapshot: Snapshot) => void;
@@ -72,6 +105,19 @@ interface EditorState {
   setExportOpen: (open: boolean) => void;
   setPendingInsert: (pending: PendingInsert | null) => void;
   setActiveSequence: (id: string) => void;
+}
+
+/**
+ * Which sequence to show after the project changed. Keeps the one on screen if it is
+ * still there, otherwise the one this project was last left on, otherwise the first.
+ * A sequence can be deleted, or a different project opened, while one is shown.
+ */
+function openSequence(snapshot: Snapshot, current: string | null): string | null {
+  const exists = (id: string | null) =>
+    id !== null && snapshot.project.sequences.some((q) => q.id === id);
+  if (exists(current)) return current;
+  const remembered = rememberedSequence(snapshot.project.id);
+  return exists(remembered) ? remembered : null;
 }
 
 /** Keep only selected ids that still exist after the project changed. */
@@ -97,6 +143,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   exportOpen: false,
   pendingInsert: null,
   activeSequenceId: null,
+  views: {},
 
   init: async () => {
     try {
@@ -118,11 +165,7 @@ export const useEditor = create<EditorState>((set, get) => ({
     set((state) => ({
       snapshot,
       selection: pruneSelection(state.selection, snapshot),
-      // A sequence can be removed, or a different project opened, while one is shown.
-      // Forgetting it falls back to the first rather than showing nothing.
-      activeSequenceId: snapshot.project.sequences.some((q) => q.id === state.activeSequenceId)
-        ? state.activeSequenceId
-        : null,
+      activeSequenceId: openSequence(snapshot, state.activeSequenceId),
     })),
 
   edit: async (command) => {
@@ -172,7 +215,21 @@ export const useEditor = create<EditorState>((set, get) => ({
   setJob: (job) => set({ job }),
   setExportOpen: (exportOpen) => set({ exportOpen }),
   setPendingInsert: (pendingInsert) => set({ pendingInsert }),
-  setActiveSequence: (activeSequenceId) => set({ activeSequenceId }),
+  // Switching timelines keeps each one's playhead, zoom and scroll where it was. A
+  // single shared playhead would jump to a frame that means nothing in the sequence
+  // being opened, and on a shorter one would sit past the end.
+  setActiveSequence: (id) =>
+    set((state) => {
+      if (!state.snapshot) return { activeSequenceId: id };
+      const leaving = activeSequence(state.snapshot.project, state.activeSequenceId).id;
+      if (leaving === id) return {};
+      const views = {
+        ...state.views,
+        [leaving]: { playhead: state.playhead, zoom: state.zoom, scrollX: state.scrollX },
+      };
+      rememberSequence(state.snapshot.project.id, id);
+      return { activeSequenceId: id, views, ...(views[id] ?? DEFAULT_VIEW) };
+    }),
 }));
 
 /**
