@@ -223,6 +223,12 @@
   white-space: nowrap;
 }
 
+/* Renaming in place: the field takes the name cell rather than widening the row. */
+.bin-name .ui-input {
+  width: 100%;
+  min-width: 0;
+}
+
 .bin-meta {
   grid-area: meta;
   color: var(--color-text-secondary);

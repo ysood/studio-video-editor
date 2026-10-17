@@ -6,7 +6,7 @@ import { insertMedia, MEDIA_DRAG_TYPE, mediaDrag } from "../edits";
 import { formatDuration, formatRate } from "../format";
 import { useEditor } from "../store";
 import { useTheme } from "../theme";
-import { Button, ContextMenu, EmptyState, Icon, IconButton, Menu, type MenuEntry, Panel, PanelToolbar, Segmented, Slider, Spacer, Well } from "../ui";
+import { Button, ContextMenu, EmptyState, Icon, IconButton, Menu, type MenuEntry, Panel, PanelToolbar, Segmented, Slider, Spacer, TextInput, Well } from "../ui";
 import { activeSequence } from "../sequences";
 import { smartBins, sortLabels, TIMELINES_BIN, type BinId, type SortKey } from "./bins";
 import { MediaTile } from "./MediaTile";
@@ -96,6 +96,10 @@ export function MediaBinPanel() {
     })),
   ];
   const sequences = snapshot?.project.sequences ?? [];
+  // Which timeline is being renamed in place, the way the Finder and both reference
+  // editors do it: the row's own name turns into the field, so there is no dialog to
+  // explain what is being renamed.
+  const [renaming, setRenaming] = useState<string | null>(null);
   const activeId = useEditor((st) => st.activeSequenceId);
   const setActiveSequence = useEditor((st) => st.setActiveSequence);
   const openSequenceId = snapshot ? activeSequence(snapshot.project, activeId).id : null;
@@ -117,6 +121,7 @@ export function MediaBinPanel() {
   const sequenceMenu = (q: Sequence): MenuEntry[] => [
     { label: "Open", icon: "timeline", onSelect: () => setActiveSequence(q.id) },
     { label: "Export…", icon: "export", onSelect: () => { setActiveSequence(q.id); setExportOpen(true); } },
+    { label: "Rename", icon: "pencil", onSelect: () => setRenaming(q.id) },
     { type: "separator" },
     {
       label: sequences.length === 1 ? "Delete (the only timeline)" : "Delete",
@@ -229,13 +234,28 @@ export function MediaBinPanel() {
                         role="option"
                         aria-selected={q.id === openSequenceId}
                         className="bin-row"
-                        onClick={() => setActiveSequence(q.id)}
-                        title="Open this timeline"
+                        onClick={() => renaming !== q.id && setActiveSequence(q.id)}
+                        onDoubleClick={() => setRenaming(q.id)}
+                        title={renaming === q.id ? undefined : "Open this timeline"}
                       >
                         <span className="bin-swatch" data-kind="timeline" aria-hidden>
                           <Icon name="timeline" />
                         </span>
-                        <span className="bin-name">{q.name}</span>
+                        <span className="bin-name">
+                          {renaming === q.id ? (
+                            <TextInput
+                              focused
+                              value={q.name}
+                              ariaLabel="Timeline name"
+                              onCommit={(name) =>
+                                void edit({ type: "RenameSequence", sequenceId: q.id, name })
+                              }
+                              onDone={() => setRenaming(null)}
+                            />
+                          ) : (
+                            q.name
+                          )}
+                        </span>
                         <span className="bin-meta numeric">
                           {q.format.width}×{q.format.height}, {formatRate(q.format.frameRate)} fps
                         </span>

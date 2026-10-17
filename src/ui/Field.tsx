@@ -42,8 +42,18 @@ interface CommitProps {
   ariaLabel?: string;
 }
 
-/** Text input that commits on Enter or blur and reverts on Escape. */
-export function TextInput({ value, onCommit, disabled, ariaLabel, numeric }: CommitProps & { numeric?: boolean }) {
+/**
+ * Text input that commits on Enter or blur and reverts on Escape.
+ *
+ * `focused` is for an input that replaces the text it edits, as renaming in place does:
+ * it takes the caret on mount and selects what is there, so typing replaces the old name.
+ * `onDone` then says the input is finished with, whether it committed or reverted.
+ */
+export function TextInput({ value, onCommit, disabled, ariaLabel, numeric, focused, onDone }: CommitProps & {
+  numeric?: boolean;
+  focused?: boolean;
+  onDone?: () => void;
+}) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
   return (
@@ -53,8 +63,13 @@ export function TextInput({ value, onCommit, disabled, ariaLabel, numeric }: Com
       value={draft}
       disabled={disabled}
       aria-label={ariaLabel}
+      autoFocus={focused}
+      onFocus={focused ? (e) => e.currentTarget.select() : undefined}
       onChange={(e) => setDraft(e.target.value)}
-      onBlur={() => draft !== value && onCommit(draft)}
+      onBlur={() => {
+        if (draft !== value) onCommit(draft);
+        onDone?.();
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter") e.currentTarget.blur();
         if (e.key === "Escape") {
