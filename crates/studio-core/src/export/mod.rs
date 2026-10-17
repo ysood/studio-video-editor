@@ -5,6 +5,7 @@
 
 pub mod fcp7;
 pub mod otio;
+pub mod package;
 pub mod render;
 mod url;
 
