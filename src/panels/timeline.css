@@ -75,6 +75,10 @@
 }
 
 .timeline-area canvas {
+  /* Out of flow so the canvas never sizes its own container (WebKit kept it at its
+     first width otherwise). */
+  position: absolute;
+  inset: 0 auto auto 0;
   display: block;
   touch-action: none;
 }

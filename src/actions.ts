@@ -25,6 +25,8 @@ export const DEFAULT_FORMAT: SequenceFormat = {
 async function confirmDiscard(): Promise<boolean> {
   const snapshot = useEditor.getState().snapshot;
   if (!snapshot?.history.dirty) return true;
+  // A fresh project nobody has touched has nothing to lose.
+  if (snapshot.path === null && !snapshot.history.canUndo) return true;
   return ask(`"${snapshot.project.name}" has unsaved changes. Discard them?`, {
     title: "Unsaved changes",
     kind: "warning",

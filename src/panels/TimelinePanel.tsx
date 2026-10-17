@@ -1,3 +1,4 @@
+import type { IDockviewPanelProps } from "dockview-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { ClipEdge } from "../bindings/ClipEdge";
 import type { ClipId } from "../bindings/ClipId";
@@ -49,7 +50,7 @@ function mediaLength(project: Project, mediaId: string): number {
   return microsToFrames(media.durationUs, rate);
 }
 
-export function TimelinePanel() {
+export function TimelinePanel({ api }: IDockviewPanelProps) {
   const snapshot = useEditor((s) => s.snapshot);
   const selection = useEditor((s) => s.selection);
   const playhead = useEditor((s) => s.playhead);
@@ -71,15 +72,26 @@ export function TimelinePanel() {
   const rate = project?.sequence.format.frameRate ?? { num: 24, den: 1 };
   const selectionSet = useMemo(() => new Set(selection), [selection]);
 
-  // Keep the canvas sized to its container.
+  // Keep the canvas sized to its container. The area only exists once a project has
+  // loaded, so the observer attaches then.
+  const hasProject = project !== null;
   useLayoutEffect(() => {
     const area = areaRef.current;
     if (!area) return;
-    const observer = new ResizeObserver(() => setWidth(area.clientWidth));
+    // ResizeObserver alone missed Dockview's initial layout in WebKitGTK, so panel
+    // dimension events also trigger a measure.
+    const measure = () => setWidth(area.clientWidth);
+    const observer = new ResizeObserver(measure);
     observer.observe(area);
-    setWidth(area.clientWidth);
-    return () => observer.disconnect();
-  }, []);
+    const dimensions = api.onDidDimensionsChange(() => requestAnimationFrame(measure));
+    window.addEventListener("resize", measure);
+    measure();
+    return () => {
+      observer.disconnect();
+      dimensions.dispose();
+      window.removeEventListener("resize", measure);
+    };
+  }, [hasProject, api]);
 
   // Page the view along with the playhead during playback.
   const playing = useEditor((s) => s.playing);

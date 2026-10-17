@@ -1,5 +1,5 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef } from "react";
 import type { MediaAsset } from "../bindings/MediaAsset";
 import { framesToSeconds, timecode } from "../format";
 import { useShortcut } from "../keyboard";
@@ -26,6 +26,8 @@ export function ViewerPanel() {
   const { setPlayhead, setPlaying } = useEditor.getState();
 
   const stageRef = useRef<HTMLDivElement>(null);
+  // Seeks issued before a video has loaded are dropped, so re-sync once data arrives.
+  const [, resync] = useReducer((n: number) => n + 1, 0);
   const visuals = useRef(new Map<string, HTMLVideoElement | HTMLImageElement>());
   const sounds = useRef(new Map<string, HTMLAudioElement>());
 
@@ -67,6 +69,7 @@ export function ViewerPanel() {
         current.media.kind === "image" ? document.createElement("img") : document.createElement("video");
       element.src = mediaUrl(current.media);
       element.className = "viewer-media";
+      element.addEventListener(element instanceof HTMLVideoElement ? "loadeddata" : "load", resync);
       if (element instanceof HTMLVideoElement) {
         element.muted = true;
         element.preload = "auto";
