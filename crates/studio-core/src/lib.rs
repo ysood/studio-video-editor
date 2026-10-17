@@ -7,6 +7,7 @@ pub mod edit;
 pub mod history;
 pub mod ids;
 pub mod model;
+pub mod persist;
 pub mod time;
 pub mod validate;
 
