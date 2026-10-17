@@ -11,6 +11,10 @@ import { InspectorPanel } from "../panels/InspectorPanel";
 import { MediaBinPanel } from "../panels/MediaBinPanel";
 import { TimelinePanel } from "../panels/TimelinePanel";
 import { ViewerPanel } from "../panels/ViewerPanel";
+import { importMedia } from "../actions";
+import { chord } from "../keyboard";
+import { useEditor } from "../store";
+import { makeHeaderActions, PanelTab } from "./PanelHeader";
 
 // Bump when panels are added or renamed so stale saved layouts are discarded.
 const LAYOUT_KEY = "studio.layout.v2";
@@ -81,10 +85,30 @@ export function resetLayout() {
   window.location.reload();
 }
 
+const HeaderActions = makeHeaderActions(
+  {
+    bin: () => [{ label: "Import media…", icon: "plus", shortcut: chord("I"), onSelect: () => void importMedia() }],
+    timeline: () => {
+      const edit = useEditor.getState().edit;
+      return [
+        { label: "Add video track", icon: "video", onSelect: () => void edit({ type: "AddTrack", kind: "video" }) },
+        { label: "Add audio track", icon: "audio", onSelect: () => void edit({ type: "AddTrack", kind: "audio" }) },
+      ];
+    },
+  },
+  () => [{ label: "Reset layout", icon: "grid", onSelect: resetLayout }],
+);
+
 export function Workspace() {
   return (
     <div className="dock" data-surface="chrome">
-      <DockviewReact components={components} onReady={onReady} theme={themeDark} />
+      <DockviewReact
+        components={components}
+        defaultTabComponent={PanelTab}
+        rightHeaderActionsComponent={HeaderActions}
+        onReady={onReady}
+        theme={themeDark}
+      />
     </div>
   );
 }

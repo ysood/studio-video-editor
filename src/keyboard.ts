@@ -3,6 +3,14 @@
 import { useEffect } from "react";
 import { importMedia, newProject, openProject, saveProject } from "./actions";
 
+const IS_MAC = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
+
+/** A shortcut label for menus and tooltips, written the way the platform writes it. */
+export function chord(key: string, { shift = false } = {}): string {
+  if (IS_MAC) return `${shift ? "⇧" : ""}⌘${key}`;
+  return `Ctrl+${shift ? "Shift+" : ""}${key}`;
+}
+
 export type ShortcutHandler = (event: KeyboardEvent) => boolean;
 
 const handlers = new Set<ShortcutHandler>();

@@ -1,0 +1,43 @@
+/* Panel headers. The strip carries a data-surface (set by the header actions), so these
+   rules resolve against that surface's tokens: chrome for most panels, stage for the
+   timeline. */
+.app .dv-tabs-and-actions-container {
+  /* Redefined here (not on the Dockview root) so they resolve against this strip's surface. */
+  --dv-activegroup-visiblepanel-tab-background-color: transparent;
+  --dv-inactivegroup-visiblepanel-tab-background-color: transparent;
+  --dv-activegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-inactivegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-activegroup-visiblepanel-tab-color: var(--color-text-primary);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--color-text-primary);
+  --dv-activegroup-hiddenpanel-tab-color: var(--color-text-tertiary);
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--color-text-tertiary);
+  background: var(--color-surface-base);
+  color: var(--color-text-primary);
+}
+
+.app .dv-tabs-and-actions-container .dv-tab {
+  padding: 0 var(--space-5);
+}
+
+.app .dv-tabs-and-actions-container .dv-tab:focus-visible {
+  outline: var(--border-focus-width) solid var(--color-accent-base);
+  outline-offset: calc(-1 * var(--border-focus-width));
+}
+
+.panel-tab {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  font: var(--type-heading);
+  letter-spacing: var(--type-heading-tracking);
+  white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.panel-header-actions {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 var(--space-3);
+}
