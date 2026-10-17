@@ -169,7 +169,7 @@ export function ViewerPanel() {
           ref={stageRef}
           className="viewer-stage"
           data-surface="stage"
-          style={{ aspectRatio: `${format.width} / ${format.height}` }}
+          style={{ "--aspect": format.width / format.height } as React.CSSProperties}
           onClick={togglePlay}
         >
           {current && offline.has(current.media.id) && (
