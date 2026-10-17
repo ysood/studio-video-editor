@@ -10,6 +10,7 @@ import type { ClipId } from "../bindings/ClipId";
 import type { Project } from "../bindings/Project";
 import type { Sequence } from "../bindings/Sequence";
 import type { Track } from "../bindings/Track";
+import type { TrackKind } from "../bindings/TrackKind";
 import type { TrackId } from "../bindings/TrackId";
 import { microsToFrames } from "../format";
 import type { Theme } from "../theme";
@@ -73,6 +74,38 @@ export function layoutRows(sequence: Sequence, m: TimelineMetrics, available = 0
     y += row;
     return laid;
   });
+}
+
+/**
+ * Rows for the tracks a drop has to create, one per kind, laid where the core will put
+ * them: a new video track above every row, a new audio track below every one.
+ *
+ * Nothing already laid out moves, so a clip stays under the cursor that is about to be
+ * dropped on it. The real layout does shift when the track arrives, which is why this is
+ * only a preview; what it buys is that a drop which has to make a track says so first.
+ * A kind with no room left inside `height` gets no row, and that drop goes back to
+ * arriving unannounced, which is the lesser of the two surprises in a panel already too
+ * small for the tracks it has.
+ */
+export function pendingRows(
+  rows: Row[],
+  kinds: TrackKind[],
+  m: TimelineMetrics,
+  height: number,
+): Row[] {
+  const step = m.rowHeight + m.rowGap;
+  const first = rows[0];
+  const last = rows[rows.length - 1];
+  const laid: Row[] = [];
+  for (const kind of new Set(kinds)) {
+    const y = kind === "video" ? (first?.y ?? m.rulerHeight + step) - step : last ? last.y + step : m.rulerHeight;
+    if (y < m.rulerHeight || y + m.rowHeight > height) continue;
+    // A placeholder, so the preview can be drawn like any other row. It is never hit
+    // tested: only the real rows reach `rowAt`.
+    const track: Track = { id: "", kind, name: "", enabled: true, locked: false, clips: [] };
+    laid.push({ track, y, height: m.rowHeight });
+  }
+  return laid;
 }
 
 export function contentHeight(rows: Row[], m: TimelineMetrics): number {

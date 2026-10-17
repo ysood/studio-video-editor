@@ -344,10 +344,13 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
       const hit = near.find((f) => Math.abs(f - start) <= snapThreshold);
       if (hit !== undefined) start = hit;
     }
+    // A ghost for every stream being placed, including one on a track that does not
+    // exist yet, so a drop that has to add a track shows the row it will add.
     const ghosts: Ghost[] = [];
     for (const [kind, choice] of [["video", targets.video], ["audio", targets.audio]] as const) {
-      if (choice.type !== "track") continue;
-      ghosts.push({ trackId: choice.trackId, start, duration, name: targets.media.name, kind });
+      if (choice.type === "skip") continue;
+      const trackId = choice.type === "track" ? choice.trackId : null;
+      ghosts.push({ trackId, start, duration, name: targets.media.name, kind });
     }
     setDrop({ ghosts, start, video: targets.video, audio: targets.audio });
   };

@@ -3,9 +3,11 @@ import type { Clip } from "../bindings/Clip";
 import type { Project } from "../bindings/Project";
 import type { Track } from "../bindings/Track";
 import {
+  contentHeight,
   hitTest,
   layoutRows,
   naturalHeight,
+  pendingRows,
   previewMove,
   previewTrim,
   snapDelta,
@@ -177,5 +179,29 @@ describe("tickStep", () => {
   it("chooses wider steps as the view zooms out", () => {
     expect(tickStep(24, 20, m.tickMinSpacing)).toBe(5);
     expect(tickStep(24, 1, m.tickMinSpacing)).toBe(5 * 24);
+  });
+});
+
+describe("pendingRows", () => {
+  const sequence = project().sequences[0]!;
+  const step = m.rowHeight + m.rowGap;
+  const available = 600;
+  const rows = layoutRows(sequence, m, available);
+
+  it("puts a new video track above every row and a new audio track below", () => {
+    const pending = pendingRows(rows, ["video", "audio"], m, available);
+    const at = (kind: "video" | "audio") => pending.find((r) => r.track.kind === kind)!;
+    expect(at("video").y).toBe(rows[0]!.y - step);
+    expect(at("audio").y).toBe(rows[rows.length - 1]!.y + step);
+  });
+
+  it("lays one row per kind, however many ghosts ask for it", () => {
+    expect(pendingRows(rows, ["audio", "audio"], m, available)).toHaveLength(1);
+    expect(pendingRows(rows, [], m, available)).toEqual([]);
+  });
+
+  it("leaves out a row with no room for it, rather than drawing over the ruler", () => {
+    const tight = layoutRows(sequence, m);
+    expect(pendingRows(tight, ["video", "audio"], m, contentHeight(tight, m))).toEqual([]);
   });
 });

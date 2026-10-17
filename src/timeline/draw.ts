@@ -8,12 +8,13 @@ import type { Project } from "../bindings/Project";
 import type { TrackId } from "../bindings/TrackId";
 import { timecode } from "../format";
 import { canvasFont, type ColorRoles, type Theme } from "../theme";
-import { clipEnd, frameToX, tickStep, type Row, type View } from "./geometry";
+import { clipEnd, frameToX, pendingRows, tickStep, type Row, type View } from "./geometry";
 import type { Sequence } from "../bindings/Sequence";
 
 /** A clip drawn somewhere other than where the document has it (drag preview). */
 export interface Ghost {
-  trackId: TrackId;
+  /** Null for a track the drop would create, previewed in the strip it will occupy. */
+  trackId: TrackId | null;
   start: number;
   duration: number;
   name: string;
@@ -49,8 +50,14 @@ export function draw(ctx: CanvasRenderingContext2D, scene: Scene) {
   ctx.fillStyle = c.surface.base;
   ctx.fillRect(0, 0, width, height);
 
-  // Rows
-  for (const row of rows) {
+  // Rows, plus a strip for every track the ghosts say the drop will have to create.
+  const pending = pendingRows(
+    rows,
+    scene.ghosts.filter((g) => g.trackId === null).map((g) => g.kind),
+    m,
+    height,
+  );
+  for (const row of [...rows, ...pending]) {
     ctx.fillStyle = row.track.locked ? c.surface.locked : c.surface.panel;
     ctx.fillRect(0, row.y, width, row.height);
   }
@@ -88,7 +95,10 @@ export function draw(ctx: CanvasRenderingContext2D, scene: Scene) {
     }
   }
   for (const ghost of scene.ghosts) {
-    const row = rows.find((r) => r.track.id === ghost.trackId);
+    const row =
+      ghost.trackId === null
+        ? pending.find((r) => r.track.kind === ghost.kind)
+        : rows.find((r) => r.track.id === ghost.trackId);
     if (!row) continue;
     const fake: Clip = {
       id: "ghost",
