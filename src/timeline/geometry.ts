@@ -28,16 +28,50 @@ export interface Row {
   height: number;
 }
 
-/** Display order: video tracks from the highest down to V1, then audio from A1 down. */
-export function layoutRows(sequence: Sequence, m: TimelineMetrics): Row[] {
+/** The height the ruler and every row need. */
+export function naturalHeight(sequence: Sequence, m: TimelineMetrics): number {
+  return m.rulerHeight + sequence.tracks.length * (m.rowHeight + m.rowGap);
+}
+
+/**
+ * Display order: video tracks from the highest down to V1, then audio from A1 down.
+ *
+ * `available` is the height the rows have to sit in. The line where V1 meets A1 is the
+ * anchor, held at the middle of that space, so video grows upward from it and audio
+ * downward and neither moves the tracks already there: a clip stays under the cursor you
+ * were about to put on it. This is Premiere's arrangement, and the reason to copy it is
+ * that stability, not the symmetry.
+ *
+ * Premiere pins the line at the halfway mark whatever happens, which is why its users see
+ * video tracks crowded off the top of a panel that is half empty underneath. Here the
+ * line gives way as soon as a side needs the room, so the rows stay whole for as long as
+ * they fit at all. Past that they sit at the top, as they did before any of this.
+ *
+ * Leaving `available` out keeps the rows at the top, which is what a fixed height context
+ * such as the design gallery wants.
+ */
+export function layoutRows(sequence: Sequence, m: TimelineMetrics, available = 0): Row[] {
   const tracks = sequence.tracks;
   const video = tracks.filter((t) => t.kind === "video").reverse();
   const audio = tracks.filter((t) => t.kind === "audio");
-  let y = m.rulerHeight;
+  const row = m.rowHeight + m.rowGap;
+  const videoHeight = video.length * row;
+  const audioHeight = audio.length * row;
+
+  // Where V1 ends and A1 begins, measured from the top of the canvas.
+  let boundary = m.rulerHeight + videoHeight;
+  if (available >= naturalHeight(sequence, m)) {
+    const middle = m.rulerHeight + (available - m.rulerHeight) / 2;
+    boundary = Math.round(
+      Math.min(Math.max(middle, m.rulerHeight + videoHeight), available - audioHeight),
+    );
+  }
+
+  let y = boundary - videoHeight;
   return [...video, ...audio].map((track) => {
-    const row = { track, y, height: m.rowHeight };
-    y += m.rowHeight + m.rowGap;
-    return row;
+    const laid = { track, y, height: m.rowHeight };
+    y += row;
+    return laid;
   });
 }
 

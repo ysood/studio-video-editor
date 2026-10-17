@@ -5,6 +5,7 @@ import type { Track } from "../bindings/Track";
 import {
   hitTest,
   layoutRows,
+  naturalHeight,
   previewMove,
   previewTrim,
   snapDelta,
@@ -58,10 +59,56 @@ function project(): Project {
 const view = { zoom: 2, scrollX: 0 };
 
 describe("layoutRows", () => {
+  const sequence = project().sequences[0]!;
+
   it("stacks video tracks highest first, then audio", () => {
-    const rows = layoutRows(project().sequences[0]!, m);
+    const rows = layoutRows(sequence, m);
     expect(rows.map((r) => r.track.id)).toEqual(["v2", "v1", "a1"]);
     expect(rows[0]!.y).toBe(m.rulerHeight);
+  });
+
+  it("keeps the rows at the top when they fill the space", () => {
+    const rows = layoutRows(sequence, m, naturalHeight(sequence, m));
+    expect(rows[0]!.y).toBe(m.rulerHeight);
+  });
+
+  it("keeps the rows at the top when they overflow", () => {
+    const rows = layoutRows(sequence, m, 10);
+    expect(rows[0]!.y).toBe(m.rulerHeight);
+  });
+
+  it("holds the video and audio boundary at the middle", () => {
+    const available = 600;
+    const rows = layoutRows(sequence, m, available);
+    const a1 = rows.find((r) => r.track.id === "a1")!;
+    const middle = m.rulerHeight + (available - m.rulerHeight) / 2;
+    expect(Math.abs(a1.y - middle)).toBeLessThanOrEqual(1);
+  });
+
+  it("adds a video track above without moving the tracks already there", () => {
+    const available = 600;
+    const oneVideo = { ...sequence, tracks: sequence.tracks.filter((t) => t.id !== "v2") };
+    const before = layoutRows(oneVideo, m, available);
+    const after = layoutRows(sequence, m, available);
+    const at = (rows: ReturnType<typeof layoutRows>, id: string) => rows.find((r) => r.track.id === id)!.y;
+
+    expect(at(after, "v1")).toBe(at(before, "v1"));
+    expect(at(after, "a1")).toBe(at(before, "a1"));
+    expect(at(after, "v2")).toBeLessThan(at(after, "v1"));
+  });
+
+  it("gives the boundary up rather than push a track off the top", () => {
+    // Enough video to fill well past half the panel.
+    const many = {
+      ...sequence,
+      tracks: [
+        ...Array.from({ length: 8 }, (_, i) => track(`v${i + 1}`, "video", [])),
+        ...sequence.tracks.filter((t) => t.kind === "audio"),
+      ],
+    };
+    const rows = layoutRows(many, m, 600);
+    expect(rows[0]!.y).toBeGreaterThanOrEqual(m.rulerHeight);
+    expect(rows[rows.length - 1]!.y + m.rowHeight).toBeLessThanOrEqual(600);
   });
 });
 

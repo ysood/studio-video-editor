@@ -19,6 +19,7 @@ import {
   hitTest,
   layoutRows,
   linkGroup,
+  naturalHeight,
   previewMove,
   previewTrim,
   rowAt,
@@ -63,6 +64,8 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const areaRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(800);
+  // The drawing area's own height, which the rows are centred in.
+  const [areaHeight, setAreaHeight] = useState(0);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [drop, setDrop] = useState<DropPreview | null>(null);
   const [snap, setSnap] = useState(true);
@@ -73,8 +76,14 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
   const metrics = theme.timeline;
   const project = snapshot?.project ?? null;
   const sequence = useActiveSequence();
-  const rows = useMemo(() => (sequence ? layoutRows(sequence, metrics) : []), [sequence, metrics]);
-  const height = contentHeight(rows, metrics);
+  const rows = useMemo(
+    () => (sequence ? layoutRows(sequence, metrics, areaHeight) : []),
+    [sequence, metrics, areaHeight],
+  );
+  // The grid is sized by what the rows need, so the panel body can stretch it; the canvas
+  // is sized by what it ends up with, so the centred rows have a background either side.
+  const gridHeight = sequence ? naturalHeight(sequence, metrics) : metrics.rulerHeight;
+  const height = Math.max(areaHeight, contentHeight(rows, metrics));
   const view: View = useMemo(() => ({ zoom, scrollX }), [zoom, scrollX]);
   const rate = sequence?.format.frameRate ?? { num: 24, den: 1 };
   const selectionSet = useMemo(() => new Set(selection), [selection]);
@@ -87,7 +96,10 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
     if (!area) return;
     // ResizeObserver alone missed Dockview's initial layout in WebKitGTK, so panel
     // dimension events also trigger a measure.
-    const measure = () => setWidth(area.clientWidth);
+    const measure = () => {
+      setWidth(area.clientWidth);
+      setAreaHeight(area.clientHeight);
+    };
     const observer = new ResizeObserver(measure);
     observer.observe(area);
     const dimensions = api.onDidDimensionsChange(() => requestAnimationFrame(measure));
@@ -475,7 +487,7 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
         />
       </PanelToolbar>
       <PanelBody className="timeline-body">
-        <div className="timeline-grid" style={{ height }}>
+        <div className="timeline-grid" style={{ height: gridHeight }}>
           <div className="timeline-headers">
             <div className="timeline-ruler-corner" />
             {rows.map((row) => (
