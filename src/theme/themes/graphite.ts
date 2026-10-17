@@ -12,6 +12,7 @@ export const graphiteTheme: Theme = {
   color: {
     surface: {
       base: graphite[950],
+      gutter: graphite[950],
       panel: graphite[900],
       raised: graphite[850],
       hover: graphite[750],
@@ -29,28 +30,34 @@ export const graphiteTheme: Theme = {
       tertiary: graphite[500],
       onAccent: amber[950],
       onMedia: "rgba(255, 255, 255, 0.92)",
+      heading: graphite[300],
     },
     accent: {
       base: amber[500],
       hover: amber[400],
       wash: "rgba(240, 181, 69, 0.12)",
     },
+    selection: amber[500],
     media: {
       video: steel[500],
       videoEdge: steel[300],
       audio: sea[500],
       audioEdge: sea[300],
       image: "color-mix(in srgb, #4d79a8 55%, #303237)",
+      imageEdge: steel[300],
     },
     status: {
       danger: coral[500],
     },
     viewer: {
+      surround: graphite[950],
       matte: graphite[1000],
     },
     scrim: "rgba(10, 10, 12, 0.6)",
     shadow: "rgba(0, 0, 0, 0.5)",
   },
+
+  surfaces: {},
 
   font: {
     ui: systemSans,

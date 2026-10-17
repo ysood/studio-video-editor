@@ -7,7 +7,7 @@ import type { ClipId } from "../bindings/ClipId";
 import type { Project } from "../bindings/Project";
 import type { TrackId } from "../bindings/TrackId";
 import { timecode } from "../format";
-import { canvasFont, type Theme } from "../theme";
+import { canvasFont, type ColorRoles, type Theme } from "../theme";
 import { clipEnd, frameToX, tickStep, type Row, type View } from "./geometry";
 
 /** A clip drawn somewhere other than where the document has it (drag preview). */
@@ -21,6 +21,8 @@ export interface Ghost {
 
 export interface Scene {
   theme: Theme;
+  /** Colors of the surface the canvas sits on (normally the "stage" surface). */
+  colors: ColorRoles;
   project: Project;
   rows: Row[];
   view: View;
@@ -36,7 +38,7 @@ export interface Scene {
 
 export function draw(ctx: CanvasRenderingContext2D, scene: Scene) {
   const { theme, view, width, height, rows, project } = scene;
-  const c = theme.color;
+  const c = scene.colors;
   const m = theme.timeline;
   const rate = project.sequence.format.frameRate;
   const fps = Math.round(rate.num / rate.den);
@@ -128,12 +130,17 @@ function drawClip(
   opts: { alpha?: number; ghost?: boolean },
 ) {
   const { theme } = scene;
-  const c = theme.color;
+  const c = scene.colors;
   const m = theme.timeline;
   const x0 = frameToX(clip.start, scene.view);
   const x1 = frameToX(clipEnd(clip), scene.view);
   if (x1 < 0 || x0 > scene.width) return;
-  const isVideo = row.track.kind === "video";
+  const kind = opts.ghost
+    ? row.track.kind
+    : (scene.project.media.find((media) => media.id === clip.source.mediaId)?.kind ?? row.track.kind);
+  const isAudioTrack = row.track.kind === "audio";
+  const fill = isAudioTrack ? c.media.audio : kind === "image" ? c.media.image : c.media.video;
+  const edge = isAudioTrack ? c.media.audioEdge : kind === "image" ? c.media.imageEdge : c.media.videoEdge;
   const y = row.y + m.clipInset;
   const h = row.height - 2 * m.clipInset;
   // Air between butted clips keeps every cut visible.
@@ -144,12 +151,12 @@ function drawClip(
 
   ctx.save();
   ctx.globalAlpha = baseAlpha;
-  ctx.fillStyle = isVideo ? c.media.video : c.media.audio;
+  ctx.fillStyle = fill;
   roundRect(ctx, x0, y, w, h, theme.radius.clip);
   ctx.fill();
 
   // A lighter band along the top separates adjacent clips and carries the name.
-  ctx.fillStyle = isVideo ? c.media.videoEdge : c.media.audioEdge;
+  ctx.fillStyle = edge;
   ctx.globalAlpha = baseAlpha * m.alpha.band;
   roundRect(ctx, x0, y, w, m.clipBand, theme.radius.clip);
   ctx.fill();
@@ -176,7 +183,7 @@ function drawClip(
   if (selected || opts.ghost) {
     const stroke = opts.ghost ? m.ghostWidth : m.selectionWidth;
     ctx.globalAlpha = 1;
-    ctx.strokeStyle = c.accent.base;
+    ctx.strokeStyle = c.selection;
     ctx.lineWidth = stroke;
     if (opts.ghost) ctx.setLineDash(m.ghostDash);
     roundRect(ctx, x0 + stroke / 2, y + stroke / 2, w - stroke, h - stroke, theme.radius.clip);

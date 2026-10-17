@@ -8,7 +8,7 @@ export function StatusBar() {
   const snapshot = useEditor((s) => s.snapshot);
 
   return (
-    <footer className="statusbar" role="status">
+    <footer className="statusbar" role="status" data-surface="chrome">
       {status && <span className={status.kind === "error" ? "error" : undefined}>{status.text}</span>}
       <span className="push" />
       {job && (

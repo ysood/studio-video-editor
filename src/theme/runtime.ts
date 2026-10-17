@@ -3,9 +3,12 @@
 
 import { useSyncExternalStore } from "react";
 import { defaultTheme, themes } from "./themes";
-import type { Theme, TypeRoleName } from "./types";
+import type { ColorRoles, DeepPartial, SurfaceName, Theme, TypeRoleName } from "./types";
+
+export const SURFACES: SurfaceName[] = ["chrome", "panel", "well", "stage"];
 
 const STORAGE_KEY = "studio.theme";
+const STYLE_ID = "studio-theme";
 
 type Listener = () => void;
 
@@ -21,16 +24,7 @@ const px = (n: number) => `${n}px`;
  * `size.controlSmall` is `--size-control-small`, `type.body.size` is `--type-body-size`.
  */
 export function toCssVars(theme: Theme): Record<string, string> {
-  const vars: Record<string, string> = {};
-
-  const walkColors = (prefix: string, node: Record<string, unknown>) => {
-    for (const [key, value] of Object.entries(node)) {
-      const name = `${prefix}-${kebab(key)}`;
-      if (typeof value === "string") vars[name] = value;
-      else walkColors(name, value as Record<string, unknown>);
-    }
-  };
-  walkColors("--color", theme.color);
+  const vars: Record<string, string> = colorVars(theme.color);
 
   vars["--font-ui"] = theme.font.ui;
   vars["--font-display"] = theme.font.display;
@@ -66,6 +60,56 @@ export function toCssVars(theme: Theme): Record<string, string> {
   return vars;
 }
 
+/** CSS variables for a set of color roles: `color.text.secondary` is `--color-text-secondary`. */
+export function colorVars(color: ColorRoles): Record<string, string> {
+  const vars: Record<string, string> = {};
+  const walk = (prefix: string, node: Record<string, unknown>) => {
+    for (const [key, value] of Object.entries(node)) {
+      const name = `${prefix}-${kebab(key)}`;
+      if (typeof value === "string") vars[name] = value;
+      else walk(name, value as Record<string, unknown>);
+    }
+  };
+  walk("--color", color as unknown as Record<string, unknown>);
+  return vars;
+}
+
+function merge<T>(base: T, override: DeepPartial<T> | undefined): T {
+  if (!override) return base;
+  const out = { ...base } as Record<string, unknown>;
+  for (const [key, value] of Object.entries(override)) {
+    if (value === undefined) continue;
+    const current = out[key];
+    out[key] =
+      typeof value === "object" && value !== null && typeof current === "object" && current !== null
+        ? merge(current, value as DeepPartial<typeof current>)
+        : value;
+  }
+  return out as T;
+}
+
+/** The colors in effect on a surface: base colors merged with that surface's overrides. */
+export function surfaceColors(theme: Theme, surface: SurfaceName): ColorRoles {
+  return merge(theme.color, theme.surfaces[surface]);
+}
+
+/**
+ * The full stylesheet for a theme: every token on :root, then each surface's complete
+ * color set under `[data-surface="..."]`. Each surface rule restates every color, so
+ * surfaces nest correctly (a panel inside a well gets panel colors back).
+ */
+export function toStylesheet(theme: Theme): string {
+  const block = (selector: string, vars: Record<string, string>) =>
+    `${selector} {\n${Object.entries(vars)
+      .map(([name, value]) => `  ${name}: ${value};`)
+      .join("\n")}\n}`;
+  const rules = [block(":root", toCssVars(theme))];
+  for (const surface of SURFACES) {
+    rules.push(block(`[data-surface="${surface}"]`, colorVars(surfaceColors(theme, surface))));
+  }
+  return rules.join("\n\n");
+}
+
 async function loadFonts(theme: Theme) {
   if (typeof FontFace === "undefined") return;
   await Promise.all(
@@ -87,7 +131,13 @@ async function loadFonts(theme: Theme) {
 export function applyTheme(theme: Theme): Promise<void> {
   current = theme;
   const root = document.documentElement;
-  for (const [name, value] of Object.entries(toCssVars(theme))) root.style.setProperty(name, value);
+  let sheet = document.getElementById(STYLE_ID);
+  if (!sheet) {
+    sheet = document.createElement("style");
+    sheet.id = STYLE_ID;
+    document.head.appendChild(sheet);
+  }
+  sheet.textContent = toStylesheet(theme);
   root.style.colorScheme = theme.scheme;
   root.dataset.theme = theme.id;
   try {

@@ -98,13 +98,13 @@
   --dv-activegroup-hiddenpanel-tab-color: var(--color-text-secondary);
   --dv-inactivegroup-hiddenpanel-tab-background-color: var(--color-surface-base);
   --dv-inactivegroup-hiddenpanel-tab-color: var(--color-text-tertiary);
-  --dv-separator-border: var(--color-surface-base);
+  --dv-separator-border: var(--color-surface-gutter);
   --dv-sash-color: transparent;
   --dv-active-sash-color: var(--color-accent-base);
   --dv-tab-divider-color: transparent;
   --dv-drag-over-background-color: var(--color-accent-wash);
   --dv-drag-over-border-color: var(--color-accent-base);
-  background: var(--color-surface-base);
+  background: var(--color-surface-gutter);
   font-family: var(--font-ui);
 }
 

@@ -1,4 +1,4 @@
-export type { FontFaceSpec, FontRole, Theme, TypeRole, TypeRoleName } from "./types";
+export type { ColorRoles, FontFaceSpec, FontRole, SurfaceName, Theme, TypeRole, TypeRoleName } from "./types";
 export { themes, defaultTheme } from "./themes";
 export {
   applyTheme,
@@ -6,6 +6,9 @@ export {
   getTheme,
   initialTheme,
   subscribeTheme,
+  surfaceColors,
+  SURFACES,
+  toStylesheet,
   toCssVars,
   useTheme,
   useThemeRevision,

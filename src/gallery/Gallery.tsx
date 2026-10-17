@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { sampleSnapshot } from "../preview/sampleProject";
-import { applyTheme, themes, useTheme, useThemeRevision, type Theme, type TypeRoleName } from "../theme";
+import { applyTheme, surfaceColors, themes, useTheme, useThemeRevision, type Theme, type TypeRoleName } from "../theme";
 import { draw } from "../timeline/draw";
 import { contentHeight, layoutRows } from "../timeline/geometry";
 import {
@@ -37,7 +37,7 @@ function colorEntries(theme: Theme): [string, string][] {
       else walk(path, value as Record<string, unknown>);
     }
   };
-  walk("", theme.color);
+  walk("", theme.color as unknown as Record<string, unknown>);
   return out;
 }
 
@@ -59,7 +59,7 @@ export function Gallery() {
 
   return (
     <div className="gallery">
-      <header className="gallery-header">
+      <header className="gallery-header" data-surface="chrome">
         <h1>Design gallery</h1>
         <Select
           ariaLabel="Theme"
@@ -222,6 +222,7 @@ function TimelineSample() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     draw(ctx, {
       theme,
+      colors: surfaceColors(theme, "stage"),
       project,
       rows,
       view: { zoom: 3, scrollX: 0 },

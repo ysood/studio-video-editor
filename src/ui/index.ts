@@ -16,5 +16,6 @@ export {
   ProgressBar,
   Section,
   Spacer,
+  Well,
 } from "./Panel";
 export { Timecode } from "./Timecode";

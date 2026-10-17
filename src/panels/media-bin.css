@@ -22,7 +22,7 @@
 
 .bin-row[aria-selected="true"] {
   background: var(--color-surface-raised);
-  border-left-color: var(--color-accent-base);
+  border-left-color: var(--color-selection);
 }
 
 .bin-swatch {

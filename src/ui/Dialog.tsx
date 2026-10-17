@@ -23,6 +23,7 @@ export function Dialog({ open, onClose, title, children, className }: {
       onClose={onClose}
       onCancel={onClose}
       aria-label={title}
+      data-surface="well"
     >
       <h2 className="ui-dialog-title">{title}</h2>
       {children}

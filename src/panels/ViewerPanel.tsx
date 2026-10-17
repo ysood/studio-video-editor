@@ -168,6 +168,7 @@ export function ViewerPanel() {
         <div
           ref={stageRef}
           className="viewer-stage"
+          data-surface="stage"
           style={{ aspectRatio: `${format.width} / ${format.height}` }}
           onClick={togglePlay}
         >

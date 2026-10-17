@@ -83,7 +83,7 @@ export function resetLayout() {
 
 export function Workspace() {
   return (
-    <div className="dock">
+    <div className="dock" data-surface="chrome">
       <DockviewReact components={components} onReady={onReady} theme={themeDark} />
     </div>
   );

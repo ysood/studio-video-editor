@@ -12,7 +12,7 @@ export function TopBar({ onExport }: { onExport: () => void }) {
   const hasClips = snapshot?.project.sequence.tracks.some((t) => t.clips.length > 0) ?? false;
 
   return (
-    <header className="topbar">
+    <header className="topbar" data-surface="chrome">
       <div className="topbar-title">
         <strong>{snapshot?.project.name ?? "Studio"}</strong>
         {history?.dirty && <span className="dirty-dot" title="Unsaved changes" />}

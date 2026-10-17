@@ -48,6 +48,11 @@ p {
   outline-offset: var(--border-width);
 }
 
+/* A surface redefines the color variables; re-resolve text color against them. */
+[data-surface] {
+  color: var(--color-text-primary);
+}
+
 /* Numbers that must not jitter as they change: timecode, durations, sizes. */
 .numeric {
   font-family: var(--font-numeric);

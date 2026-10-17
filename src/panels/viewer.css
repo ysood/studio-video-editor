@@ -4,7 +4,7 @@
   display: grid;
   place-items: center;
   padding: var(--size-viewer-padding);
-  background: var(--color-surface-base);
+  background: var(--color-viewer-surround);
 }
 
 .viewer-stage {

@@ -5,7 +5,7 @@
 .timeline-body {
   overflow-x: hidden;
   overflow-y: auto;
-  background: var(--color-surface-base);
+  background: var(--color-surface-panel);
 }
 
 .timeline-grid {

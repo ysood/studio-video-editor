@@ -74,7 +74,7 @@ function ClipDetails({ project, entry }: { project: Project; entry: { clip: Clip
 
   return (
     <>
-      <Section title="Clip">
+      <Section title="Clip" surface="well">
         <Field label="Name">
           <TextInput
             value={clip.name}
@@ -96,7 +96,7 @@ function ClipDetails({ project, entry }: { project: Project; entry: { clip: Clip
           />
         </Field>
       </Section>
-      <Section title="Timing">
+      <Section title="Timing" surface="well">
         <Field label="Start (frames)">
           <NumberInput
             value={clip.start}
@@ -124,7 +124,7 @@ function ClipDetails({ project, entry }: { project: Project; entry: { clip: Clip
         </Field>
       </Section>
       {media && (
-        <Section title="Source">
+        <Section title="Source" surface="well">
           <Field label="File">
             <Value truncate="start" title={media.path}>
               {media.name}
@@ -160,7 +160,7 @@ function ClipDetails({ project, entry }: { project: Project; entry: { clip: Clip
 function MultipleClips({ count, ids }: { count: number; ids: string[] }) {
   const edit = useEditor((s) => s.edit);
   return (
-    <Section title={`${count} clips selected`}>
+    <Section title={`${count} clips selected`} surface="well">
       <Actions>
         <Button onClick={() => void edit({ type: "SetClipsEnabled", clipIds: ids, enabled: true })}>Enable</Button>
         <Button onClick={() => void edit({ type: "SetClipsEnabled", clipIds: ids, enabled: false })}>Disable</Button>
@@ -183,12 +183,12 @@ function SequenceSettings({ project }: { project: Project }) {
 
   return (
     <>
-      <Section title="Project">
+      <Section title="Project" surface="well">
         <Field label="Name">
           <TextInput value={project.name} onCommit={(name) => void edit({ type: "RenameProject", name })} />
         </Field>
       </Section>
-      <Section title="Sequence">
+      <Section title="Sequence" surface="well">
         <Field label="Frame size">
           <Select
             value={preset ? sizeKey : "custom"}

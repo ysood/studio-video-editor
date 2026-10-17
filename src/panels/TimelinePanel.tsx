@@ -9,7 +9,7 @@ import { firstTrack, insertMedia, MEDIA_DRAG_TYPE, mediaDrag } from "../edits";
 import { microsToFrames } from "../format";
 import { useShortcut } from "../keyboard";
 import { useEditor, ZOOM_MAX, ZOOM_MIN } from "../store";
-import { useTheme, useThemeRevision } from "../theme";
+import { surfaceColors, useTheme, useThemeRevision } from "../theme";
 import { draw, type Ghost } from "../timeline/draw";
 import {
   clipEnd,
@@ -156,6 +156,7 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     draw(ctx, {
       theme,
+      colors: surfaceColors(theme, "stage"),
       project,
       rows,
       view,
@@ -395,10 +396,10 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
     ),
   );
 
-  if (!project) return <Panel />;
+  if (!project) return <Panel surface="stage" />;
 
   return (
-    <Panel>
+    <Panel surface="stage">
       <PanelToolbar>
         <Timecode frame={playhead} rate={rate} label="Playhead" />
         <Button onClick={splitAtPlayhead} title="Split at playhead (S)">Split</Button>

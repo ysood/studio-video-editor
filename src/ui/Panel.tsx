@@ -1,8 +1,27 @@
 import type { ReactNode } from "react";
+import type { SurfaceName } from "../theme";
 import "./panel.css";
 
-export function Panel({ children, className }: { children?: ReactNode; className?: string }) {
-  return <div className={className ? `ui-panel ${className}` : "ui-panel"}>{children}</div>;
+/** A dock panel. `surface` picks its color context (see SurfaceName). */
+export function Panel({ children, className, surface = "panel" }: {
+  children?: ReactNode;
+  className?: string;
+  surface?: SurfaceName;
+}) {
+  return (
+    <div className={className ? `ui-panel ${className}` : "ui-panel"} data-surface={surface}>
+      {children}
+    </div>
+  );
+}
+
+/** An inset content region inside a panel, on the "well" surface. */
+export function Well({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={className ? `ui-well ${className}` : "ui-well"} data-surface="well">
+      {children}
+    </div>
+  );
 }
 
 export function PanelToolbar({ children }: { children: ReactNode }) {
@@ -34,9 +53,14 @@ export function EmptyState({ children, action }: { children: ReactNode; action?:
 }
 
 /** A titled group inside a panel, such as an inspector section. */
-export function Section({ title, children }: { title: string; children: ReactNode }) {
+export function Section({ title, children, surface }: {
+  title: string;
+  children: ReactNode;
+  /** Set to "well" to inset the section as its own block. */
+  surface?: SurfaceName;
+}) {
   return (
-    <section className="ui-section">
+    <section className="ui-section" data-surface={surface}>
       <h2>{title}</h2>
       {children}
     </section>

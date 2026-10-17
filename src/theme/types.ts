@@ -34,53 +34,81 @@ export type TypeRoleName =
   | "timecodeDisplay" // the viewer's large timecode
   | "canvas"; // text painted on the timeline canvas
 
+/**
+ * Where a piece of UI sits. Surfaces let a theme color regions differently, for example a
+ * saturated chrome frame around dark content wells.
+ * - chrome: top bar, status bar, panel tab strips, gaps between panels
+ * - panel: panel bodies (the default)
+ * - well: inset content inside a panel (bin list, inspector groups, dialogs)
+ * - stage: picture and time (viewer frame, timeline)
+ */
+export type SurfaceName = "chrome" | "panel" | "well" | "stage";
+
+export type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] };
+
+export interface ColorRoles {
+  surface: {
+    base: string; // app background behind everything; on chrome, the panel tab strips
+    gutter: string; // the gaps between dock panels
+    panel: string; // the background of the current surface
+    raised: string; // buttons, track headers, selected rows
+    hover: string; // hover state of raised things
+    input: string; // text fields
+    overlay: string; // dialogs
+    locked: string; // locked track rows
+  };
+  border: {
+    strong: string; // control outlines
+    subtle: string; // dividers between regions
+  };
+  text: {
+    primary: string;
+    secondary: string;
+    tertiary: string;
+    onAccent: string; // text on the accent fill
+    onMedia: string; // labels on clips and media swatches
+    heading: string; // section headings inside panels
+  };
+  accent: {
+    base: string; // time and action: playhead, timecode, primary button, focus
+    hover: string;
+    wash: string; // translucent accent for drop targets
+  };
+  /** Outline of selected clips and bin items. */
+  selection: string;
+  media: {
+    video: string;
+    videoEdge: string;
+    audio: string;
+    audioEdge: string;
+    image: string;
+    imageEdge: string;
+  };
+  status: {
+    danger: string;
+  };
+  viewer: {
+    surround: string; // around the picture frame
+    matte: string; // behind picture inside the frame
+  };
+  scrim: string; // behind modal dialogs
+  shadow: string; // shadow color for elevation
+}
+
 export interface Theme {
   id: string;
   name: string;
   scheme: "dark" | "light";
 
-  color: {
-    surface: {
-      base: string; // app background, viewer surround, timeline track area
-      panel: string; // panel bodies
-      raised: string; // buttons, track headers, selected rows
-      hover: string; // hover state of raised things
-      input: string; // text fields
-      overlay: string; // dialogs
-      locked: string; // locked track rows
-    };
-    border: {
-      strong: string; // control outlines
-      subtle: string; // dividers between regions
-    };
-    text: {
-      primary: string;
-      secondary: string;
-      tertiary: string;
-      onAccent: string; // text on the accent fill
-      onMedia: string; // labels on clips and media swatches
-    };
-    accent: {
-      base: string; // time: playhead, timecode, selection, primary action, focus
-      hover: string;
-      wash: string; // translucent accent for drop targets
-    };
-    media: {
-      video: string;
-      videoEdge: string;
-      audio: string;
-      audioEdge: string;
-      image: string;
-    };
-    status: {
-      danger: string;
-    };
-    viewer: {
-      matte: string; // behind picture inside the frame
-    };
-    scrim: string; // behind modal dialogs
-    shadow: string; // shadow color for elevation
-  };
+  /** Base colors. They apply to the "panel" surface and to anything not inside another. */
+  color: ColorRoles;
+
+  /**
+   * Per-surface color overrides. Any element with `data-surface="<name>"` gets the base
+   * colors merged with that surface's overrides, so the same component reads correctly on
+   * a light chrome bar and inside a dark well. Leave empty for a uniform theme.
+   */
+  surfaces: Partial<Record<SurfaceName, DeepPartial<ColorRoles>>>;
 
   font: Record<FontRole, string> & {
     faces: FontFaceSpec[];
