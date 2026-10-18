@@ -43,11 +43,28 @@ function resetView() {
   useEditor.setState({ selection: [], playhead: 0, playing: false, scrollX: 0 });
 }
 
+/**
+ * Ask for a name and a place rather than making an untitled project on the spot.
+ *
+ * The dialog writes the file as it creates it, so there is never a project that exists
+ * only in memory: see `NewProjectDialog`.
+ */
 export async function newProject() {
   const store = useEditor.getState();
   try {
     if (!(await confirmDiscard())) return;
-    store.setSnapshot(await ipc.newProject("Untitled", DEFAULT_FORMAT));
+    store.setNewProjectOpen(true);
+  } catch (error) {
+    store.fail(error);
+  }
+}
+
+/** Put the project away and go back to the home screen. */
+export async function closeProject() {
+  const store = useEditor.getState();
+  try {
+    if (!(await confirmDiscard())) return;
+    await store.closeProject();
     resetView();
   } catch (error) {
     store.fail(error);
@@ -139,6 +156,8 @@ export function runAction(action: MenuAction, from: "ui" | "keyboard" | "menu" =
       return void newProject();
     case "openProject":
       return void openProject();
+    case "closeProject":
+      return void closeProject();
     case "save":
       return void saveProject();
     case "saveAs":

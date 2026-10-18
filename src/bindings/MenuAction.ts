@@ -3,4 +3,4 @@
 /**
  * Every action a native menu item can trigger. The serialized name is also the item id.
  */
-export type MenuAction = "newProject" | "openProject" | "save" | "saveAs" | "importMedia" | "export" | "undo" | "redo" | "resetLayout";
+export type MenuAction = "newProject" | "openProject" | "closeProject" | "save" | "saveAs" | "importMedia" | "export" | "undo" | "redo" | "resetLayout";

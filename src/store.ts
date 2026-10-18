@@ -87,6 +87,7 @@ interface EditorState {
   /** The OS menu bar carries the File and Edit menus (macOS), so the top bar omits its own. */
   nativeMenu: boolean;
   exportOpen: boolean;
+  newProjectOpen: boolean;
   pendingInsert: PendingInsert | null;
   /// Which sequence the window is showing. UI state: switching is not an edit.
   activeSequenceId: string | null;
@@ -108,6 +109,7 @@ interface EditorState {
   fail: (error: unknown) => void;
   setJob: (job: JobState | null) => void;
   setExportOpen: (open: boolean) => void;
+  setNewProjectOpen: (open: boolean) => void;
   setPendingInsert: (pending: PendingInsert | null) => void;
   setActiveSequence: (id: string) => void;
 }
@@ -147,6 +149,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   job: null,
   nativeMenu: false,
   exportOpen: false,
+  newProjectOpen: false,
   pendingInsert: null,
   activeSequenceId: null,
   views: {},
@@ -231,6 +234,7 @@ export const useEditor = create<EditorState>((set, get) => ({
   fail: (error) => set({ status: { kind: "error", text: errorMessage(error) } }),
   setJob: (job) => set({ job }),
   setExportOpen: (exportOpen) => set({ exportOpen }),
+  setNewProjectOpen: (newProjectOpen) => set({ newProjectOpen }),
   setPendingInsert: (pendingInsert) => set({ pendingInsert }),
   // Switching timelines keeps each one's playhead, zoom and scroll where it was. A
   // single shared playhead would jump to a frame that means nothing in the sequence

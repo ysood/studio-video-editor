@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { runAction } from "./actions";
 import { events } from "./ipc";
 import { useGlobalShortcuts } from "./keyboard";
@@ -17,7 +17,9 @@ export function App() {
   const setExportOpen = useEditor((s) => s.setExportOpen);
   const hasProject = useEditor((s) => s.snapshot !== null);
   const ready = useEditor((s) => s.ready);
-  const [newProjectOpen, setNewProjectOpen] = useState(false);
+  // In the store rather than here, so File > New project can reach it too.
+  const newProjectOpen = useEditor((s) => s.newProjectOpen);
+  const setNewProjectOpen = useEditor((s) => s.setNewProjectOpen);
 
   useEffect(() => {
     void init();

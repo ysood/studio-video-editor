@@ -38,6 +38,8 @@ function appAction(event: KeyboardEvent): MenuAction | null {
       return "openProject";
     case "n":
       return "newProject";
+    case "w":
+      return "closeProject";
     case "i":
       return "importMedia";
     case "e":

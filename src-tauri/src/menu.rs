@@ -22,6 +22,7 @@ pub const EVENT_MENU_ACTION: &str = "menu://action";
 pub enum MenuAction {
     NewProject,
     OpenProject,
+    CloseProject,
     Save,
     SaveAs,
     ImportMedia,
@@ -32,9 +33,10 @@ pub enum MenuAction {
 }
 
 impl MenuAction {
-    const ALL: [MenuAction; 9] = [
+    const ALL: [MenuAction; 10] = [
         MenuAction::NewProject,
         MenuAction::OpenProject,
+        MenuAction::CloseProject,
         MenuAction::Save,
         MenuAction::SaveAs,
         MenuAction::ImportMedia,
@@ -48,6 +50,7 @@ impl MenuAction {
         match self {
             MenuAction::NewProject => "newProject",
             MenuAction::OpenProject => "openProject",
+            MenuAction::CloseProject => "closeProject",
             MenuAction::Save => "save",
             MenuAction::SaveAs => "saveAs",
             MenuAction::ImportMedia => "importMedia",
@@ -113,6 +116,11 @@ pub fn install<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
             MenuAction::OpenProject,
             "Open…",
             Some("CmdOrCtrl+O"),
+        )?)
+        .item(&item(
+            MenuAction::CloseProject,
+            "Close Project",
+            Some("CmdOrCtrl+W"),
         )?)
         .separator()
         .item(&item(MenuAction::Save, "Save", Some("CmdOrCtrl+S"))?)

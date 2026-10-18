@@ -21,6 +21,7 @@ export function TopBar() {
   const fileMenu: MenuEntry[] = [
     { label: "New project", icon: "file", shortcut: chord("N"), onSelect: () => runAction("newProject") },
     { label: "Open…", icon: "folder", shortcut: chord("O"), onSelect: () => runAction("openProject") },
+    { label: "Close project", icon: "close", shortcut: chord("W"), onSelect: () => runAction("closeProject") },
     { type: "separator" },
     { label: "Save", shortcut: chord("S"), disabled: !snapshot, onSelect: () => runAction("save") },
     {
