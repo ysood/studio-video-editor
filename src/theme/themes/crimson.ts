@@ -131,15 +131,15 @@ export const crimsonTheme: Theme = {
 
   type: {
     ...base.type,
-    // ExtraCondensed Medium, which is wdth 50 and wght 500 in this face. Condensed
-    // buys height for the same width, so the name can be larger than a normal-width
-    // serif would allow at this column; the tracking opens the capitals back up.
+    // ExtraCondensed Medium, which is wdth 50 and wght 500 in this face. A condensed
+    // display face is drawn to set tight, so the capitals get only the hair of
+    // tracking they need to stop touching, not the wide spacing a Didone would want.
     wordmark: {
       family: "wordmark",
-      size: 72,
+      size: 80,
       weight: 500,
       lineHeight: 1,
-      tracking: 0.16,
+      tracking: 0.02,
       variation: '"wdth" 50, "wght" 500',
     },
   },
