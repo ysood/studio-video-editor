@@ -114,11 +114,17 @@ fn allow_media(app: &AppHandle, project: &Project) {
 
 /// Snapshot the session, release the lock, then bring the native menu up to date. The
 /// order matters: menu updates run on the main thread, which may be waiting for the lock.
-fn reply(app: &AppHandle, session: MutexGuard<'_, Session>) -> Snapshot {
-    let snapshot = session.snapshot();
-    drop(session);
-    menu::refresh(app, &snapshot);
-    snapshot
+fn reply(app: &AppHandle, slot: MutexGuard<'_, Option<Session>>) -> CommandResult<Snapshot> {
+    let snapshot = slot.as_ref().ok_or_else(no_project)?.snapshot();
+    drop(slot);
+    menu::refresh(app, Some(&snapshot));
+    Ok(snapshot)
+}
+
+/// Every command below this point needs a project to act on, and says so rather than
+/// inventing one.
+fn no_project() -> CommandError {
+    CommandError::new(ErrorCode::NoProject, "no project is open")
 }
 
 /// Whether the native menu bar replaces the in-window File menu.
@@ -128,8 +134,8 @@ pub fn native_menu_active(app: AppHandle) -> bool {
 }
 
 #[tauri::command]
-pub fn session_snapshot(state: State<'_, AppState>) -> Snapshot {
-    state.session().snapshot()
+pub fn session_snapshot(state: State<'_, AppState>) -> Option<Snapshot> {
+    state.session().as_ref().map(Session::snapshot)
 }
 
 #[tauri::command]
@@ -146,12 +152,12 @@ pub fn project_new(
 ) -> CommandResult<Snapshot> {
     let project = Project::new(name.trim(), format);
     project.validate().map_err(studio_core::EditError::from)?;
-    let mut session = state.session();
-    *session = Session {
+    let mut slot = state.session();
+    *slot = Some(Session {
         editor: Editor::new(project),
         path: None,
-    };
-    Ok(reply(&app, session))
+    });
+    reply(&app, slot)
 }
 
 #[tauri::command]
@@ -164,12 +170,12 @@ pub fn project_open(
     let project = persist::load(&path)?;
     allow_media(&app, &project);
     crate::recents::record(&app, &path, &project.name);
-    let mut session = state.session();
-    *session = Session {
+    let mut slot = state.session();
+    *slot = Some(Session {
         editor: Editor::opened(project),
         path: Some(path),
-    };
-    Ok(reply(&app, session))
+    });
+    reply(&app, slot)
 }
 
 /// Save to `path`, or to the current path when `path` is `None`.
@@ -179,7 +185,8 @@ pub fn project_save(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> CommandResult<Snapshot> {
-    let mut session = state.session();
+    let mut slot = state.session();
+    let session = slot.as_mut().ok_or_else(no_project)?;
     let target = match path {
         Some(p) => absolute(&p)?,
         None => session
@@ -193,7 +200,17 @@ pub fn project_save(
     // kept up to date here as well as on open.
     crate::recents::record(&app, &target, &session.editor.project().name);
     session.path = Some(target);
-    Ok(reply(&app, session))
+    reply(&app, slot)
+}
+
+/// Put the project away and go back to having none open.
+///
+/// Unsaved work is the UI's business: it asks before calling this, the way it already
+/// does before opening another project.
+#[tauri::command]
+pub fn project_close(app: AppHandle, state: State<'_, AppState>) {
+    *state.session() = None;
+    menu::refresh(&app, None);
 }
 
 /// The projects this machine has opened, newest first (see `recents`).
@@ -214,26 +231,30 @@ pub fn edit(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> CommandResult<EditResponse> {
-    let mut session = state.session();
-    let report = session.editor.apply(&command)?;
+    let mut slot = state.session();
+    let report = slot
+        .as_mut()
+        .ok_or_else(no_project)?
+        .editor
+        .apply(&command)?;
     Ok(EditResponse {
-        snapshot: reply(&app, session),
+        snapshot: reply(&app, slot)?,
         report,
     })
 }
 
 #[tauri::command]
-pub fn undo(app: AppHandle, state: State<'_, AppState>) -> Snapshot {
-    let mut session = state.session();
-    session.editor.undo();
-    reply(&app, session)
+pub fn undo(app: AppHandle, state: State<'_, AppState>) -> CommandResult<Snapshot> {
+    let mut slot = state.session();
+    slot.as_mut().ok_or_else(no_project)?.editor.undo();
+    reply(&app, slot)
 }
 
 #[tauri::command]
-pub fn redo(app: AppHandle, state: State<'_, AppState>) -> Snapshot {
-    let mut session = state.session();
-    session.editor.redo();
-    reply(&app, session)
+pub fn redo(app: AppHandle, state: State<'_, AppState>) -> CommandResult<Snapshot> {
+    let mut slot = state.session();
+    slot.as_mut().ok_or_else(no_project)?.editor.redo();
+    reply(&app, slot)
 }
 
 /// Probe files with ffprobe and add the usable ones to the bin. Files that fail are
@@ -277,7 +298,8 @@ pub async fn media_import(
         }
     }
 
-    let mut session = state.session();
+    let mut slot = state.session();
+    let session = slot.as_mut().ok_or_else(no_project)?;
     let report = if assets.is_empty() {
         EditReport::default()
     } else {
@@ -285,7 +307,7 @@ pub async fn media_import(
     };
     allow_media(&app, session.editor.project());
     Ok(ImportResponse {
-        snapshot: reply(&app, session),
+        snapshot: reply(&app, slot)?,
         report,
         failed,
     })
@@ -320,8 +342,8 @@ pub fn export_interchange(
 ) -> CommandResult<()> {
     let path = absolute(&path)?;
     let text = {
-        let session = state.session();
-        let project = session.editor.project();
+        let slot = state.session();
+        let project = slot.as_ref().ok_or_else(no_project)?.editor.project();
         let sequence = project.sequence(sequence_id).ok_or_else(|| {
             CommandError::new(ErrorCode::NotFound, "that sequence is not in the project")
         })?;
@@ -349,7 +371,13 @@ pub fn export_package(
             "another export is running",
         ));
     }
-    let project = state.session().editor.project().clone();
+    let project = state
+        .session()
+        .as_ref()
+        .ok_or_else(no_project)?
+        .editor
+        .project()
+        .clone();
     let sequence = project.sequence(sequence_id).ok_or_else(|| {
         CommandError::new(ErrorCode::NotFound, "that sequence is not in the project")
     })?;
@@ -405,8 +433,8 @@ pub fn render_start(
         ));
     }
     let plan = {
-        let session = state.session();
-        let project = session.editor.project();
+        let slot = state.session();
+        let project = slot.as_ref().ok_or_else(no_project)?.editor.project();
         let sequence = project.sequence(sequence_id).ok_or_else(|| {
             CommandError::new(ErrorCode::NotFound, "that sequence is not in the project")
         })?;
@@ -547,14 +575,16 @@ pub fn viewer_sync(
     #[cfg(target_os = "macos")]
     {
         let Some((segments, canvas, at_us)) = ({
-            let session = state.session();
-            let project = session.editor.project();
-            project.sequence(sequence_id).map(|sequence| {
-                (
-                    crate::viewer::segments(project, sequence),
-                    crate::viewer::Canvas::of(sequence),
-                    sequence.format.frame_rate.frames_to_micros(frame),
-                )
+            let slot = state.session();
+            slot.as_ref().and_then(|session| {
+                let project = session.editor.project();
+                project.sequence(sequence_id).map(|sequence| {
+                    (
+                        crate::viewer::segments(project, sequence),
+                        crate::viewer::Canvas::of(sequence),
+                        sequence.format.frame_rate.frames_to_micros(frame),
+                    )
+                })
             })
         }) else {
             return;
@@ -614,12 +644,14 @@ pub fn viewer_seek(
     #[cfg(target_os = "macos")]
     {
         let Some(micros) = ({
-            let session = state.session();
-            session
-                .editor
-                .project()
-                .sequence(sequence_id)
-                .map(|s| s.format.frame_rate.frames_to_micros(frame))
+            let slot = state.session();
+            slot.as_ref().and_then(|session| {
+                session
+                    .editor
+                    .project()
+                    .sequence(sequence_id)
+                    .map(|s| s.format.frame_rate.frames_to_micros(frame))
+            })
         }) else {
             return;
         };

@@ -174,28 +174,36 @@ pub fn is_installed<R: Runtime>(app: &AppHandle<R>) -> bool {
     app.try_state::<NativeMenu<R>>().is_some()
 }
 
-/// Bring item labels and enabled states in line with `snapshot`. Call it without holding
-/// the session lock: menu updates run on the main thread, which may be waiting for it.
-pub fn refresh<R: Runtime>(app: &AppHandle<R>, snapshot: &Snapshot) {
+/// Bring item labels and enabled states in line with `snapshot`, or with no project open
+/// when it is `None`. Call it without holding the session lock: menu updates run on the
+/// main thread, which may be waiting for it.
+pub fn refresh<R: Runtime>(app: &AppHandle<R>, snapshot: Option<&Snapshot>) {
     let Some(menu) = app.try_state::<NativeMenu<R>>() else {
         return;
     };
-    let history = &snapshot.history;
     let label = |verb: &str, step: &Option<String>| match step {
         Some(step) => format!("{verb} {step}"),
         None => verb.to_string(),
     };
-    let has_clips = snapshot
-        .project
-        .first_sequence()
-        .tracks
-        .iter()
-        .any(|t| !t.clips.is_empty());
+    let has_clips = snapshot.is_some_and(|s| {
+        s.project
+            .first_sequence()
+            .tracks
+            .iter()
+            .any(|t| !t.clips.is_empty())
+    });
     // Undo and redo stay enabled even with no history: they are also how a focused text
     // field gets Cmd+Z, and a disabled item would swallow nothing and do nothing.
     // Menu updates only fail when the menu is being torn down at exit.
-    let _ = menu.undo.set_text(label("Undo", &history.undo_label));
-    let _ = menu.redo.set_text(label("Redo", &history.redo_label));
+    // With no project open there is nothing to undo, so the items keep their bare verbs.
+    let _ = menu.undo.set_text(label(
+        "Undo",
+        &snapshot.and_then(|s| s.history.undo_label.clone()),
+    ));
+    let _ = menu.redo.set_text(label(
+        "Redo",
+        &snapshot.and_then(|s| s.history.redo_label.clone()),
+    ));
     let _ = menu.export.set_enabled(has_clips);
 }
 

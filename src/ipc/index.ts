@@ -35,7 +35,8 @@ export function errorMessage(error: unknown): string {
 }
 
 export const ipc = {
-  snapshot: () => invoke<Snapshot>("session_snapshot"),
+  /** Null until a project is made or opened. */
+  snapshot: () => invoke<Snapshot | null>("session_snapshot"),
   toolsStatus: () => invoke<ToolsStatus>("tools_status"),
   newProject: (name: string, format: SequenceFormat) =>
     invoke<Snapshot>("project_new", { name, format }),
@@ -55,6 +56,7 @@ export const ipc = {
     invoke<void>("render_start", { sequenceId, path, settings }),
   renderCancel: () => invoke<void>("render_cancel"),
   // The projects this machine has opened, newest first.
+  closeProject: () => invoke<void>("project_close"),
   recentsList: () => invoke<Recent[]>("recents_list"),
   recentsForget: (path: string) => invoke<void>("recents_forget", { path }),
   nativeMenuActive: () => invoke<boolean>("native_menu_active"),

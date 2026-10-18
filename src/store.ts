@@ -73,6 +73,9 @@ function rememberSequence(projectId: string, sequenceId: string) {
 
 interface EditorState {
   snapshot: Snapshot | null;
+  /** False until the first snapshot has been asked for, so the home screen does not
+   *  flash past on launch before the answer arrives. */
+  ready: boolean;
   tools: ToolsStatus | null;
   selection: ClipId[];
   playhead: number;
@@ -92,6 +95,7 @@ interface EditorState {
 
   init: () => Promise<void>;
   setSnapshot: (snapshot: Snapshot) => void;
+  closeProject: () => Promise<void>;
   edit: (command: EditCommand) => Promise<EditReport | null>;
   undo: () => Promise<void>;
   redo: () => Promise<void>;
@@ -132,6 +136,7 @@ function pruneSelection(selection: ClipId[], snapshot: Snapshot): ClipId[] {
 
 export const useEditor = create<EditorState>((set, get) => ({
   snapshot: null,
+  ready: false,
   tools: null,
   selection: [],
   playhead: 0,
@@ -153,7 +158,8 @@ export const useEditor = create<EditorState>((set, get) => ({
         ipc.toolsStatus(),
         ipc.nativeMenuActive().catch(() => false),
       ]);
-      set({ snapshot, tools, nativeMenu });
+      // A null snapshot is the ordinary state on launch: no project is open yet.
+      set({ snapshot, tools, nativeMenu, ready: true });
       if (!tools.ffmpeg || !tools.ffprobe) {
         get().notify("error", "FFmpeg was not found. Install it with: brew install ffmpeg");
       }
@@ -168,6 +174,16 @@ export const useEditor = create<EditorState>((set, get) => ({
       selection: pruneSelection(state.selection, snapshot),
       activeSequenceId: openSequence(snapshot, state.activeSequenceId),
     })),
+
+  /** Put the project away and return to the home screen. */
+  closeProject: async () => {
+    try {
+      await ipc.closeProject();
+      set({ snapshot: null, selection: [], playhead: 0, playing: false, scrollX: 0, views: {} });
+    } catch (error) {
+      get().fail(error);
+    }
+  },
 
   edit: async (command) => {
     try {

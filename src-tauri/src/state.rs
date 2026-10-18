@@ -5,7 +5,7 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::process::Child;
 use std::sync::{Arc, Mutex, MutexGuard};
-use studio_core::{Editor, HistoryState, MediaId, Project, SequenceFormat};
+use studio_core::{Editor, HistoryState, MediaId, Project};
 use ts_rs::TS;
 
 pub struct Session {
@@ -14,13 +14,6 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn untitled() -> Self {
-        Self {
-            editor: Editor::new(Project::new("Untitled", SequenceFormat::default())),
-            path: None,
-        }
-    }
-
     pub fn snapshot(&self) -> Snapshot {
         let project = self.editor.project().clone();
         let offline_media = project
@@ -57,7 +50,11 @@ pub struct Job {
 }
 
 pub struct AppState {
-    session: Mutex<Session>,
+    /// `None` until a project is made or opened. Launching into a scratch project would
+    /// mean the app always has a document it cannot name, which is a thing to auto-save,
+    /// a thing to prompt about discarding, and a lie the home screen would have to work
+    /// around. Both reference editors open on a hub instead.
+    session: Mutex<Option<Session>>,
     pub job: Mutex<Option<Job>>,
     ffmpeg: Mutex<Option<PathBuf>>,
     ffprobe: Mutex<Option<PathBuf>>,
@@ -66,7 +63,7 @@ pub struct AppState {
 impl AppState {
     pub fn new() -> Self {
         Self {
-            session: Mutex::new(Session::untitled()),
+            session: Mutex::new(None),
             job: Mutex::new(None),
             ffmpeg: Mutex::new(None),
             ffprobe: Mutex::new(None),
@@ -75,7 +72,7 @@ impl AppState {
 
     /// A poisoned lock means a command panicked mid-edit. Edits are applied to a copy and
     /// swapped in atomically, so the session itself is still consistent; keep going.
-    pub fn session(&self) -> MutexGuard<'_, Session> {
+    pub fn session(&self) -> MutexGuard<'_, Option<Session>> {
         self.session.lock().unwrap_or_else(|e| e.into_inner())
     }
 

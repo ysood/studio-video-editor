@@ -28,6 +28,7 @@ pub fn run() {
             commands::project_new,
             commands::project_open,
             commands::project_save,
+            commands::project_close,
             commands::recents_list,
             commands::recents_forget,
             commands::edit,
