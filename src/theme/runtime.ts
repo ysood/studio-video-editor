@@ -30,6 +30,7 @@ export function toCssVars(theme: Theme): Record<string, string> {
   vars["--font-ui"] = theme.font.ui;
   vars["--font-display"] = theme.font.display;
   vars["--font-numeric"] = theme.font.numeric;
+  vars["--font-wordmark"] = theme.font.wordmark;
   vars["--font-numeric-variant"] = theme.font.numericVariant;
 
   for (const [role, spec] of Object.entries(theme.type) as [TypeRoleName, Theme["type"][TypeRoleName]][]) {
@@ -41,6 +42,7 @@ export function toCssVars(theme: Theme): Record<string, string> {
     vars[`${base}-weight`] = String(spec.weight);
     vars[`${base}-line`] = String(spec.lineHeight);
     vars[`${base}-tracking`] = `${spec.tracking}em`;
+    vars[`${base}-variation`] = spec.variation ?? "normal";
   }
 
   for (const [key, value] of Object.entries(theme.space)) vars[`--space-${key}`] = px(value);
@@ -120,6 +122,7 @@ async function loadFonts(theme: Theme) {
       try {
         const font = new FontFace(face.family, `url(${face.src})`, {
           weight: face.weight ?? "400",
+          stretch: face.stretch ?? "100%",
           style: face.style ?? "normal",
         });
         document.fonts.add(await font.load());

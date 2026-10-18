@@ -63,6 +63,8 @@ export const graphiteTheme: Theme = {
     ui: systemSans,
     display: systemSans,
     numeric: systemSans,
+    // Graphite is the plain theme: its wordmark is the same sans as everything else.
+    wordmark: systemSans,
     faces: [],
     numericVariant: "tabular-nums",
   },
@@ -79,9 +81,14 @@ export const graphiteTheme: Theme = {
     timecode: { family: "numeric", size: 15, weight: 600, lineHeight: 1.2, tracking: 0.02 },
     timecodeDisplay: { family: "numeric", size: 22, weight: 600, lineHeight: 1.1, tracking: 0.02 },
     canvas: { family: "ui", size: 11, weight: 400, lineHeight: 1, tracking: 0 },
+    // Large text needs no extra leading, and capitals need tracking to stay readable.
+    wordmark: { family: "wordmark", size: 60, weight: 400, lineHeight: 1, tracking: 0.22 },
   },
 
-  space: { hairline: 1, 1: 2, 2: 4, 3: 6, 4: 8, 5: 10, 6: 12, 7: 16, 8: 20, 9: 24 },
+  // Steps 1 to 9 are the editor's own, close together because panels are dense. The
+  // last three are for the places that are not an editor, where the scale has to open
+  // out: each is a third again on the one before, so no two are confusable.
+  space: { hairline: 1, 1: 2, 2: 4, 3: 6, 4: 8, 5: 10, 6: 12, 7: 16, 8: 20, 9: 24, 10: 32, 11: 48, 12: 64 },
 
   radius: { control: 3, panel: 0, dialog: 6, clip: 3, round: 9999 },
 
@@ -90,6 +97,7 @@ export const graphiteTheme: Theme = {
   size: {
     controlSmall: 22,
     control: 26,
+    controlLarge: 36,
     topbar: 40,
     statusbar: 24,
     toolbar: 32,
@@ -111,6 +119,7 @@ export const graphiteTheme: Theme = {
     thumbnailMin: 96,
     thumbnailMax: 288,
     menuMinWidth: 184,
+    homeColumn: 380,
     sliderTrack: 4,
     sliderThumb: 12,
   },

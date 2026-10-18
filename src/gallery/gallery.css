@@ -92,6 +92,12 @@
 }
 .gallery-type-sample[data-role="canvas"] { font: var(--type-canvas); letter-spacing: var(--type-canvas-tracking); }
 
+.gallery-type-sample[data-role="wordmark"] {
+  font: var(--type-wordmark);
+  font-variation-settings: var(--type-wordmark-variation);
+  letter-spacing: var(--type-wordmark-tracking);
+}
+
 .gallery-space {
   display: grid;
   grid-template-columns: var(--size-field-label) 1fr auto;

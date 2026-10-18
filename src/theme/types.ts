@@ -2,14 +2,23 @@
 // roles (as CSS variables or through `useTheme`), never raw values. A new look is a new
 // object of this type; nothing else in the app needs to change.
 
-export type FontRole = "ui" | "display" | "numeric";
+export type FontRole =
+  | "ui"
+  | "display"
+  | "numeric"
+  /** The wordmark alone. Kept apart from `display` because a face chosen to carry a
+   *  name at 60px is rarely the one you want on a 17px panel title. */
+  | "wordmark";
 
 export interface FontFaceSpec {
   /** Family name as used in the `font` stacks below. */
   family: string;
   /** URL of the font file, usually imported from `src/theme/fonts/` so Vite bundles it. */
   src: string;
+  /** A range like "200 900" for a variable font, so the browser does not clamp it. */
   weight?: string;
+  /** A range like "50% 125%" for a variable width axis, for the same reason. */
+  stretch?: string;
   style?: "normal" | "italic";
 }
 
@@ -22,6 +31,9 @@ export interface TypeRole {
   lineHeight: number;
   /** Letter spacing in em. */
   tracking: number;
+  /** `font-variation-settings` for a variable face, as the axes are the only way to
+   *  reach a width or an optical size the weight alone cannot. */
+  variation?: string;
 }
 
 export type TypeRoleName =
@@ -32,7 +44,8 @@ export type TypeRoleName =
   | "heading" // section headings inside panels
   | "timecode" // timeline toolbar timecode
   | "timecodeDisplay" // the viewer's large timecode
-  | "canvas"; // text painted on the timeline canvas
+  | "canvas" // text painted on the timeline canvas
+  | "wordmark"; // the app's name on the home screen
 
 /**
  * Where a piece of UI sits. Surfaces let a theme color regions differently, for example a
@@ -130,6 +143,9 @@ export interface Theme {
     7: number;
     8: number;
     9: number;
+    10: number;
+    11: number;
+    12: number;
   };
 
   radius: {
@@ -150,6 +166,7 @@ export interface Theme {
   /** Fixed component dimensions in pixels. */
   size: {
     controlSmall: number; // icon buttons
+    controlLarge: number; // controls away from the editor, where density is not the point
     control: number; // every button, input, select and segmented control
     topbar: number;
     statusbar: number;
@@ -173,6 +190,7 @@ export interface Theme {
     thumbnailMin: number;
     thumbnailMax: number;
     menuMinWidth: number; // menus, select lists, popovers
+    homeColumn: number; // the reading column on the home screen
     sliderTrack: number; // slider rail thickness
     sliderThumb: number; // slider handle diameter
   };

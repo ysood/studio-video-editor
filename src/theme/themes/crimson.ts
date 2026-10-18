@@ -3,6 +3,7 @@
 // frame, timeline) are near-black with light text and a red accent. Built from the
 // colors of the October 2026 design reference.
 
+import epikaTrial from "../fonts/epika-supervariable-trial.woff2";
 import type { ColorRoles, DeepPartial, Theme } from "../types";
 import { graphiteTheme as base } from "./graphite";
 
@@ -112,6 +113,34 @@ export const crimsonTheme: Theme = {
     stage: {
       ...dark,
       surface: { ...dark.surface, base: ink[0], panel: ink[3], raised: ink[5], locked: ink[6] },
+    },
+  },
+
+  font: {
+    ...base.font,
+    // Epika, bundled, for the name alone. A condensed high-contrast serif is the
+    // register of a title card rather than an application, and the width axis is what
+    // the system Didones could not give. Trial licence: fine for a tool nobody sells,
+    // and the stack still falls back through plainer serifs if the file ever goes.
+    wordmark: '"Epika", "Didot", "Bodoni 72", "Hoefler Text", Garamond, serif',
+    faces: [
+      ...base.font.faces,
+      { family: "Epika", src: epikaTrial, weight: "200 900", stretch: "50% 125%" },
+    ],
+  },
+
+  type: {
+    ...base.type,
+    // ExtraCondensed Medium, which is wdth 50 and wght 500 in this face. Condensed
+    // buys height for the same width, so the name can be larger than a normal-width
+    // serif would allow at this column; the tracking opens the capitals back up.
+    wordmark: {
+      family: "wordmark",
+      size: 72,
+      weight: 500,
+      lineHeight: 1,
+      tracking: 0.16,
+      variation: '"wdth" 50, "wght" 500',
     },
   },
 
