@@ -12,6 +12,7 @@ import type { InterchangeFormat } from "../bindings/InterchangeFormat";
 import type { JobFinished } from "../bindings/JobFinished";
 import type { JobProgress } from "../bindings/JobProgress";
 import type { MenuAction } from "../bindings/MenuAction";
+import type { Recent } from "../bindings/Recent";
 import type { RenderSettings } from "../bindings/RenderSettings";
 import type { SequenceFormat } from "../bindings/SequenceFormat";
 import type { Snapshot } from "../bindings/Snapshot";
@@ -53,6 +54,9 @@ export const ipc = {
   renderStart: (sequenceId: string, path: string, settings: RenderSettings) =>
     invoke<void>("render_start", { sequenceId, path, settings }),
   renderCancel: () => invoke<void>("render_cancel"),
+  // The projects this machine has opened, newest first.
+  recentsList: () => invoke<Recent[]>("recents_list"),
+  recentsForget: (path: string) => invoke<void>("recents_forget", { path }),
   nativeMenuActive: () => invoke<boolean>("native_menu_active"),
   // Native preview surface (ADR-0003). No-ops off macOS.
   viewerSetRect: (x: number, y: number, width: number, height: number) =>

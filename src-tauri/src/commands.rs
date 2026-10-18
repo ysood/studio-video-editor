@@ -163,6 +163,7 @@ pub fn project_open(
     let path = absolute(&path)?;
     let project = persist::load(&path)?;
     allow_media(&app, &project);
+    crate::recents::record(&app, &path, &project.name);
     let mut session = state.session();
     *session = Session {
         editor: Editor::opened(project),
@@ -188,8 +189,23 @@ pub fn project_save(
     };
     persist::save(session.editor.project(), &target)?;
     session.editor.mark_saved();
+    // Saving is also how a project first gets a home, and how it moves, so the list is
+    // kept up to date here as well as on open.
+    crate::recents::record(&app, &target, &session.editor.project().name);
     session.path = Some(target);
     Ok(reply(&app, session))
+}
+
+/// The projects this machine has opened, newest first (see `recents`).
+#[tauri::command]
+pub fn recents_list(app: AppHandle) -> Vec<crate::recents::Recent> {
+    crate::recents::list(&app)
+}
+
+/// Drop one project from the list. The file itself is untouched.
+#[tauri::command]
+pub fn recents_forget(path: String, app: AppHandle) {
+    crate::recents::forget(&app, &path);
 }
 
 #[tauri::command]

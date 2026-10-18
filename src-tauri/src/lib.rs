@@ -4,6 +4,7 @@
 mod commands;
 mod error;
 mod menu;
+mod recents;
 mod state;
 mod tools;
 #[cfg(target_os = "macos")]
@@ -27,6 +28,8 @@ pub fn run() {
             commands::project_new,
             commands::project_open,
             commands::project_save,
+            commands::recents_list,
+            commands::recents_forget,
             commands::edit,
             commands::undo,
             commands::redo,
