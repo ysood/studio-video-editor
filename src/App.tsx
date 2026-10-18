@@ -1,10 +1,12 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { runAction } from "./actions";
 import { events } from "./ipc";
 import { useGlobalShortcuts } from "./keyboard";
 import { useEditor } from "./store";
 import { ExportDialog } from "./workspace/ExportDialog";
+import { HomeScreen } from "./workspace/HomeScreen";
 import { MatchSequenceDialog } from "./workspace/MatchSequenceDialog";
+import { NewProjectDialog } from "./workspace/NewProjectDialog";
 import { StatusBar } from "./workspace/StatusBar";
 import { TopBar } from "./workspace/TopBar";
 import { Workspace } from "./workspace/Workspace";
@@ -13,6 +15,9 @@ export function App() {
   const init = useEditor((s) => s.init);
   const exportOpen = useEditor((s) => s.exportOpen);
   const setExportOpen = useEditor((s) => s.setExportOpen);
+  const hasProject = useEditor((s) => s.snapshot !== null);
+  const ready = useEditor((s) => s.ready);
+  const [newProjectOpen, setNewProjectOpen] = useState(false);
 
   useEffect(() => {
     void init();
@@ -39,6 +44,19 @@ export function App() {
 
   useGlobalShortcuts();
 
+  // Nothing until the first snapshot has been asked for, so the home screen does not
+  // appear for a frame on the way into a project.
+  if (!ready) return <div className="app" />;
+
+  if (!hasProject) {
+    return (
+      <>
+        <HomeScreen onNew={() => setNewProjectOpen(true)} />
+        <NewProjectDialog open={newProjectOpen} onClose={() => setNewProjectOpen(false)} />
+      </>
+    );
+  }
+
   return (
     <div className="app">
       <TopBar />
@@ -46,6 +64,7 @@ export function App() {
       <StatusBar />
       <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} />
       <MatchSequenceDialog />
+      <NewProjectDialog open={newProjectOpen} onClose={() => setNewProjectOpen(false)} />
     </div>
   );
 }

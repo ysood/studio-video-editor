@@ -1,0 +1,141 @@
+/* The home screen: the red frame with nothing in it yet, and the name in the middle. */
+
+.home {
+  display: grid;
+  place-items: center;
+  width: 100%; /* design-allow */
+  height: 100%; /* design-allow */
+  padding: var(--space-11) var(--space-10);
+  overflow-y: auto;
+  background: var(--color-surface-base);
+}
+
+.home-centre {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-11);
+  width: 100%; /* design-allow */
+  max-width: var(--size-home-column);
+}
+
+/* The name is set in the wordmark role, which exists for this one piece of text. The
+   capitals come from CSS rather than the markup so the word is still read as a word. */
+.home-wordmark {
+  margin: 0;
+  font: var(--type-wordmark);
+  font-variation-settings: var(--type-wordmark-variation);
+  letter-spacing: var(--type-wordmark-tracking);
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+  /* The tracking adds a gap after the final letter that the eye reads as off-centre. */
+  text-indent: var(--type-wordmark-tracking);
+}
+
+.home-actions {
+  display: flex;
+  gap: var(--space-6);
+}
+
+/* The editor's controls are sized for density, which is not what this screen is for:
+   next to a wordmark they read as an afterthought. Larger here, and only here. */
+.home-actions .ui-button {
+  height: var(--size-control-large);
+  padding-inline: var(--space-8);
+  font: var(--type-heading);
+}
+
+/* No border between the actions and the list: the gap above is twice any gap inside the
+   list, which is enough to say they are different things. */
+.home-recents {
+  width: 100%; /* design-allow */
+}
+
+.home-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-row {
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-control);
+}
+
+.home-row:hover:not([data-missing="true"]),
+.home-row:focus-within {
+  background: var(--color-surface-hover);
+}
+
+.home-open {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-hairline);
+  min-width: 0; /* design-allow */
+  padding: var(--space-5) var(--space-6);
+  border: none;
+  border-radius: inherit;
+  background: none;
+  text-align: start;
+  cursor: pointer;
+}
+
+.home-open:disabled {
+  cursor: default;
+}
+
+/* Weight and color carry the hierarchy here, not size: both lines are the same size so
+   the row stays one object, and the folder recedes behind the name. */
+.home-name {
+  overflow: hidden;
+  font: var(--type-heading);
+  color: var(--color-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-where {
+  overflow: hidden;
+  font: var(--type-label);
+  color: var(--color-text-tertiary);
+  /* Clipped from the left so the end of the path, which identifies it, survives. */
+  direction: rtl;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A project whose file has gone says so in words as well as in color. */
+.home-row[data-missing="true"] .home-name {
+  color: var(--color-text-tertiary);
+}
+
+.home-forget {
+  display: grid;
+  place-items: center;
+  width: var(--size-control-small);
+  height: var(--size-control-small);
+  margin-inline-end: var(--space-4);
+  border: none;
+  border-radius: var(--radius-control);
+  opacity: 0;
+  background: none;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+
+/* Hidden until the row is in play, so a list at rest is only projects. */
+.home-row:hover .home-forget,
+.home-forget:focus-visible {
+  opacity: 1;
+}
+
+.home-forget:hover {
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+}
