@@ -8,10 +8,9 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { openProject } from "../actions";
-
 import type { Recent } from "../bindings/Recent";
+import { timeAgo } from "../format";
 import { ipc } from "../ipc";
-import { isBrowserPreview } from "../preview/mode";
 import { useEditor } from "../store";
 import { Button, Icon } from "../ui";
 import "./home.css";
@@ -28,7 +27,6 @@ export function HomeScreen({ onNew }: { onNew: () => void }) {
   const setSnapshot = useEditor((s) => s.setSnapshot);
 
   const load = useCallback(() => {
-    if (isBrowserPreview) return;
     void ipc
       .recentsList()
       .then(setRecents)
@@ -58,11 +56,15 @@ export function HomeScreen({ onNew }: { onNew: () => void }) {
   return (
     <div className="home" data-surface="chrome">
       <div className="home-centre">
-        <h1 className="home-wordmark">Studio</h1>
+        <header className="home-mark">
+          <h1 className="home-wordmark">Studio</h1>
+          <p className="home-tagline">Video editing studio</p>
+        </header>
 
         <div className="home-actions">
           <Button variant="solid" onClick={onNew}>
             New project
+            <Icon name="arrowRight" />
           </Button>
           <Button variant="quiet" onClick={() => void openProject()}>
             Open project…
@@ -71,6 +73,9 @@ export function HomeScreen({ onNew }: { onNew: () => void }) {
 
         {recents.length > 0 && (
           <section className="home-recents" aria-label="Recent projects">
+            <h2 className="home-section">
+              <span>Recent projects</span>
+            </h2>
             <ul className="home-list">
               {recents.map((recent) => (
                 <li key={recent.path} className="home-row" data-missing={!recent.exists}>
@@ -85,6 +90,7 @@ export function HomeScreen({ onNew }: { onNew: () => void }) {
                     <span className="home-where">
                       <bdi>{recent.exists ? folderOf(recent.path) : "Moved or deleted"}</bdi>
                     </span>
+                    <span className="home-when">{timeAgo(Number(recent.openedUnixMs))}</span>
                   </button>
                   <button
                     type="button"

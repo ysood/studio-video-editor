@@ -86,6 +86,9 @@ export const crimsonTheme: Theme = {
       hover: "#3a0008",
       wash: "rgba(20, 0, 3, 0.14)",
     },
+    // Near black at the edges warming toward the deep red in the middle, so the letters
+    // look lit from behind the frame rather than stamped on it.
+    wordmark: { core: "#4a0010", edge: "#140003" },
     selection: "#ffffff",
     media: {
       video: "#8d0d1c",

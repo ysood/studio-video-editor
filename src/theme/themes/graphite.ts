@@ -37,6 +37,8 @@ export const graphiteTheme: Theme = {
       hover: amber[400],
       wash: "rgba(240, 181, 69, 0.12)",
     },
+    // Graphite is the plain theme: no light falls on its wordmark.
+    wordmark: { core: "#0a0a0b", edge: "#0a0a0b" },
     selection: amber[500],
     media: {
       video: steel[500],
@@ -83,6 +85,9 @@ export const graphiteTheme: Theme = {
     canvas: { family: "ui", size: 11, weight: 400, lineHeight: 1, tracking: 0 },
     // Large text needs no extra leading, and capitals need tracking to stay readable.
     wordmark: { family: "wordmark", size: 60, weight: 400, lineHeight: 1, tracking: 0.22 },
+    // Capitals this small are unreadable without air between them.
+    overline: { family: "ui", size: 11, weight: 500, lineHeight: 1.2, tracking: 0.38 },
+    projectName: { family: "wordmark", size: 20, weight: 500, lineHeight: 1.2, tracking: 0 },
   },
 
   // Steps 1 to 9 are the editor's own, close together because panels are dense. The
@@ -119,7 +124,8 @@ export const graphiteTheme: Theme = {
     thumbnailMin: 96,
     thumbnailMax: 288,
     menuMinWidth: 184,
-    homeColumn: 380,
+    homeColumn: 640,
+    wordmarkCap: 220,
     sliderTrack: 4,
     sliderThumb: 12,
   },

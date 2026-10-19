@@ -55,6 +55,8 @@ const SAMPLE_TEXT: Record<TypeRoleName, string> = {
   timecodeDisplay: "00:01:24:12",
   canvas: "A001_C004_stage_wide.mov",
   wordmark: "STUDIO",
+  overline: "RECENT PROJECTS",
+  projectName: "Postcards Rough Cut",
 };
 
 export function Gallery() {

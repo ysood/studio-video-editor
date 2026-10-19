@@ -45,6 +45,8 @@ export type TypeRoleName =
   | "timecode" // timeline toolbar timecode
   | "timecodeDisplay" // the viewer's large timecode
   | "canvas" // text painted on the timeline canvas
+  | "overline" // small tracked capitals: taglines, section labels, timestamps
+  | "projectName" // a project's name, set in the wordmark face
   | "wordmark"; // the app's name on the home screen
 
 /**
@@ -86,6 +88,12 @@ export interface ColorRoles {
     base: string; // time and action: playhead, timecode, primary button, focus
     hover: string;
     wash: string; // translucent accent for drop targets
+  };
+  /** The wordmark is filled with a gradient between these, not a flat color, so the
+   *  letters read as lit rather than printed. Both sit near the text color. */
+  wordmark: {
+    core: string; // where the light falls
+    edge: string; // everywhere else
   };
   /** Outline of selected clips and bin items. */
   selection: string;
@@ -191,6 +199,7 @@ export interface Theme {
     thumbnailMax: number;
     menuMinWidth: number; // menus, select lists, popovers
     homeColumn: number; // the reading column on the home screen
+    wordmarkCap: number; // the wordmark stops growing here, however wide the window
     sliderTrack: number; // slider rail thickness
     sliderThumb: number; // slider handle diameter
   };

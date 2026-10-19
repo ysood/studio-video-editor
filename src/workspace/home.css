@@ -10,26 +10,57 @@
   background: var(--color-surface-base);
 }
 
+/* No width limit here: the wordmark is meant to be wider than the list below it, and
+   clamping the whole column to the list's width pushed the mark out of the middle. */
 .home-centre {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-11);
   width: 100%; /* design-allow */
-  max-width: var(--size-home-column);
 }
 
-/* The name is set in the wordmark role, which exists for this one piece of text. The
-   capitals come from CSS rather than the markup so the word is still read as a word. */
+.home-mark {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+/* The name grows with the window up to a stop, because a wordmark at a fixed size looks
+   posted on a wide screen and overflows a narrow one. The stop is the token; the rate it
+   grows at is layout. */
 .home-wordmark {
+  --wordmark-size: min(var(--size-wordmark-cap), 17vw);
+
   margin: 0;
   font: var(--type-wordmark);
+  font-size: var(--wordmark-size);
   font-variation-settings: var(--type-wordmark-variation);
   letter-spacing: var(--type-wordmark-tracking);
-  color: var(--color-text-primary);
+  line-height: var(--type-wordmark-line);
+  /* Filled with light rather than ink: the gradient is clipped to the glyphs, so the
+     letters warm toward the middle the way a lit sign does. */
+  background: radial-gradient(
+    ellipse at 50% 45%,
+    var(--color-wordmark-core),
+    var(--color-wordmark-edge) 70%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
   text-transform: uppercase;
   /* The tracking adds a gap after the final letter that the eye reads as off-centre. */
   text-indent: var(--type-wordmark-tracking);
+}
+
+.home-tagline {
+  margin: 0;
+  font: var(--type-overline);
+  letter-spacing: var(--type-overline-tracking);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  text-indent: var(--type-overline-tracking);
 }
 
 .home-actions {
@@ -40,21 +71,44 @@
 /* The editor's controls are sized for density, which is not what this screen is for:
    next to a wordmark they read as an afterthought. Larger here, and only here. */
 .home-actions .ui-button {
+  gap: var(--space-6);
   height: var(--size-control-large);
   padding-inline: var(--space-8);
   font: var(--type-heading);
 }
 
-/* No border between the actions and the list: the gap above is twice any gap inside the
-   list, which is enough to say they are different things. */
 .home-recents {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-7);
   width: 100%; /* design-allow */
+  max-width: var(--size-home-column);
+}
+
+/* A label on a rule: the one place a line earns its keep here, because it has to say
+   where the list starts without competing with the actions above it. */
+.home-section {
+  display: flex;
+  align-items: center;
+  gap: var(--space-7);
+  margin: 0;
+  font: var(--type-overline);
+  letter-spacing: var(--type-overline-tracking);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+}
+
+.home-section::before,
+.home-section::after {
+  flex: 1;
+  height: var(--border-width);
+  background: var(--color-border-subtle);
+  content: "";
 }
 
 .home-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -71,13 +125,20 @@
   background: var(--color-surface-hover);
 }
 
+/* Name and time on one line, path under the name: two rows and two columns, so the times
+   line up down the right edge however long the names are. */
 .home-open {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-hairline);
+  display: grid;
+  grid-template-areas:
+    "name when"
+    "where when";
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  column-gap: var(--space-7);
+  row-gap: var(--space-hairline);
   min-width: 0; /* design-allow */
-  padding: var(--space-5) var(--space-6);
+  padding: var(--space-6);
   border: none;
   border-radius: inherit;
   background: none;
@@ -89,24 +150,38 @@
   cursor: default;
 }
 
-/* Weight and color carry the hierarchy here, not size: both lines are the same size so
-   the row stays one object, and the folder recedes behind the name. */
+/* The name is set in the wordmark face, at a size the editor never uses: this is the one
+   list where the projects are the point rather than rows of a panel. */
 .home-name {
+  grid-area: name;
   overflow: hidden;
-  font: var(--type-heading);
+  font: var(--type-project-name);
   color: var(--color-text-primary);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .home-where {
+  grid-area: where;
   overflow: hidden;
   font: var(--type-label);
   color: var(--color-text-tertiary);
-  /* Clipped from the left so the end of the path, which identifies it, survives. */
+  /* Clipped from the left so the end of the path, which identifies it, survives. The
+     alignment is spelled out rather than `start`, because `start` follows the direction
+     and would park a path short enough to fit against the right edge. */
   direction: rtl;
-  text-align: start;
+  text-align: left;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-when {
+  grid-area: when;
+  align-self: center;
+  font: var(--type-overline);
+  letter-spacing: var(--type-overline-tracking);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
   white-space: nowrap;
 }
 

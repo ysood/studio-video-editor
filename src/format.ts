@@ -41,3 +41,32 @@ export function formatDuration(micros: number | null): string {
   const s = Math.floor(seconds % 60);
   return `${m}:${String(s).padStart(2, "0")}`;
 }
+
+/**
+ * How long ago, in the roughest terms that are still true: "2 days ago", "1 week ago".
+ *
+ * A recents list is scanned, not read, and the exact minute a project was last opened
+ * has never answered anyone's question. Rounding down means a thing is never reported as
+ * older than it is.
+ */
+export function timeAgo(unixMs: number, now = Date.now()): string {
+  const seconds = Math.max(0, Math.floor((now - unixMs) / 1000));
+  // Each step is how many of the current unit make one of the next.
+  const steps: [number, string][] = [
+    [60, "minute"],
+    [60, "hour"],
+    [24, "day"],
+    [7, "week"],
+    [4, "month"],
+    [12, "year"],
+  ];
+  let count = seconds;
+  let unit = "second";
+  for (const [size, next] of steps) {
+    if (count < size) break;
+    count = Math.floor(count / size);
+    unit = next;
+  }
+  if (unit === "second" && count < 45) return "just now";
+  return `${count} ${unit}${count === 1 ? "" : "s"} ago`;
+}
