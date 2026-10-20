@@ -190,6 +190,7 @@ export interface Theme {
     progressHeight: number;
     dialogWidth: number;
     fieldLabel: number;
+    fieldNumber: number; // a number that sits beside a slider rather than filling the row
     zoomSlider: number;
     timecodeMin: number;
     viewerPadding: number;

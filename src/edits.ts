@@ -1,6 +1,7 @@
 // Small helpers that turn UI intents into EditCommands. The rules (overwrite, clamping,
 // linking) live in Rust; these only pick sensible targets.
 
+import type { EditCommand } from "./bindings/EditCommand";
 import type { MediaAsset } from "./bindings/MediaAsset";
 import type { MediaId } from "./bindings/MediaId";
 import type { SequenceFormat } from "./bindings/SequenceFormat";
@@ -114,4 +115,25 @@ export async function insertMedia(
     return;
   }
   await placeMedia(mediaId, frame, targets);
+}
+
+/** Everything `SetClipsTransform` can change, with anything left out meaning "as it was". */
+export type TransformPatch = Partial<Omit<Extract<EditCommand, { type: "SetClipsTransform" }>, "type" | "clipIds">>;
+
+/**
+ * Change part of the transform on some clips. The command names every field so that a
+ * panel can commit one number at a time, which makes it verbose to write out; this fills
+ * in the nulls that mean "leave this one alone".
+ */
+export function setTransform(clipIds: string[], patch: TransformPatch): EditCommand {
+  return {
+    type: "SetClipsTransform",
+    clipIds,
+    position: null,
+    scale: null,
+    rotation: null,
+    anchor: null,
+    opacity: null,
+    ...patch,
+  };
 }

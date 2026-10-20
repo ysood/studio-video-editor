@@ -10,6 +10,7 @@ import type { FunctionComponent } from "react";
 import { InspectorPanel } from "../panels/InspectorPanel";
 import { MediaBinPanel } from "../panels/MediaBinPanel";
 import { TimelinePanel } from "../panels/TimelinePanel";
+import { TransformPanel } from "../panels/TransformPanel";
 import { ViewerPanel } from "../panels/ViewerPanel";
 import { importMedia } from "../actions";
 import { chord } from "../keyboard";
@@ -23,6 +24,7 @@ const components: Record<string, FunctionComponent<IDockviewPanelProps>> = {
   bin: MediaBinPanel,
   viewer: ViewerPanel,
   inspector: InspectorPanel,
+  transform: TransformPanel,
   timeline: TimelinePanel,
 };
 
@@ -48,6 +50,15 @@ function defaultLayout(api: DockviewApi) {
     title: "Inspector",
     position: { referencePanel: "viewer", direction: "right" },
     initialWidth: 300,
+  });
+  // No direction, so it joins the inspector's group as a second tab rather than taking
+  // room of its own. The two answer different questions about the same selection.
+  api.addPanel({
+    id: "transform",
+    component: "transform",
+    title: "Transform",
+    position: { referencePanel: "inspector" },
+    inactive: true,
   });
 }
 

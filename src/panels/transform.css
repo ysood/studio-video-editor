@@ -1,0 +1,23 @@
+/* Two numbers that make up one value (x and y) sit closer together than fields do to
+   their neighbours, so the pair reads as one thing rather than two. */
+.transform-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+/* Opacity is the one value worth dragging, so the slider takes the room and the number
+   beside it stays narrow enough to read at a glance. */
+.transform-opacity {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--size-field-number);
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* The primitive keeps a minimum width so a toolbar slider always has a usable track.
+   Here the grid column already decides the width, so the floor only makes it overflow
+   onto the number beside it. */
+.transform-opacity .ui-slider {
+  min-width: 0;
+}

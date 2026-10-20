@@ -116,6 +116,7 @@ export const graphiteTheme: Theme = {
     progressHeight: 4,
     dialogWidth: 520,
     fieldLabel: 124,
+    fieldNumber: 56,
     zoomSlider: 120,
     timecodeMin: 96,
     viewerPadding: 16,
