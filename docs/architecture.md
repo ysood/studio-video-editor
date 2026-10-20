@@ -112,9 +112,13 @@ copies used media next to both files plus a provenance manifest.
   and no keyframes: a transform holds for the whole clip. On macOS the picture comes
   from AVFoundation and plays 60 Mbps H.264 smoothly; the element path used everywhere
   else still cannot stream that bitrate through the asset protocol.
-- Transforms do not reach Resolve or Premiere: OTIO and FCP7 XML both write empty effect
-  lists, so a transformed cut flattens on handoff. The Premiere path is FCP7's
-  `Basic Motion` filter (ADR-0005).
+- Transforms travel in the handoff, but have not been round-tripped through Premiere or
+  Resolve on a real machine. FCP7 XML writes `Basic Motion` and `Opacity`; OTIO carries
+  the transform in `metadata.studio` because it has no schema for one. The unit
+  conventions are taken from a Premiere export, not from a spec (ADR-0005), so the first
+  real import is worth checking by eye. One transform per clip travels, not keyframes.
+- `Basic Motion` holds one Scale, so a clip scaled differently across and down reaches
+  Premiere as its width scale and the other is lost. Nothing in the format holds it.
 - A clip cannot be dragged or scaled in the viewer. On macOS the picture is a native view
   above the webview (ADR-0003), so a web overlay cannot be drawn over it; handles need a
   second native view or to be drawn natively.

@@ -6,10 +6,15 @@
 //!   sequence may need a conform in the receiving app.
 //! - Each audio clip is one clipitem reading source channel 1; stereo files arrive as one
 //!   stereo clip.
+//! - Basic Motion carries a single Scale, so a clip scaled differently across and down
+//!   travels as its width scale. Nothing in the format holds the other one.
 
 use super::{file_url, sequence_items, Item};
 use crate::ids::{ClipId, MediaId};
-use crate::model::{Clip, MediaAsset, MediaKind, Project, Sequence, Track, TrackKind};
+use crate::model::{
+    Clip, MediaAsset, MediaKind, Project, Sequence, SequenceFormat, Track, TrackKind, Transform,
+    MILLI,
+};
 use crate::time::{timecode, Frame, Rational};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
@@ -159,6 +164,9 @@ impl<'a> Writer<'a> {
             }
         }
         self.close("sourcetrack");
+        if kind == TrackKind::Video {
+            self.motion(clip.transform);
+        }
         if clip.link.is_some() {
             for member in p.link_group(clip.id) {
                 let pos = self.positions[&member];
@@ -177,6 +185,78 @@ impl<'a> Writer<'a> {
             }
         }
         self.close("clipitem");
+    }
+
+    /// The clip's transform, as the Motion settings Premiere and Resolve read.
+    ///
+    /// Written only when there is something to say: an untransformed clip produces no
+    /// filter at all, so a cut that never used a transform exports exactly the file it
+    /// always did. The two effects are independent, so a clip that is only faded gets
+    /// Opacity and no Basic Motion.
+    fn motion(&mut self, transform: Transform) {
+        let format = self.sequence.format;
+        let motion = BasicMotion::of(transform, format);
+        if !motion.is_identity() {
+            self.open("filter");
+            self.open("effect");
+            self.text("name", "Basic Motion");
+            self.text("effectid", "basic");
+            self.text("effectcategory", "motion");
+            self.text("effecttype", "motion");
+            self.text("mediatype", "video");
+            self.parameter("scale", "Scale", Some((0.0, 1000.0)), motion.scale);
+            self.parameter(
+                "rotation",
+                "Rotation",
+                Some((-8640.0, 8640.0)),
+                motion.rotation,
+            );
+            self.point("center", "Center", motion.center);
+            self.point("centerOffset", "Anchor Point", motion.anchor);
+            self.close("effect");
+            self.close("filter");
+        }
+        if transform.opacity != MILLI {
+            self.open("filter");
+            self.open("effect");
+            self.text("name", "Opacity");
+            self.text("effectid", "opacity");
+            self.text("effectcategory", "motion");
+            self.text("effecttype", "motion");
+            self.text("mediatype", "video");
+            self.parameter(
+                "opacity",
+                "opacity",
+                Some((0.0, 100.0)),
+                transform.opacity_factor() * 100.0,
+            );
+            self.close("effect");
+            self.close("filter");
+        }
+    }
+
+    fn parameter(&mut self, id: &str, name: &str, range: Option<(f64, f64)>, value: f64) {
+        self.open("parameter");
+        self.text("parameterid", id);
+        self.text("name", name);
+        if let Some((min, max)) = range {
+            self.text("valuemin", &number(min));
+            self.text("valuemax", &number(max));
+        }
+        self.text("value", &number(value));
+        self.close("parameter");
+    }
+
+    /// A parameter whose value is a point rather than a number.
+    fn point(&mut self, id: &str, name: &str, (x, y): (f64, f64)) {
+        self.open("parameter");
+        self.text("parameterid", id);
+        self.text("name", name);
+        self.open("value");
+        self.text("horiz", &number(x));
+        self.text("vert", &number(y));
+        self.close("value");
+        self.close("parameter");
     }
 
     /// Full file element on first use, then a reference by id, as Premiere expects.
@@ -241,6 +321,64 @@ impl<'a> Writer<'a> {
     }
 }
 
+/// Studio's transform in the units Basic Motion uses.
+///
+/// `center` and `centerOffset` are fractions of the frame measured from its middle, so
+/// half a frame to the left is -0.5 and the top left corner is (-0.5, -0.5). That is why
+/// the format stores them this way rather than in pixels: a clip keeps its framing when
+/// the media behind it is relinked at another resolution, which is the reason Apple's
+/// reference gives for the Center parameter being resolution independent. Studio's own
+/// offsets are already measured from the middle of the frame, so this is a divide and
+/// nothing more.
+///
+/// Scale is a percentage where 100 leaves the picture alone, and rotation is clockwise
+/// degrees, the same direction Studio counts.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct BasicMotion {
+    scale: f64,
+    rotation: f64,
+    center: (f64, f64),
+    anchor: (f64, f64),
+}
+
+impl BasicMotion {
+    fn of(t: Transform, format: SequenceFormat) -> Self {
+        let (w, h) = (f64::from(format.width), f64::from(format.height));
+        let (px, py) = t.position_px();
+        let (ax, ay) = t.anchor_px();
+        // Basic Motion has one Scale. A clip scaled differently across and down travels
+        // as its width scale, and the other one is lost: see the module header.
+        let (sx, _) = t.scale_factor();
+        Self {
+            scale: sx * 100.0,
+            rotation: t.rotation_degrees(),
+            center: (px / w, py / h),
+            anchor: (ax / w, ay / h),
+        }
+    }
+
+    /// Whether this says anything a receiving app would not already assume.
+    fn is_identity(self) -> bool {
+        self.scale == 100.0
+            && self.rotation == 0.0
+            && self.center == (0.0, 0.0)
+            && self.anchor == (0.0, 0.0)
+    }
+}
+
+/// A number with no trailing zeros, so a whole value reads as `100` rather than
+/// `100.000000`, which is how Premiere writes its own.
+fn number(value: f64) -> String {
+    let text = format!("{value:.6}");
+    let trimmed = text.trim_end_matches('0').trim_end_matches('.');
+    match trimmed {
+        // Negative zero, and anything that rounds away to nothing, both read as plain
+        // zero rather than the `-0` a receiving app would have to interpret.
+        "" | "-" | "-0" | "0" => "0".to_string(),
+        other => other.to_string(),
+    }
+}
+
 fn tracks_of(sequence: &Sequence, kind: TrackKind) -> impl Iterator<Item = &Track> {
     sequence.tracks.iter().filter(move |t| t.kind == kind)
 }
@@ -281,6 +419,9 @@ fn escape(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::edit::EditCommand;
+    use crate::ids::ClipId;
+    use crate::model::{Offset, Scale};
     use crate::testing::sample_edit;
 
     #[test]
@@ -297,6 +438,123 @@ mod tests {
         // The full file element appears once; later clips reference it.
         assert_eq!(xml.matches("<pathurl>").count(), 1);
         assert_eq!(xml.matches("<link>").count(), 8);
+    }
+
+    /// `sample_edit` after transforming its first V1 clip; ids are fresh per fixture.
+    fn with_transform(build: impl FnOnce(ClipId) -> EditCommand) -> String {
+        let project = sample_edit();
+        let command = build(project.first_sequence().tracks[0].clips[0].id);
+        let project = crate::edit::apply(&project, &command).unwrap().0;
+        export(&project, project.first_sequence())
+    }
+
+    fn change(clip: ClipId) -> EditCommand {
+        EditCommand::SetClipsTransform {
+            clip_ids: vec![clip],
+            position: None,
+            scale: None,
+            rotation: None,
+            anchor: None,
+            opacity: None,
+        }
+    }
+
+    #[test]
+    fn an_untransformed_cut_writes_no_filter_at_all() {
+        // A project that never used a transform exports the file it always did.
+        let project = sample_edit();
+        let xml = export(&project, project.first_sequence());
+        assert!(!xml.contains("<filter>"), "{xml}");
+        assert!(!xml.contains("Basic Motion"), "{xml}");
+    }
+
+    #[test]
+    fn writes_basic_motion_as_fractions_of_the_frame() {
+        // 480 px across a 1920 frame is a quarter of it, and 270 px up a 1080 frame is a
+        // quarter of that. Negative vert is up, so the top left corner is (-0.5, -0.5).
+        let xml = with_transform(|clip| EditCommand::SetClipsTransform {
+            clip_ids: vec![clip],
+            position: Some(Offset {
+                x: 480 * MILLI,
+                y: -270 * MILLI,
+            }),
+            scale: Some(Scale { x: 450, y: 450 }),
+            rotation: Some(-8 * MILLI),
+            anchor: Some(Offset {
+                x: 96 * MILLI,
+                y: 0,
+            }),
+            opacity: None,
+        });
+        assert!(xml.contains("<name>Basic Motion</name>"), "{xml}");
+        assert!(xml.contains("<effectid>basic</effectid>"), "{xml}");
+        assert!(xml.contains("<horiz>0.25</horiz>"), "{xml}");
+        assert!(xml.contains("<vert>-0.25</vert>"), "{xml}");
+        assert!(xml.contains("<horiz>0.05</horiz>"), "anchor: {xml}");
+        // Scale is a percentage, rotation clockwise degrees.
+        assert!(xml.contains("<value>45</value>"), "{xml}");
+        assert!(xml.contains("<value>-8</value>"), "{xml}");
+        // Nothing was faded, so no Opacity effect.
+        assert!(!xml.contains("<name>Opacity</name>"), "{xml}");
+    }
+
+    #[test]
+    fn a_fade_writes_opacity_and_nothing_else() {
+        // The two effects are independent: a clip that is only faded has no motion.
+        let xml = with_transform(|clip| EditCommand::SetClipsTransform {
+            clip_ids: vec![clip],
+            position: None,
+            scale: None,
+            rotation: None,
+            anchor: None,
+            opacity: Some(MILLI / 4),
+        });
+        assert!(!xml.contains("Basic Motion"), "{xml}");
+        assert!(xml.contains("<effectid>opacity</effectid>"), "{xml}");
+        assert!(xml.contains("<value>25</value>"), "{xml}");
+    }
+
+    #[test]
+    fn only_the_video_clip_gets_a_filter() {
+        // sample_edit links video and audio; the sound has no picture to move.
+        let xml = with_transform(|clip| EditCommand::SetClipsTransform {
+            clip_ids: vec![clip],
+            position: None,
+            scale: Some(Scale { x: 500, y: 500 }),
+            rotation: None,
+            anchor: None,
+            opacity: Some(500),
+        });
+        assert_eq!(xml.matches("<filter>").count(), 2, "{xml}");
+    }
+
+    #[test]
+    fn a_clip_scaled_differently_across_and_down_travels_as_its_width() {
+        // Basic Motion has one Scale, so the other is lost. Documented in the header.
+        let xml = with_transform(|clip| EditCommand::SetClipsTransform {
+            clip_ids: vec![clip],
+            position: None,
+            scale: Some(Scale { x: 500, y: 250 }),
+            rotation: None,
+            anchor: None,
+            opacity: None,
+        });
+        assert!(xml.contains("<value>50</value>"), "{xml}");
+        assert!(!xml.contains("<value>25</value>"), "{xml}");
+    }
+
+    #[test]
+    fn a_transform_that_says_nothing_writes_nothing() {
+        let xml = with_transform(change);
+        assert!(!xml.contains("<filter>"), "{xml}");
+    }
+
+    #[test]
+    fn whole_numbers_lose_their_trailing_zeros() {
+        assert_eq!(number(100.0), "100");
+        assert_eq!(number(-8.0), "-8");
+        assert_eq!(number(0.456250), "0.45625");
+        assert_eq!(number(-0.0), "0");
     }
 
     #[test]

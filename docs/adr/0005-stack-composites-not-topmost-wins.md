@@ -71,10 +71,19 @@ the same cases: scale and rotation turn about the anchor, position places the an
   and every transform filter whose value is the identity is left out of the graph.
 - The macOS preview holds more composition tracks and draws more layers, so a tall stack
   costs more than it did. It was free before because the covered clips were thrown away.
-- Transforms do not travel to Resolve or Premiere yet: OTIO and FCP7 XML both still
-  write empty effect lists, so a transformed cut flattens on handoff. The Premiere path
-  is FCP7's `Basic Motion` filter. Until that is written, this is a known limit rather
-  than a silent one.
+- Transforms travel to Resolve and Premiere through FCP7 XML's `Basic Motion` and
+  `Opacity` effects, written only when a clip has something to say so an untransformed
+  cut exports the file it always did. Their units are fractions of the frame measured
+  from its middle, which is how the format stays resolution independent when media is
+  relinked. Apple's reference does not state the convention; it is taken from a Premiere
+  export, so the first real import is worth checking by eye.
+- `Basic Motion` carries a single Scale, so a clip scaled differently across and down
+  reaches Premiere as its width scale. Nothing in the format holds the other one.
+- OTIO gets the transform as `metadata.studio.transform`, in the document's own
+  thousandths, rather than an effect. OTIO has no schema for an affine transform
+  (OTIO issue 253) and its maintainers' advice for anything the format does not model is
+  to carry it as metadata, so a reader that does not know Studio ignores it instead of
+  mis-drawing the clip. Emit a schema instead if OTIO ever grows one.
 - Direct manipulation in the viewer (drag and corner handles) is still out of reach on
   macOS: the picture is a native view above the webview (ADR-0003), so a web overlay
   cannot be drawn on top of it. That needs either a second native view or handles drawn

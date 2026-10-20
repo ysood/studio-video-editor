@@ -56,6 +56,22 @@ fn sample_project() -> Project {
             })
             .unwrap();
     }
+    // One clip is transformed, so the sample files exercise the motion path and can be
+    // opened in Premiere or Resolve to check the framing really survives.
+    let framed = editor.project().first_sequence().tracks[0].clips[0].id;
+    editor
+        .apply(&EditCommand::SetClipsTransform {
+            clip_ids: vec![framed],
+            position: Some(Offset {
+                x: 480 * MILLI,
+                y: -270 * MILLI,
+            }),
+            scale: Some(Scale { x: 450, y: 450 }),
+            rotation: Some(-8 * MILLI),
+            anchor: None,
+            opacity: Some(800),
+        })
+        .unwrap();
     editor.project().clone()
 }
 
@@ -79,4 +95,18 @@ fn writes_sample_interchange_files() {
     assert_eq!(value["OTIO_SCHEMA"], "Timeline.1");
     assert!(otio_text.contains("Shoot%20Day/A001%20shot%20%26%20take.mov"));
     assert!(xml_text.contains("<name>A001 shot &amp; take.mov</name>"));
+
+    // The transform reaches both formats, each in its own units: fractions of the frame
+    // for Basic Motion, the document's own thousandths for Studio's OTIO metadata.
+    assert!(xml_text.contains("<name>Basic Motion</name>"), "{xml_text}");
+    assert!(xml_text.contains("<horiz>0.25</horiz>"), "{xml_text}");
+    assert!(xml_text.contains("<value>45</value>"), "{xml_text}");
+    let clip = &value["tracks"]["children"][0]["children"][1];
+    assert_eq!(
+        clip["metadata"]["studio"]["transform"]["position"]["x"],
+        480_000
+    );
+    assert_eq!(clip["metadata"]["studio"]["transform"]["opacity"], 800);
+    // Only the picture: the linked sound carries nothing.
+    assert_eq!(xml_text.matches("<filter>").count(), 2, "{xml_text}");
 }
