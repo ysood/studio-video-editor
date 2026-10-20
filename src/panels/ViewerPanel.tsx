@@ -8,12 +8,56 @@ import { audioAt, sequenceEnd, videoStackAt } from "../playback/resolve";
 import { isBrowserPreview } from "../preview/mode";
 import { useEditor } from "../store";
 import { layerStyle } from "../transform";
+import { useFraming } from "../viewer/useFraming";
+import { HANDLE_SIZE, type OverlayBox } from "../viewer/framing";
 import { IconButton, Panel, Timecode } from "../ui";
 import "./viewer.css";
 import { useActiveSequence } from "../store";
 
 /** Seek a playing element only when it drifts this far, so playback stays smooth. */
 const DRIFT_SECONDS = 0.12;
+
+/**
+ * The corner marks, each tucked inside the box rather than centred on its corner.
+ *
+ * A clip that fills the frame has its corners exactly on the edge of the stage, and the
+ * stage clips to the matte, so a centred mark would lose its outer half on the most
+ * ordinary clip there is. The native surface insets them the same way.
+ */
+function corners(box: OverlayBox): [number, number][] {
+  const inset = HANDLE_SIZE;
+  const [right, bottom] = [box.x + box.width - inset, box.y + box.height - inset];
+  return [
+    [box.x, box.y],
+    [right, box.y],
+    [right, bottom],
+    [box.x, bottom],
+  ];
+}
+
+/**
+ * The clip's box and its corner marks, for the picture path that draws in the web layer.
+ *
+ * One box and one transform, the same pair the native surface is given, so what is drawn
+ * here and what is drawn there come from the same arithmetic.
+ */
+function Handles({ box }: { box: OverlayBox }) {
+  const [a, b, c, d, tx, ty] = box.affine;
+  const middle = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  return (
+    <svg className="viewer-handles" aria-hidden>
+      <g
+        // Transform about the middle of the box, which is where a layer turns too.
+        transform={`translate(${tx} ${ty}) translate(${middle.x} ${middle.y}) matrix(${a} ${b} ${c} ${d} 0 0) translate(${-middle.x} ${-middle.y})`}
+      >
+        <rect className="viewer-handle-box" x={box.x} y={box.y} width={box.width} height={box.height} />
+        {corners(box).map(([x, y]) => (
+          <rect key={`${x},${y}`} className="viewer-handle" x={x} y={y} />
+        ))}
+      </g>
+    </svg>
+  );
+}
 
 function mediaUrl(media: MediaAsset): string {
   return convertFileSrc(media.path);
@@ -60,6 +104,9 @@ export function ViewerPanel() {
 
   // macOS draws the picture natively; the element path below is the browser fallback.
   useNativeViewer(stageRef);
+  // Dragging the clip itself. Works wherever the picture comes from; only the handles
+  // are drawn differently (ADR-0006).
+  const framing = useFraming(stageRef);
 
   // Clock: advance the playhead from wall time while playing.
   //
@@ -226,7 +273,12 @@ export function ViewerPanel() {
           className="viewer-stage"
           data-surface="stage"
           style={{ "--aspect": format.width / format.height } as React.CSSProperties}
-          onClick={togglePlay}
+          onPointerDown={framing.onPointerDown}
+          // A drag is not a click, so releasing after moving a clip must not also start
+          // playback.
+          onClick={() => {
+            if (!framing.dragging) togglePlay();
+          }}
         >
           {missing && (
             <div className="viewer-slate">
@@ -234,6 +286,7 @@ export function ViewerPanel() {
               <span>{missing.media.path}</span>
             </div>
           )}
+          {isBrowserPreview && framing.box && <Handles box={framing.box} />}
         </div>
       </div>
       <div className="viewer-transport">

@@ -61,3 +61,26 @@
   align-items: center;
   gap: var(--space-3);
 }
+
+/* The clip's box and corner marks in the browser preview. On macOS the same box is drawn
+   by the native surface instead, because the picture sits above the web layer (ADR-0006). */
+.viewer-handles {
+  position: absolute;
+  inset: 0;
+  width: 100%; /* design-allow: fills the stage, not a size decision */
+  height: 100%; /* design-allow */
+  overflow: visible;
+  pointer-events: none;
+}
+
+.viewer-handle-box {
+  fill: none;
+  stroke: var(--color-accent-base);
+  stroke-width: var(--border-width);
+}
+
+.viewer-handle {
+  fill: var(--color-accent-base);
+  width: var(--size-viewer-handle);
+  height: var(--size-viewer-handle);
+}

@@ -43,6 +43,7 @@ pub fn run() {
             commands::viewer_set_rect,
             commands::viewer_sync,
             commands::viewer_set_hidden,
+            commands::viewer_set_overlay,
             commands::viewer_play,
             commands::viewer_pause,
             commands::viewer_seek,

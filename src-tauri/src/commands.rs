@@ -590,6 +590,7 @@ pub fn viewer_sync(
             return;
         };
         let app = window.app_handle().clone();
+        let pointer_app = app.clone();
         let _ = window.with_webview(move |webview| {
             let ns_window = webview.ns_window();
             crate::viewer::set_segments(ns_window, &segments, canvas, at_us);
@@ -598,10 +599,71 @@ pub fn viewer_sync(
             crate::viewer::observe_time(ns_window, move |micros| {
                 let _ = app.emit("viewer://time", micros);
             });
+            // And the mouse, for the same reason: the surface is above the webview, so
+            // nothing over the picture is heard unless it is reported (ADR-0006).
+            crate::viewer::watch_pointer(ns_window, move |pointer| {
+                let _ = pointer_app.emit(
+                    "viewer://pointer",
+                    ViewerPointer {
+                        phase: pointer.phase.name().to_string(),
+                        x: pointer.x,
+                        y: pointer.y,
+                        shift: pointer.shift,
+                    },
+                );
+            });
         });
     }
     #[cfg(not(target_os = "macos"))]
     let _ = (window, state, sequence_id, frame);
+}
+
+/// Where the viewer should draw the handles, in the surface's own coordinates with y
+/// measured from the bottom. The web layer converts, because it is the side that knows
+/// the stage's size (ADR-0006).
+#[derive(Debug, Clone, Copy, serde::Deserialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ViewerOverlay {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+    /// `a`, `b`, `c`, `d`, `tx`, `ty` of the clip's transform.
+    pub transform: [f64; 6],
+}
+
+/// The handles' box, or `None` to take them away. Called whenever the selection or the
+/// transform changes, and while a drag previews where the clip is going.
+#[tauri::command]
+pub fn viewer_set_overlay(window: tauri::WebviewWindow, overlay: Option<ViewerOverlay>) {
+    #[cfg(target_os = "macos")]
+    let _ = window.with_webview(move |webview| {
+        crate::viewer::set_overlay(
+            webview.ns_window(),
+            overlay.map(|o| crate::viewer::Overlay {
+                x: o.x,
+                y: o.y,
+                width: o.width,
+                height: o.height,
+                transform: o.transform,
+            }),
+        );
+    });
+    #[cfg(not(target_os = "macos"))]
+    let _ = (window, overlay);
+}
+
+/// What the mouse did over the picture, for the web layer to interpret.
+#[derive(Debug, Clone, serde::Serialize, ts_rs::TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ViewerPointer {
+    /// `down`, `moved` or `up`.
+    pub phase: String,
+    pub x: f64,
+    pub y: f64,
+    pub shift: bool,
 }
 
 /// Hide or show the native preview surface. The web layer asks for this when it draws

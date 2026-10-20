@@ -32,6 +32,12 @@ export type Grab = { kind: "move" } | { kind: "corner"; corner: number };
 export const HANDLE_REACH = 10;
 
 /**
+ * How large a corner mark is drawn, in stage pixels. Kept just under `HANDLE_REACH` so
+ * everything you can see you can also grab. The native surface uses the same number.
+ */
+export const HANDLE_SIZE = 9;
+
+/**
  * The picture's rectangle inside the frame before any transform: scaled to fit without
  * cropping, centred, which is what every backend does first.
  *
@@ -214,6 +220,54 @@ function scaled(value: number, was: number, now: number): number {
 function ratio(was: number, now: number): number {
   if (Math.abs(was) < 1e-6) return 1;
   return Math.abs(now / was);
+}
+
+export interface OverlayBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** `a`, `b`, `c`, `d`, `tx`, `ty`, in stage pixels with y measured from the top. */
+  affine: [number, number, number, number, number, number];
+}
+
+/**
+ * The handles' box: the clip's untransformed rectangle on the stage, plus the affine
+ * that puts it where the clip is.
+ *
+ * Split this way because that is what a layer wants, and what an SVG group wants: one
+ * square box and one transform, rather than four corners that have to be re-derived
+ * every time something moves. Applying the affine to the box's corners gives exactly
+ * `clipQuad`, which is what the test checks.
+ */
+export function overlayBox(
+  t: Transform,
+  source: Size,
+  format: SequenceFormat,
+  stage: Size,
+): OverlayBox {
+  const frame = { width: format.width, height: format.height };
+  const k = stageScale(frame, stage);
+  const fitted = fittedRect(source, frame);
+  const box = {
+    x: fitted[0].x * k,
+    y: fitted[0].y * k,
+    width: (fitted[1].x - fitted[0].x) * k,
+    height: (fitted[3].y - fitted[0].y) * k,
+  };
+  // A layer and an SVG group both transform about the middle of their own box.
+  const middle = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  const [sx, sy] = [units(t.scale.x), units(t.scale.y)];
+  const angle = (units(t.rotation) * Math.PI) / 180;
+  const [sin, cos] = [Math.sin(angle), Math.cos(angle)];
+  // Rotation after scale, the order the transform is defined in.
+  const [a, b, c, d] = [cos * sx, sin * sx, -sin * sy, cos * sy];
+  // The translation is whatever is left over once the top left corner is where
+  // `placePoint` says it goes, so the two can never drift apart.
+  const corner = toStage(placePoint(t, frame, fitted[0]), frame, stage);
+  const tx = corner.x - (middle.x + a * (box.x - middle.x) + c * (box.y - middle.y));
+  const ty = corner.y - (middle.y + b * (box.x - middle.x) + d * (box.y - middle.y));
+  return { ...box, affine: [a, b, c, d, tx, ty] };
 }
 
 /** Whether a transform differs enough from another to be worth an edit. */

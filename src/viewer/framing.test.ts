@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { SequenceFormat } from "../bindings/SequenceFormat";
 import type { Transform } from "../bindings/Transform";
 import { IDENTITY, MILLI } from "../transform";
-import { clipQuad, dragged, fittedRect, grabAt, placePoint, toFrame } from "./framing";
+import { clipQuad, dragged, fittedRect, grabAt, overlayBox, placePoint, toFrame } from "./framing";
 
 const HD: SequenceFormat = { width: 1920, height: 1080, frameRate: { num: 24, den: 1 }, sampleRate: 48000 };
 const FRAME = { width: HD.width, height: HD.height };
@@ -173,5 +173,51 @@ describe("grabAt", () => {
   it("still finds the middle of a turned clip", () => {
     const turned = clipQuad({ ...IDENTITY, rotation: 30 * MILLI }, FULL, FRAME);
     expect(grabAt(CENTRE, turned, FRAME, stage)).toEqual({ kind: "move" });
+  });
+});
+
+describe("overlayBox", () => {
+  const stage = { width: 960, height: 540 };
+
+  const applied = (box: ReturnType<typeof overlayBox>, x: number, y: number) => {
+    const [a, b, c, d, tx, ty] = box.affine;
+    const m = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    return {
+      x: m.x + a * (x - m.x) + c * (y - m.y) + tx,
+      y: m.y + b * (x - m.x) + d * (y - m.y) + ty,
+    };
+  };
+
+  it("reproduces the quad when its affine is applied to its corners", () => {
+    // The box and the quad are two descriptions of one thing, so they must agree for
+    // any transform: the handles are drawn from one and hit tested against the other.
+    for (const t of [
+      IDENTITY,
+      to({ position: { x: 200 * MILLI, y: -90 * MILLI } }),
+      to({ scale: { x: MILLI / 2, y: MILLI / 4 } }),
+      to({ rotation: 30 * MILLI }),
+      to({
+        rotation: -75 * MILLI,
+        scale: { x: 1700, y: 600 },
+        anchor: { x: 120 * MILLI, y: -40 * MILLI },
+        position: { x: -60 * MILLI, y: 25 * MILLI },
+      }),
+    ]) {
+      const box = overlayBox(t, FULL, HD, stage);
+      const quad = clipQuad(t, FULL, FRAME).map((c) => ({ x: c.x / 2, y: c.y / 2 }));
+      const corners = [
+        applied(box, box.x, box.y),
+        applied(box, box.x + box.width, box.y),
+        applied(box, box.x + box.width, box.y + box.height),
+        applied(box, box.x, box.y + box.height),
+      ];
+      corners.forEach((got, i) => close(got, quad[i]!));
+    }
+  });
+
+  it("is the whole stage for an untransformed full frame clip", () => {
+    const box = overlayBox(IDENTITY, FULL, HD, stage);
+    expect(box).toMatchObject({ x: 0, y: 0, width: 960, height: 540 });
+    expect(box.affine).toEqual([1, 0, -0, 1, 0, 0]);
   });
 });

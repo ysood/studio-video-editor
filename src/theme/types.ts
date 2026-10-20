@@ -194,6 +194,7 @@ export interface Theme {
     zoomSlider: number;
     timecodeMin: number;
     viewerPadding: number;
+    viewerHandle: number; // a corner mark on the clip being framed
     binPane: number; // width of the media bin's folder column
     thumbnail: number; // default gallery tile width
     thumbnailMin: number;

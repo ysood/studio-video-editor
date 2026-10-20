@@ -8,7 +8,7 @@ Last verified: 2026-10-20
 ┌────────────────────────────── React UI (src/) ──────────────────────────────┐
 │  Workspace (Dockview)  Media bin  Viewer  Timeline  Inspector + Transform    │
 │  store.ts: latest Snapshot + view state (selection, playhead, zoom)          │
-│  geometry.ts / resolve.ts: pure, tested previews that mirror core rules      │
+│  geometry.ts / resolve.ts / framing.ts: pure, tested mirrors of core rules   │
 └───────────────▲──────────────────────────────────────────────┬──────────────┘
                 │ Snapshot / events                              │ EditCommand, file commands
 ┌───────────────┴──────────── Tauri shell (src-tauri/) ─────────▼──────────────┐
@@ -119,9 +119,14 @@ copies used media next to both files plus a provenance manifest.
   real import is worth checking by eye. One transform per clip travels, not keyframes.
 - `Basic Motion` holds one Scale, so a clip scaled differently across and down reaches
   Premiere as its width scale and the other is lost. Nothing in the format holds it.
-- A clip cannot be dragged or scaled in the viewer. On macOS the picture is a native view
-  above the webview (ADR-0003), so a web overlay cannot be drawn over it; handles need a
-  second native view or to be drawn natively.
+- A clip can be dragged and scaled in the viewer, but not turned: rotation and the anchor
+  stay in the Transform panel. During a drag only the outline moves and the picture
+  follows on release, because showing it live would mean rebuilding the video composition
+  per pointer move (ADR-0006).
+- The handle box is the picture's fitted rectangle, worked out from the media's stored
+  dimensions. Footage a camera recorded sideways reports the size it is stored at, so the
+  box can sit wrong on that clip even though the picture is drawn correctly; the renderer
+  and both previews get the real size from the decoder, and this does not.
 - The playhead follows the player at 30 Hz, so on sequences faster than 30 fps the
   reported frame skips one between updates. Raise `OBSERVE_HZ` if that shows.
 - Still images are skipped by the macOS preview; only clips with a decodable video or

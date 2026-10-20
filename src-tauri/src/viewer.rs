@@ -25,16 +25,22 @@ use objc2::rc::Retained;
 use objc2::runtime::AnyObject;
 use objc2::runtime::ProtocolObject;
 use objc2::{MainThreadMarker, MainThreadOnly};
-use objc2_app_kit::{NSView, NSWindow, NSWindowOrderingMode};
+use objc2_app_kit::{
+    NSEvent, NSEventMask, NSEventModifierFlags, NSEventType, NSView, NSWindow, NSWindowOrderingMode,
+};
 use objc2_av_foundation::{
     AVMediaType, AVMediaTypeAudio, AVMediaTypeVideo, AVMutableComposition,
     AVMutableCompositionTrack, AVMutableVideoComposition, AVMutableVideoCompositionInstruction,
     AVMutableVideoCompositionLayerInstruction, AVPlayer, AVPlayerItem, AVPlayerLayer, AVURLAsset,
     AVVideoCompositionLayerInstruction,
 };
-use objc2_core_foundation::{CGAffineTransform, CGSize};
+use objc2_core_foundation::CFRetained;
+use objc2_core_foundation::{CGAffineTransform, CGPoint, CGRect, CGSize};
+use objc2_core_graphics::CGColor;
 use objc2_core_media::{CMTime, CMTimeFlags, CMTimeRange};
 use objc2_foundation::{NSArray, NSPoint, NSRect, NSSize, NSString, NSURL};
+use objc2_quartz_core::{CALayer, CATransaction};
+use std::ptr::NonNull;
 
 use studio_core::model::{MediaKind, Project, Sequence, TrackKind, Transform};
 use studio_core::time::Rational;
@@ -140,6 +146,62 @@ pub fn segments(project: &Project, sequence: &Sequence) -> Vec<Segment> {
     out
 }
 
+/// Where the handles go: the clip's own box, and the transform that puts it on screen.
+///
+/// Both arrive already in the surface's coordinates with y measured from the bottom, the
+/// way AppKit measures. The web layer does that conversion, because it is the side that
+/// knows the stage's size and already converts the surface's own rect the same way. This
+/// module positions what it is given and works nothing out (ADR-0006).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Overlay {
+    pub x: f64,
+    pub y: f64,
+    pub width: f64,
+    pub height: f64,
+    /// `a`, `b`, `c`, `d`, `tx`, `ty` of the clip's transform.
+    pub transform: [f64; 6],
+}
+
+/// A mouse event over the picture, in the surface's own coordinates with y measured from
+/// the top, so the web layer reads them the way it reads every other pointer event.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Pointer {
+    pub phase: PointerPhase,
+    pub x: f64,
+    pub y: f64,
+    pub shift: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PointerPhase {
+    Down,
+    Moved,
+    Up,
+}
+
+impl PointerPhase {
+    pub fn name(self) -> &'static str {
+        match self {
+            PointerPhase::Down => "down",
+            PointerPhase::Moved => "moved",
+            PointerPhase::Up => "up",
+        }
+    }
+}
+
+/// How large a corner mark is drawn, in points. Matches `HANDLE_REACH` on the web side
+/// closely enough that what you can see is what you can grab.
+const HANDLE_SIZE: f64 = 9.0;
+
+const NO_TRANSFORM: CGAffineTransform = CGAffineTransform {
+    a: 1.0,
+    b: 0.0,
+    c: 0.0,
+    d: 1.0,
+    tx: 0.0,
+    ty: 0.0,
+};
+
 /// Zero tolerance, so a seek lands on the frame asked for.
 const EXACT: CMTime = CMTime {
     value: 0,
@@ -160,9 +222,16 @@ fn time(us: i64) -> CMTime {
 struct Surface {
     view: Retained<NSView>,
     player: Retained<AVPlayer>,
+    /// The picture. A sublayer rather than the view's own layer, so the handles have
+    /// somewhere to sit above it (ADR-0006).
+    picture: Retained<AVPlayerLayer>,
+    /// The clip's box and its corner marks, hidden until something is selected.
+    overlay: Retained<CALayer>,
     /// Must be held for as long as the observer should fire, and handed back to
     /// `removeTimeObserver` before the player goes away.
     observer: RefCell<Option<Retained<AnyObject>>>,
+    /// The mouse monitor, held for as long as it should fire.
+    pointer: RefCell<Option<Retained<AnyObject>>>,
 }
 
 impl Surface {
@@ -175,14 +244,24 @@ impl Surface {
         view.setWantsLayer(true);
 
         let player = unsafe { AVPlayer::new(mtm) };
-        let layer = unsafe { AVPlayerLayer::playerLayerWithPlayer(Some(&player)) };
-        view.setLayer(Some(&layer));
+        let picture = unsafe { AVPlayerLayer::playerLayerWithPlayer(Some(&player)) };
+        let overlay = overlay_layer();
+        // A plain host layer with the picture and the handles as sublayers, rather than
+        // the player layer being the view's own layer. Nothing can be drawn over a
+        // view's own layer, and the handles have to sit over the picture (ADR-0006).
+        let host = CALayer::layer();
+        host.addSublayer(&picture);
+        host.addSublayer(&overlay);
+        view.setLayer(Some(&host));
 
         content.addSubview_positioned_relativeTo(&view, NSWindowOrderingMode::Above, None);
         Some(Self {
             view,
             player,
+            picture,
+            overlay,
             observer: RefCell::new(None),
+            pointer: RefCell::new(None),
         })
     }
 
@@ -199,6 +278,83 @@ impl Surface {
             NSPoint::new(x, flipped),
             NSSize::new(width, height),
         ));
+        // A layer hosting view does not lay its sublayers out, so the picture is sized
+        // here. Without a transaction Core Animation would animate the resize, which
+        // reads as the picture sliding whenever the panel is dragged.
+        CATransaction::begin();
+        CATransaction::setDisableActions(true);
+        self.picture.setFrame(CGRect::new(
+            CGPoint::new(0.0, 0.0),
+            CGSize::new(width, height),
+        ));
+        CATransaction::commit();
+    }
+
+    /// Put the handles on the clip, or take them away.
+    fn set_overlay(&self, overlay: Option<Overlay>) {
+        CATransaction::begin();
+        CATransaction::setDisableActions(true);
+        match overlay {
+            None => self.overlay.setHidden(true),
+            Some(o) => {
+                self.overlay.setHidden(false);
+                // A layer's frame means nothing while a transform is in effect, so the
+                // box is placed square and the transform goes on afterwards.
+                self.overlay.setAffineTransform(NO_TRANSFORM);
+                self.overlay.setFrame(CGRect::new(
+                    CGPoint::new(o.x, o.y),
+                    CGSize::new(o.width, o.height),
+                ));
+                let [a, b, c, d, tx, ty] = o.transform;
+                self.overlay
+                    .setAffineTransform(CGAffineTransform { a, b, c, d, tx, ty });
+                // The marks ride along with the box, so a turned clip has turned
+                // handles, which is how you can tell which corner you are grabbing.
+                // Tucked inside the box rather than centred on its corners: a clip
+                // that fills the frame has its corners on the edge of the picture, and
+                // the web layer insets them the same way for the same reason.
+                let (right, bottom) = (o.width - HANDLE_SIZE, o.height - HANDLE_SIZE);
+                let corners = [(0.0, 0.0), (right, 0.0), (right, bottom), (0.0, bottom)];
+                // Safety: the sublayers are the four marks added in `overlay_layer`,
+                // and nothing else ever touches this layer's children.
+                if let Some(marks) = unsafe { self.overlay.sublayers() } {
+                    for (mark, (cx, cy)) in marks.iter().zip(corners) {
+                        mark.setFrame(CGRect::new(
+                            CGPoint::new(cx, cy),
+                            CGSize::new(HANDLE_SIZE, HANDLE_SIZE),
+                        ));
+                    }
+                }
+            }
+        }
+        CATransaction::commit();
+    }
+
+    /// Report mouse events over the picture. Safe to call repeatedly; only the first
+    /// takes.
+    ///
+    /// A local monitor rather than an `NSView` subclass, so no Objective-C class has to
+    /// be declared and the responder chain is left exactly as it was: the event is
+    /// returned unchanged and goes on to whatever would have had it (ADR-0006).
+    fn watch_pointer(&self, on_pointer: impl Fn(Pointer) + 'static) {
+        if self.pointer.borrow().is_some() {
+            return;
+        }
+        let view = self.view.clone();
+        let block = RcBlock::new(move |event: NonNull<NSEvent>| -> *mut NSEvent {
+            let event = unsafe { event.as_ref() };
+            if !view.isHidden() {
+                if let Some(pointer) = pointer_in(&view, event) {
+                    on_pointer(pointer);
+                }
+            }
+            // Hand it on: this watches, it does not consume.
+            (event as *const NSEvent).cast_mut()
+        });
+        let mask =
+            NSEventMask::LeftMouseDown | NSEventMask::LeftMouseDragged | NSEventMask::LeftMouseUp;
+        *self.pointer.borrow_mut() =
+            unsafe { NSEvent::addLocalMonitorForEventsMatchingMask_handler(mask, &block) };
     }
 
     fn set_segments(
@@ -476,6 +632,58 @@ fn render_into_canvas(
     composition
 }
 
+/// The box and its four corner marks, in the accent colour the UI uses for selection.
+///
+/// Colours are a theme decision everywhere else in the app, but a CALayer cannot read a
+/// CSS variable. Kept to the one value the timeline already draws selections in, so the
+/// handles match what is on screen beside them.
+fn overlay_layer() -> Retained<CALayer> {
+    let layer = CALayer::layer();
+    let colour = accent();
+    layer.setBorderWidth(1.0);
+    layer.setBorderColor(Some(&colour));
+    layer.setHidden(true);
+    for _ in 0..4 {
+        let mark = CALayer::layer();
+        mark.setBackgroundColor(Some(&colour));
+        layer.addSublayer(&mark);
+    }
+    layer
+}
+
+fn accent() -> CFRetained<CGColor> {
+    // Crimson's accent on dark, the colour the timeline draws a selected clip in.
+    CGColor::new_srgb(1.0, 0.121, 0.207, 1.0)
+}
+
+/// An event's position in the surface's own coordinates, or `None` when it is somewhere
+/// else. A press outside the picture is not ours; a drag or a release is reported
+/// wherever it lands, so a gesture that wanders off the stage still finishes.
+fn pointer_in(view: &NSView, event: &NSEvent) -> Option<Pointer> {
+    let phase = match event.r#type() {
+        NSEventType::LeftMouseDown => PointerPhase::Down,
+        NSEventType::LeftMouseDragged => PointerPhase::Moved,
+        NSEventType::LeftMouseUp => PointerPhase::Up,
+        _ => return None,
+    };
+    let bounds = view.bounds();
+    let point = view.convertPoint_fromView(event.locationInWindow(), None);
+    // AppKit measures y from the bottom of the view; the web layer measures it from the
+    // top, as CSS does, and so does everything in `framing.ts`.
+    let y = bounds.size.height - point.y;
+    let inside =
+        (0.0..=bounds.size.width).contains(&point.x) && (0.0..=bounds.size.height).contains(&y);
+    if phase == PointerPhase::Down && !inside {
+        return None;
+    }
+    Some(Pointer {
+        phase,
+        x: point.x,
+        y,
+        shift: event.modifierFlags().contains(NSEventModifierFlags::Shift),
+    })
+}
+
 /// The AVFoundation media type constants. They are declared optional because the symbol
 /// could in principle be missing, but on any macOS that runs this app they are present.
 fn media_type(audio: bool) -> &'static AVMediaType {
@@ -491,6 +699,9 @@ impl Drop for Surface {
     fn drop(&mut self) {
         if let Some(observer) = self.observer.borrow_mut().take() {
             unsafe { self.player.removeTimeObserver(&observer) };
+        }
+        if let Some(monitor) = self.pointer.borrow_mut().take() {
+            unsafe { NSEvent::removeMonitor(&monitor) };
         }
     }
 }
@@ -590,6 +801,16 @@ pub fn set_segments(ns_window: *mut c_void, segments: &[Segment], canvas: Canvas
     with_surface(ns_window, |surface, mtm| {
         surface.set_segments(segments, canvas, at_us, mtm)
     });
+}
+
+/// Put the handles on the clip, or take them away (ADR-0006).
+pub fn set_overlay(ns_window: *mut c_void, overlay: Option<Overlay>) {
+    with_surface(ns_window, |surface, _| surface.set_overlay(overlay));
+}
+
+/// Install the mouse reporter. Safe to call repeatedly; only the first takes.
+pub fn watch_pointer(ns_window: *mut c_void, on_pointer: impl Fn(Pointer) + 'static) {
+    with_surface(ns_window, |surface, _| surface.watch_pointer(on_pointer));
 }
 
 /// Install the player clock reporter. Safe to call repeatedly; only the first takes.

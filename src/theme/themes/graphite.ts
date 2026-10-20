@@ -120,6 +120,7 @@ export const graphiteTheme: Theme = {
     zoomSlider: 120,
     timecodeMin: 96,
     viewerPadding: 16,
+    viewerHandle: 9,
     binPane: 136,
     thumbnail: 128,
     thumbnailMin: 96,

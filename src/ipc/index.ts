@@ -17,6 +17,8 @@ import type { RenderSettings } from "../bindings/RenderSettings";
 import type { SequenceFormat } from "../bindings/SequenceFormat";
 import type { Snapshot } from "../bindings/Snapshot";
 import type { ToolsStatus } from "../bindings/ToolsStatus";
+import type { ViewerOverlay } from "../bindings/ViewerOverlay";
+import type { ViewerPointer } from "../bindings/ViewerPointer";
 
 export function isCommandError(value: unknown): value is CommandError {
   return (
@@ -66,6 +68,9 @@ export const ipc = {
   viewerSync: (sequenceId: string, frame: number) =>
     invoke<void>("viewer_sync", { sequenceId, frame }),
   viewerSetHidden: (hidden: boolean) => invoke<void>("viewer_set_hidden", { hidden }),
+  /** Where to draw the handles, or null to take them away (ADR-0006). */
+  viewerSetOverlay: (overlay: ViewerOverlay | null) =>
+    invoke<void>("viewer_set_overlay", { overlay }),
   viewerPlay: () => invoke<void>("viewer_play"),
   viewerPause: () => invoke<void>("viewer_pause"),
   viewerSeek: (sequenceId: string, frame: number) =>
@@ -82,4 +87,10 @@ export const events = {
   /** Microseconds from the native player's own clock (ADR-0003). */
   onViewerTime: (handler: (micros: number) => void): Promise<UnlistenFn> =>
     listen<number>("viewer://time", (e) => handler(e.payload)),
+  /**
+   * Mouse events over the picture. The native surface sits above the webview, so
+   * nothing over it is heard unless it is reported (ADR-0006).
+   */
+  onViewerPointer: (handler: (pointer: ViewerPointer) => void): Promise<UnlistenFn> =>
+    listen<ViewerPointer>("viewer://pointer", (e) => handler(e.payload)),
 };
