@@ -174,10 +174,15 @@ export function useFraming(stage: RefObject<HTMLElement | null>): Framing {
 
   // Browser preview: the DOM reports the mouse itself, and the pointer is captured so a
   // drag that leaves the stage still finishes.
+  //
+  // Only there. The native surface covers the stage but the webview still sees the press
+  // underneath it, so leaving this on would start the drag from the DOM's coordinates and
+  // finish it with the surface's. They differ, and the clip jumped by the difference on
+  // every drag.
   const onPointerDown = useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
       const element = stage.current;
-      if (!element) return;
+      if (!isBrowserPreview || !element) return;
       const rect = element.getBoundingClientRect();
       const at = { x: event.clientX - rect.left, y: event.clientY - rect.top };
       act.current("down", at, event.shiftKey);
