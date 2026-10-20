@@ -4,7 +4,7 @@
 //! first, migrates it forward one schema version at a time, then deserializes and
 //! validates, so an old or hand-edited file can never enter the editor in a bad state.
 
-use crate::model::{Project, SCHEMA_VERSION};
+use crate::model::{Project, Transform, SCHEMA_VERSION};
 use crate::validate::ValidationError;
 use serde_json::Value;
 use std::fs;
@@ -62,9 +62,45 @@ fn migrate(value: &mut Value, from: u32) {
         if version == 1 {
             migrate_v1_to_v2(value);
         }
+        if version == 2 {
+            migrate_v2_to_v3(value);
+        }
         version += 1;
     }
     value["schemaVersion"] = Value::from(SCHEMA_VERSION);
+}
+
+/// v3 gave every clip a transform. Written out rather than left to a serde default, so a
+/// document in the editor is always in the current shape and a v3 file missing the field
+/// is a real error rather than a silent identity.
+fn migrate_v2_to_v3(value: &mut Value) {
+    let identity = serde_json::to_value(Transform::IDENTITY).expect("a transform serializes");
+    let sequences = value
+        .get_mut("sequences")
+        .and_then(Value::as_array_mut)
+        .into_iter()
+        .flatten();
+    for sequence in sequences {
+        let tracks = sequence
+            .get_mut("tracks")
+            .and_then(Value::as_array_mut)
+            .into_iter()
+            .flatten();
+        for track in tracks {
+            let clips = track
+                .get_mut("clips")
+                .and_then(Value::as_array_mut)
+                .into_iter()
+                .flatten();
+            for clip in clips {
+                if let Some(clip) = clip.as_object_mut() {
+                    // A v1 file arrives here having already been through v2, where the
+                    // test fixture may have supplied a transform; do not overwrite it.
+                    clip.entry("transform").or_insert_with(|| identity.clone());
+                }
+            }
+        }
+    }
 }
 
 /// v1 held one `sequence`; v2 holds a list of them (ADR-0004). The single sequence
@@ -204,6 +240,39 @@ mod tests {
             project.first_sequence().clips().next().is_some(),
             "clips survive"
         );
+    }
+
+    #[test]
+    fn migrates_a_v2_document_by_giving_every_clip_an_identity_transform() {
+        let mut value = serde_json::to_value(edited_project()).unwrap();
+        for track in value["sequences"][0]["tracks"].as_array_mut().unwrap() {
+            for clip in track["clips"].as_array_mut().unwrap() {
+                clip.as_object_mut().unwrap().remove("transform");
+            }
+        }
+        value["schemaVersion"] = Value::from(2);
+
+        let project = from_json(&value.to_string()).expect("v2 document should migrate");
+        assert_eq!(project.schema_version, SCHEMA_VERSION);
+        let mut clips = project.first_sequence().clips().peekable();
+        assert!(clips.peek().is_some(), "clips survive");
+        for (_, clip) in clips {
+            assert!(clip.transform.is_identity(), "{:?}", clip.transform);
+        }
+    }
+
+    #[test]
+    fn a_v3_document_missing_a_transform_is_rejected() {
+        // Not a serde default: a file claiming to be current has to be current.
+        let mut value = serde_json::to_value(edited_project()).unwrap();
+        value["sequences"][0]["tracks"][0]["clips"][0]
+            .as_object_mut()
+            .unwrap()
+            .remove("transform");
+        assert!(matches!(
+            from_json(&value.to_string()).unwrap_err(),
+            PersistError::Parse(_)
+        ));
     }
 
     #[test]

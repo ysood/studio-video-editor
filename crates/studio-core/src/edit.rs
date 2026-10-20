@@ -12,7 +12,7 @@
 
 use crate::ids::{ClipId, LinkId, MediaId, SequenceId, TrackId};
 use crate::model::{
-    Clip, ClipSource, MediaAsset, Project, Sequence, SequenceFormat, Track, TrackKind,
+    Clip, ClipSource, MediaAsset, Project, Sequence, SequenceFormat, Track, TrackKind, Transform,
 };
 use crate::time::Frame;
 use crate::validate::{ValidationError, MAX_NAME_LEN};
@@ -695,6 +695,7 @@ fn insert_media(
             duration,
             enabled: true,
             link,
+            transform: Transform::IDENTITY,
             source: ClipSource::Media {
                 media_id,
                 source_start,

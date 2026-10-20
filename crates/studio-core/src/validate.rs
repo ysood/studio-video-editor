@@ -2,7 +2,9 @@
 //! that fails is never committed or opened.
 
 use crate::ids::{ClipId, LinkId, MediaId};
-use crate::model::{ClipSource, MediaKind, Project, Sequence, TrackKind, SCHEMA_VERSION};
+use crate::model::{
+    ClipSource, MediaKind, Milli, Project, Sequence, TrackKind, Transform, MILLI, SCHEMA_VERSION,
+};
 use crate::time::Frame;
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
@@ -12,6 +14,16 @@ use ts_rs::TS;
 pub const MAX_NAME_LEN: usize = 256;
 pub const MAX_DIMENSION: u32 = 8192;
 pub const SAMPLE_RATES: [u32; 3] = [44_100, 48_000, 96_000];
+/// Largest size a clip may be scaled to, as a factor of the fitted picture. Generous:
+/// a punch-in on 4K footage in an HD sequence is already several hundred percent.
+pub const MAX_SCALE: Milli = 100 * MILLI;
+/// Rotation is kept inside one turn, so two documents that show the same picture hold
+/// the same numbers.
+pub const MAX_ROTATION: Milli = 360 * MILLI;
+/// How far off centre a clip may be pushed. A few frame widths, so a clip can sit fully
+/// outside the frame (a slide-off, once there are keyframes) without the value running
+/// away.
+pub const MAX_OFFSET: Milli = 4 * MAX_DIMENSION as Milli * MILLI;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error, Serialize, TS)]
 #[serde(
@@ -39,6 +51,8 @@ pub enum ValidationError {
     KindMismatch { clip: ClipId },
     #[error("clip {clip} reads past the end of its media")]
     SourceOutOfRange { clip: ClipId },
+    #[error("clip {clip} has an invalid transform")]
+    InvalidTransform { clip: ClipId },
     #[error("link {link} is inconsistent")]
     InvalidLink { link: LinkId },
     #[error("media {media} has no usable stream")]
@@ -143,6 +157,16 @@ impl Project {
                         return Err(ValidationError::SourceOutOfRange { clip: clip.id });
                     }
                 }
+                // A transform moves a picture, and an audio clip has none. Keeping the
+                // field identity there means nothing silently carries a transform that
+                // no backend would ever apply.
+                let transform_ok = match track.kind {
+                    TrackKind::Video => in_range(clip.transform),
+                    TrackKind::Audio => clip.transform.is_identity(),
+                };
+                if !transform_ok {
+                    return Err(ValidationError::InvalidTransform { clip: clip.id });
+                }
             }
         }
         Ok(())
@@ -206,6 +230,17 @@ fn validate_format(sequence: &Sequence) -> Result<(), ValidationError> {
     Ok(())
 }
 
+/// Transform values a backend can actually draw: a positive, bounded scale, an opacity
+/// between nothing and opaque, rotation inside one turn, and offsets that stay near the
+/// frame.
+fn in_range(t: Transform) -> bool {
+    let scale_ok = (1..=MAX_SCALE).contains(&t.scale.x) && (1..=MAX_SCALE).contains(&t.scale.y);
+    let offsets_ok = [t.position.x, t.position.y, t.anchor.x, t.anchor.y]
+        .iter()
+        .all(|v| v.abs() <= MAX_OFFSET);
+    scale_ok && offsets_ok && (0..=MILLI).contains(&t.opacity) && t.rotation.abs() <= MAX_ROTATION
+}
+
 fn check_name(name: &str) -> Result<(), ValidationError> {
     if name.chars().count() > MAX_NAME_LEN {
         Err(ValidationError::NameTooLong)
@@ -217,7 +252,7 @@ fn check_name(name: &str) -> Result<(), ValidationError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{Clip, Sequence, SequenceFormat};
+    use crate::model::{Clip, Offset, Scale, Sequence, SequenceFormat, Transform};
     use crate::testing::{media_with_av, project_with, still_image};
 
     fn clip_on(project: &mut Project, track_index: usize, start: Frame, duration: Frame) -> ClipId {
@@ -229,6 +264,7 @@ mod tests {
             duration,
             enabled: true,
             link: None,
+            transform: Transform::IDENTITY,
             source: ClipSource::Media {
                 media_id,
                 source_start: 0,
@@ -337,6 +373,69 @@ mod tests {
             p.validate(),
             Err(ValidationError::KindMismatch { .. })
         ));
+    }
+
+    #[test]
+    fn rejects_a_scale_of_zero() {
+        // Nothing can draw it, and FFmpeg's scale filter needs a positive size.
+        let mut p = project_with(vec![media_with_av(10)]);
+        clip_on(&mut p, 0, 0, 24);
+        p.first_sequence_mut().tracks[0].clips[0].transform.scale.x = 0;
+        assert!(matches!(
+            p.validate(),
+            Err(ValidationError::InvalidTransform { .. })
+        ));
+    }
+
+    #[test]
+    fn rejects_opacity_above_opaque() {
+        let mut p = project_with(vec![media_with_av(10)]);
+        clip_on(&mut p, 0, 0, 24);
+        p.first_sequence_mut().tracks[0].clips[0].transform.opacity = MILLI + 1;
+        assert!(matches!(
+            p.validate(),
+            Err(ValidationError::InvalidTransform { .. })
+        ));
+    }
+
+    #[test]
+    fn rejects_rotation_beyond_one_turn() {
+        let mut p = project_with(vec![media_with_av(10)]);
+        clip_on(&mut p, 0, 0, 24);
+        p.first_sequence_mut().tracks[0].clips[0].transform.rotation = MAX_ROTATION + 1;
+        assert!(matches!(
+            p.validate(),
+            Err(ValidationError::InvalidTransform { .. })
+        ));
+    }
+
+    #[test]
+    fn rejects_a_transform_on_an_audio_clip() {
+        // The audio track is index 1 in a new sequence.
+        let mut p = project_with(vec![media_with_av(10)]);
+        clip_on(&mut p, 1, 0, 24);
+        p.first_sequence_mut().tracks[1].clips[0].transform.opacity = MILLI / 2;
+        assert!(matches!(
+            p.validate(),
+            Err(ValidationError::InvalidTransform { .. })
+        ));
+    }
+
+    #[test]
+    fn accepts_a_transform_within_range() {
+        let mut p = project_with(vec![media_with_av(10)]);
+        clip_on(&mut p, 0, 0, 24);
+        p.first_sequence_mut().tracks[0].clips[0].transform = Transform {
+            position: Offset {
+                x: -120_500,
+                y: 4_000,
+            },
+            scale: Scale { x: 500, y: 500 },
+            rotation: -90 * MILLI,
+            anchor: Offset { x: 0, y: 250 },
+            opacity: 750,
+        };
+        p.validate().unwrap();
     }
 
     #[test]

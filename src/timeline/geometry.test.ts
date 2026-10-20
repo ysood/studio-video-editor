@@ -14,13 +14,14 @@ import {
   tickStep,
 } from "./geometry";
 import { graphiteTheme } from "../theme/themes/graphite";
+import { IDENTITY } from "../transform";
 
 const m = graphiteTheme.timeline;
 
 const MEDIA = "m-1";
 
 function clip(id: string, start: number, duration: number, sourceStart = 0, link: string | null = null): Clip {
-  return { id, name: id, start, duration, enabled: true, link, source: { type: "media", mediaId: MEDIA, sourceStart } };
+  return { id, name: id, start, duration, enabled: true, link, transform: IDENTITY, source: { type: "media", mediaId: MEDIA, sourceStart } };
 }
 
 function track(id: string, kind: "video" | "audio", clips: Clip[]): Track {

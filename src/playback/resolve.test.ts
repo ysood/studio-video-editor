@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Clip } from "../bindings/Clip";
 import type { Project } from "../bindings/Project";
 import type { Track } from "../bindings/Track";
+import { IDENTITY } from "../transform";
 import { audioAt, sequenceEnd, videoAt } from "./resolve";
 
 const clip = (id: string, start: number, duration: number, sourceStart = 0): Clip => ({
@@ -11,6 +12,7 @@ const clip = (id: string, start: number, duration: number, sourceStart = 0): Cli
   duration,
   enabled: true,
   link: null,
+  transform: IDENTITY,
   source: { type: "media", mediaId: "m", sourceStart },
 });
 

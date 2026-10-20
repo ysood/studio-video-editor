@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 /// Bump when a persisted type changes, and add a migration in `persist.rs`.
-pub const SCHEMA_VERSION: u32 = 2;
+pub const SCHEMA_VERSION: u32 = 3;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -318,8 +318,11 @@ pub struct Clip {
     pub duration: Frame,
     pub enabled: bool,
     /// Clips sharing a link move, trim, split and delete together and must share
-    /// `start`, `duration` and source range.
+    /// `start`, `duration` and source range. A transform is not shared: it belongs to
+    /// the picture, and the audio half of a pair has none.
     pub link: Option<LinkId>,
+    /// Where the picture sits in the frame. Identity on an audio clip.
+    pub transform: Transform,
     pub source: ClipSource,
 }
 
@@ -331,6 +334,132 @@ impl Clip {
 
     pub fn contains(&self, frame: Frame) -> bool {
         frame >= self.start && frame < self.end()
+    }
+}
+
+/// A transform quantity in thousandths of its unit.
+///
+/// The document keeps no floats (`docs/schema.md`), so a transform is exact, comparable
+/// and diffable: undo and dirty tracking compare whole documents, which float drift from
+/// a dragged slider would make unreliable. It becomes a float only where it leaves the
+/// document, the same treatment `Frame` gets. Thousandths throughout, so one divisor
+/// reads every field.
+pub type Milli = i32;
+
+/// Thousandths in one unit: one pixel, one degree, or a factor of one.
+pub const MILLI: Milli = 1000;
+
+/// A thousandths value as the unit it counts. Only for tool boundaries.
+pub fn units(value: Milli) -> f64 {
+    f64::from(value) / f64::from(MILLI)
+}
+
+/// A point in the frame, as an offset from its centre in thousandths of a pixel.
+///
+/// Centre relative rather than absolute, which is how Resolve measures pan and tilt and
+/// unlike Premiere's Position. Two reasons: the identity transform is then all zeros, and
+/// a centred clip stays centred when the sequence is resized, so no default has to be
+/// recomputed when the format changes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct Offset {
+    /// Positive is right.
+    pub x: Milli,
+    /// Positive is down.
+    pub y: Milli,
+}
+
+/// Horizontal and vertical size as thousandths of the fitted picture.
+///
+/// Its own type rather than an `Offset`: the unit is a factor, not a pixel, and one is
+/// the identity rather than zero.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct Scale {
+    pub x: Milli,
+    pub y: Milli,
+}
+
+/// Where a clip's picture sits in the sequence frame, and how opaque it is.
+///
+/// Applied after the clip has been fitted to the frame the way the renderer fits it
+/// (scaled to fit without cropping, centred), so the same numbers mean the same picture
+/// whatever the source resolution is, and an identity transform is exactly today's
+/// behaviour. Order: scale, then rotate, both about `anchor`, then translate by
+/// `position`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct Transform {
+    /// Where the anchor lands, from the centre of the frame.
+    pub position: Offset,
+    /// Size as a factor of the fitted picture: `MILLI` leaves it alone. Always positive,
+    /// so there is no flip here; that is its own effect when it arrives.
+    pub scale: Scale,
+    /// Clockwise rotation in thousandths of a degree.
+    pub rotation: Milli,
+    /// The point scale and rotation turn about, from the centre of the fitted picture.
+    pub anchor: Offset,
+    /// `MILLI` is opaque, zero invisible.
+    pub opacity: Milli,
+}
+
+impl Transform {
+    /// The picture the renderer drew before transforms existed: fitted, centred, opaque.
+    pub const IDENTITY: Self = Self {
+        position: Offset { x: 0, y: 0 },
+        scale: Scale { x: MILLI, y: MILLI },
+        rotation: 0,
+        anchor: Offset { x: 0, y: 0 },
+        opacity: MILLI,
+    };
+
+    pub fn is_identity(self) -> bool {
+        self == Self::IDENTITY
+    }
+
+    /// True when the clip fills the frame and hides whatever is under it, which lets a
+    /// compositor skip the layers below. Conservative: it answers no whenever a
+    /// transform is present at all, because a scaled or rotated clip may still cover the
+    /// frame and proving it is not worth the arithmetic.
+    pub fn is_opaque_fill(self) -> bool {
+        self.is_identity()
+    }
+
+    /// Position in frame pixels, right and down from the centre.
+    pub fn position_px(self) -> (f64, f64) {
+        (units(self.position.x), units(self.position.y))
+    }
+
+    /// Anchor in pixels of the fitted picture, right and down from its centre.
+    pub fn anchor_px(self) -> (f64, f64) {
+        (units(self.anchor.x), units(self.anchor.y))
+    }
+
+    /// Size as a plain factor, where 1.0 is the fitted picture.
+    pub fn scale_factor(self) -> (f64, f64) {
+        (units(self.scale.x), units(self.scale.y))
+    }
+
+    pub fn rotation_degrees(self) -> f64 {
+        units(self.rotation)
+    }
+
+    pub fn rotation_radians(self) -> f64 {
+        self.rotation_degrees().to_radians()
+    }
+
+    /// Alpha as a plain factor, where 1.0 is opaque.
+    pub fn opacity_factor(self) -> f64 {
+        units(self.opacity)
+    }
+}
+
+impl Default for Transform {
+    fn default() -> Self {
+        Self::IDENTITY
     }
 }
 

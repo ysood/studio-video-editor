@@ -5,6 +5,7 @@ import type { Clip } from "../bindings/Clip";
 import type { MediaAsset } from "../bindings/MediaAsset";
 import type { Snapshot } from "../bindings/Snapshot";
 import type { Track } from "../bindings/Track";
+import { IDENTITY } from "../transform";
 import boardMix from "./media/board-mix.ogg";
 import crowd from "./media/crowd-handheld.webm";
 import stage from "./media/stage-wide.webm";
@@ -95,6 +96,7 @@ function clip(m: MediaAsset, start: number, duration: number, sourceStart: numbe
     duration,
     enabled: true,
     link,
+    transform: IDENTITY,
     source: { type: "media", mediaId: m.id, sourceStart },
   };
 }
@@ -122,7 +124,7 @@ export function sampleSnapshot(): Snapshot {
   ];
   return {
     project: {
-      schemaVersion: 1,
+      schemaVersion: 3,
       id: id(),
       name: "Sydney tour recap",
       media,

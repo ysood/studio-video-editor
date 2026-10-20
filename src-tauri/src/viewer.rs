@@ -514,7 +514,7 @@ pub fn seek(ns_window: *mut c_void, us: i64) {
 mod tests {
     use super::*;
     use studio_core::ids::ClipId;
-    use studio_core::model::{Clip, ClipSource, Track};
+    use studio_core::model::{Clip, ClipSource, Track, Transform};
     use studio_core::testing::sample_edit;
 
     /// `sample_edit` puts linked clips at frames 12..60 (source from 6) and 100..124 at
@@ -551,6 +551,7 @@ mod tests {
             duration: 48,
             enabled: true,
             link: None,
+            transform: Transform::IDENTITY,
             source: ClipSource::Media {
                 media_id,
                 source_start: 0,

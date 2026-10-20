@@ -8,6 +8,7 @@ import type { Project } from "../bindings/Project";
 import type { TrackId } from "../bindings/TrackId";
 import { timecode } from "../format";
 import { canvasFont, type ColorRoles, type Theme } from "../theme";
+import { IDENTITY } from "../transform";
 import { clipEnd, frameToX, pendingRows, tickStep, type Row, type View } from "./geometry";
 import type { Sequence } from "../bindings/Sequence";
 
@@ -107,6 +108,7 @@ export function draw(ctx: CanvasRenderingContext2D, scene: Scene) {
       duration: ghost.duration,
       enabled: true,
       link: null,
+      transform: IDENTITY,
       source: { type: "media", mediaId: "", sourceStart: 0 },
     };
     drawClip(ctx, scene, row, fake, { ghost: true });

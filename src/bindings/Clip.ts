@@ -2,6 +2,7 @@
 import type { ClipId } from "./ClipId";
 import type { ClipSource } from "./ClipSource";
 import type { LinkId } from "./LinkId";
+import type { Transform } from "./Transform";
 
 export type Clip = { id: ClipId, name: string, 
 /**
@@ -14,6 +15,11 @@ start: number,
 duration: number, enabled: boolean, 
 /**
  * Clips sharing a link move, trim, split and delete together and must share
- * `start`, `duration` and source range.
+ * `start`, `duration` and source range. A transform is not shared: it belongs to
+ * the picture, and the audio half of a pair has none.
  */
-link: LinkId | null, source: ClipSource, };
+link: LinkId | null, 
+/**
+ * Where the picture sits in the frame. Identity on an audio clip.
+ */
+transform: Transform, source: ClipSource, };
