@@ -12,10 +12,11 @@
 
 use crate::ids::{ClipId, LinkId, MediaId, SequenceId, TrackId};
 use crate::model::{
-    Clip, ClipSource, MediaAsset, Project, Sequence, SequenceFormat, Track, TrackKind, Transform,
+    Clip, ClipSource, MediaAsset, Milli, Offset, Project, Scale, Sequence, SequenceFormat, Track,
+    TrackKind, Transform, MILLI,
 };
 use crate::time::Frame;
-use crate::validate::{ValidationError, MAX_NAME_LEN};
+use crate::validate::{ValidationError, MAX_NAME_LEN, MAX_OFFSET, MAX_ROTATION, MAX_SCALE};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use thiserror::Error;
@@ -146,6 +147,22 @@ pub enum EditCommand {
         clip_id: ClipId,
         name: String,
     },
+    /// Moves, scales, rotates or fades the picture of each listed clip. A field left
+    /// `None` keeps the value it had, so a panel commits one number at a time without
+    /// having to send the rest back unchanged. Out of range values are clamped, and
+    /// rotation wraps, so this command cannot produce a transform the document would
+    /// reject.
+    ///
+    /// Unlike the timing commands this does not reach the link group: a transform
+    /// belongs to the picture, and the audio half of a pair has none.
+    SetClipsTransform {
+        clip_ids: Vec<ClipId>,
+        position: Option<Offset>,
+        scale: Option<Scale>,
+        rotation: Option<Milli>,
+        anchor: Option<Offset>,
+        opacity: Option<Milli>,
+    },
     UnlinkClips {
         clip_ids: Vec<ClipId>,
     },
@@ -172,6 +189,7 @@ impl EditCommand {
             EditCommand::DeleteClips { .. } => "Delete",
             EditCommand::SetClipsEnabled { .. } => "Enable or disable clips",
             EditCommand::RenameClip { .. } => "Rename clip",
+            EditCommand::SetClipsTransform { .. } => "Change transform",
             EditCommand::UnlinkClips { .. } => "Unlink",
         }
     }
@@ -383,12 +401,82 @@ fn apply_in_place(p: &mut Project, command: &EditCommand) -> Result<EditReport, 
             ensure_clips_unlocked(p, &[*clip_id])?;
             for_each_clip_mut(p, &[*clip_id], |c| c.name = name.clone());
         }
+        EditCommand::SetClipsTransform {
+            clip_ids,
+            position,
+            scale,
+            rotation,
+            anchor,
+            opacity,
+        } => set_clips_transform(p, clip_ids, *position, *scale, *rotation, *anchor, *opacity)?,
         EditCommand::UnlinkClips { clip_ids } => {
             let ids = expand_groups(p, clip_ids)?;
             for_each_clip_mut(p, &ids, |c| c.link = None);
         }
     }
     Ok(report)
+}
+
+/// Change part of the transform on each listed clip.
+///
+/// Values are clamped to what a backend can draw rather than rejected: a panel dragging
+/// a slider to its end should land on the limit, not fail. Rotation wraps instead, so
+/// passing a full turn keeps going and two documents showing the same picture hold the
+/// same number.
+#[allow(clippy::too_many_arguments)]
+fn set_clips_transform(
+    p: &mut Project,
+    ids: &[ClipId],
+    position: Option<Offset>,
+    scale: Option<Scale>,
+    rotation: Option<Milli>,
+    anchor: Option<Offset>,
+    opacity: Option<Milli>,
+) -> Result<(), EditError> {
+    for id in ids {
+        let (track, _) = p.find_clip(*id).ok_or_else(|| not_found("clip", id))?;
+        // Not silently ignored: asking to transform a sound is a mistake worth hearing
+        // about, and the document forbids the result anyway.
+        if track.kind != TrackKind::Video {
+            return Err(EditError::WrongTrackKind);
+        }
+    }
+    ensure_clips_unlocked(p, ids)?;
+    for_each_clip_mut(p, ids, |c| {
+        let t = &mut c.transform;
+        if let Some(position) = position {
+            t.position = clamp_offset(position);
+        }
+        if let Some(scale) = scale {
+            t.scale = clamp_scale(scale);
+        }
+        if let Some(rotation) = rotation {
+            t.rotation = rotation % MAX_ROTATION;
+        }
+        if let Some(anchor) = anchor {
+            t.anchor = clamp_offset(anchor);
+        }
+        if let Some(opacity) = opacity {
+            t.opacity = opacity.clamp(0, MILLI);
+        }
+    });
+    Ok(())
+}
+
+fn clamp_offset(offset: Offset) -> Offset {
+    Offset {
+        x: offset.x.clamp(-MAX_OFFSET, MAX_OFFSET),
+        y: offset.y.clamp(-MAX_OFFSET, MAX_OFFSET),
+    }
+}
+
+/// Scale stays positive: zero draws nothing and a negative would be a flip, which is its
+/// own effect when it arrives.
+fn clamp_scale(scale: Scale) -> Scale {
+    Scale {
+        x: scale.x.clamp(1, MAX_SCALE),
+        y: scale.y.clamp(1, MAX_SCALE),
+    }
 }
 
 fn checked_name(name: &str) -> Result<String, EditError> {
@@ -925,6 +1013,176 @@ mod tests {
             .find(|c| c.start == start)
             .expect("clip at start")
             .link
+    }
+
+    /// Only the field named changes; the rest of the transform is left where it was.
+    fn set(f: &mut Fixture, id: ClipId, command: EditCommand) -> Transform {
+        run(&mut f.project, command);
+        f.project.find_clip(id).expect("clip").1.transform
+    }
+
+    fn transform_of(f: &Fixture, id: ClipId) -> Transform {
+        f.project.find_clip(id).expect("clip").1.transform
+    }
+
+    fn only_opacity(clip_ids: Vec<ClipId>, opacity: Milli) -> EditCommand {
+        EditCommand::SetClipsTransform {
+            clip_ids,
+            position: None,
+            scale: None,
+            rotation: None,
+            anchor: None,
+            opacity: Some(opacity),
+        }
+    }
+
+    #[test]
+    fn a_new_clip_starts_untransformed() {
+        let mut f = fixture(10);
+        let ids = insert(&mut f, 0, 0, 24);
+        for id in ids {
+            assert!(transform_of(&f, id).is_identity());
+        }
+    }
+
+    #[test]
+    fn sets_one_field_and_leaves_the_others() {
+        let mut f = fixture(10);
+        let video = insert(&mut f, 0, 0, 24)[0];
+        let scaled = set(
+            &mut f,
+            video,
+            EditCommand::SetClipsTransform {
+                clip_ids: vec![video],
+                position: None,
+                scale: Some(Scale { x: 500, y: 500 }),
+                rotation: None,
+                anchor: None,
+                opacity: None,
+            },
+        );
+        assert_eq!(scaled.scale, Scale { x: 500, y: 500 });
+        assert_eq!(scaled.opacity, MILLI, "opacity untouched");
+        assert_eq!(scaled.position, Offset { x: 0, y: 0 });
+
+        let faded = set(&mut f, video, only_opacity(vec![video], 250));
+        assert_eq!(faded.opacity, 250);
+        assert_eq!(faded.scale, Scale { x: 500, y: 500 }, "scale survives");
+    }
+
+    #[test]
+    fn clamps_a_scale_past_the_limit_instead_of_failing() {
+        // A panel dragging a slider to its end should land on the limit.
+        let mut f = fixture(10);
+        let video = insert(&mut f, 0, 0, 24)[0];
+        let t = set(
+            &mut f,
+            video,
+            EditCommand::SetClipsTransform {
+                clip_ids: vec![video],
+                position: Some(Offset {
+                    x: MAX_OFFSET * 2,
+                    y: 0,
+                }),
+                scale: Some(Scale {
+                    x: MAX_SCALE + 1,
+                    y: 0,
+                }),
+                rotation: None,
+                anchor: None,
+                opacity: Some(MILLI * 9),
+            },
+        );
+        assert_eq!(t.scale, Scale { x: MAX_SCALE, y: 1 });
+        assert_eq!(t.position.x, MAX_OFFSET);
+        assert_eq!(t.opacity, MILLI);
+        f.project.validate().unwrap();
+    }
+
+    #[test]
+    fn rotation_comes_back_round_rather_than_stopping() {
+        let mut f = fixture(10);
+        let video = insert(&mut f, 0, 0, 24)[0];
+        let t = set(
+            &mut f,
+            video,
+            EditCommand::SetClipsTransform {
+                clip_ids: vec![video],
+                position: None,
+                scale: None,
+                rotation: Some(450 * MILLI),
+                anchor: None,
+                opacity: None,
+            },
+        );
+        assert_eq!(t.rotation, 90 * MILLI);
+    }
+
+    #[test]
+    fn a_transform_does_not_reach_the_linked_audio() {
+        let mut f = fixture(10);
+        let ids = insert(&mut f, 0, 0, 24);
+        let (video, audio) = (ids[0], ids[1]);
+        set(&mut f, video, only_opacity(vec![video], 500));
+        assert_eq!(transform_of(&f, video).opacity, 500);
+        assert!(
+            transform_of(&f, audio).is_identity(),
+            "the sound has no picture to move"
+        );
+    }
+
+    #[test]
+    fn rejects_transforming_a_sound() {
+        let mut f = fixture(10);
+        let audio = insert(&mut f, 0, 0, 24)[1];
+        assert_eq!(
+            apply(&f.project, &only_opacity(vec![audio], 500)),
+            Err(EditError::WrongTrackKind)
+        );
+    }
+
+    #[test]
+    fn rejects_a_transform_on_a_locked_track() {
+        let mut f = fixture(10);
+        let video = insert(&mut f, 0, 0, 24)[0];
+        lock(&mut f.project, f.v1);
+        assert!(matches!(
+            apply(&f.project, &only_opacity(vec![video], 500)),
+            Err(EditError::TrackLocked { .. })
+        ));
+    }
+
+    #[test]
+    fn transforms_several_clips_at_once() {
+        let mut f = fixture(10);
+        let first = insert(&mut f, 0, 0, 24)[0];
+        let second = insert(&mut f, 48, 0, 24)[0];
+        run(&mut f.project, only_opacity(vec![first, second], 600));
+        assert_eq!(transform_of(&f, first).opacity, 600);
+        assert_eq!(transform_of(&f, second).opacity, 600);
+    }
+
+    #[test]
+    fn both_halves_of_a_split_keep_the_transform() {
+        let mut f = fixture(10);
+        let video = insert(&mut f, 0, 0, 48)[0];
+        run(&mut f.project, only_opacity(vec![video], 400));
+        run(
+            &mut f.project,
+            EditCommand::SplitClips {
+                clip_ids: vec![video],
+                at: 24,
+            },
+        );
+        let faded = f
+            .project
+            .track(f.v1)
+            .unwrap()
+            .clips
+            .iter()
+            .filter(|c| c.transform.opacity == 400)
+            .count();
+        assert_eq!(faded, 2);
     }
 
     fn lock(p: &mut Project, track_id: TrackId) {
