@@ -36,7 +36,7 @@ use objc2_core_foundation::{CGAffineTransform, CGSize};
 use objc2_core_media::{CMTime, CMTimeFlags, CMTimeRange};
 use objc2_foundation::{NSArray, NSPoint, NSRect, NSSize, NSString, NSURL};
 
-use studio_core::model::{MediaKind, Project, Sequence, TrackKind};
+use studio_core::model::{MediaKind, Project, Sequence, TrackKind, Transform};
 use studio_core::time::Rational;
 
 /// Composition times are built in microseconds, matching `Micros` in the document, so a
@@ -57,8 +57,12 @@ pub struct Segment {
     /// Offset into the source file.
     pub source_start_us: i64,
     pub audio: bool,
-    /// Which composition track this goes on. Audio clips may overlap, video never does.
+    /// Which composition track this goes on: one per track of the sequence, counting
+    /// from the bottom of its kind, so lane 0 is V1 or A1. Clips never overlap within a
+    /// track, which is exactly what a composition track requires.
     pub lane: usize,
+    /// Where the picture sits in the frame. Identity for audio, which has none.
+    pub transform: Transform,
 }
 
 /// The sequence's picture: the frame the preview renders into.
@@ -82,73 +86,55 @@ impl Canvas {
     }
 }
 
-/// Flatten one sequence into non-overlapping video segments plus one lane per audio track.
+/// Spread one sequence over composition lanes: one per enabled track, keeping the stack.
 ///
 /// The sequence is passed in rather than looked up, because the preview shows whichever
 /// sequence is open and the document does not record that (ADR-0004).
 ///
-/// Video mirrors `playback::resolve` and `export::render`: the highest enabled video track
-/// with an enabled clip wins, so the flattened result has no overlaps and fits one
-/// composition track. Audio keeps its lanes because several clips can sound at once.
+/// Every enabled clip gets a segment. The preview used to keep only the highest video
+/// track's clip at each instant, which matched the renderer while the renderer covered
+/// the frame with each clip's own black padding. Both composite now, so a clip that is
+/// scaled, rotated or faded has to let the layers below it through, and that needs them
+/// all present. Clips never overlap within a track, which is what a composition track
+/// requires, so one lane per track is the natural fit for video as it already was for
+/// audio.
 pub fn segments(project: &Project, sequence: &Sequence) -> Vec<Segment> {
     let rate = sequence.format.frame_rate;
     let mut out = Vec::new();
 
-    let video: Vec<_> = sequence
-        .tracks
-        .iter()
-        .filter(|t| t.kind == TrackKind::Video && t.enabled)
-        .collect();
-    // Bottom to top, so a higher track's clip overwrites what is already there.
-    let mut covered: Vec<(i64, i64)> = Vec::new();
-    for track in video.iter().rev() {
-        for clip in track.clips.iter().filter(|c| c.enabled) {
-            let start = rate.frames_to_micros(clip.start);
-            let end = rate.frames_to_micros(clip.start + clip.duration);
-            if covered.iter().any(|(s, e)| start < *e && *s < end) {
-                continue;
+    for kind in [TrackKind::Video, TrackKind::Audio] {
+        // Bottom to top within the kind, so lane 0 is V1 or A1.
+        for (lane, track) in sequence
+            .tracks
+            .iter()
+            .filter(|t| t.kind == kind && t.enabled)
+            .enumerate()
+        {
+            let audio = kind == TrackKind::Audio;
+            for clip in track.clips.iter().filter(|c| c.enabled) {
+                let Some(media) = project.media(clip.source.media_id()) else {
+                    continue;
+                };
+                let usable = if audio {
+                    media.has_audio()
+                } else {
+                    media.kind != MediaKind::Image && media.has_video()
+                };
+                if !usable {
+                    continue;
+                }
+                let start = rate.frames_to_micros(clip.start);
+                let end = rate.frames_to_micros(clip.start + clip.duration);
+                out.push(Segment {
+                    path: media.path.clone(),
+                    start_us: start,
+                    duration_us: end - start,
+                    source_start_us: rate.frames_to_micros(clip.source.source_start()),
+                    audio,
+                    lane,
+                    transform: clip.transform,
+                });
             }
-            let Some(media) = project.media(clip.source.media_id()) else {
-                continue;
-            };
-            if media.kind == MediaKind::Image || !media.has_video() {
-                continue;
-            }
-            covered.push((start, end));
-            out.push(Segment {
-                path: media.path.clone(),
-                start_us: start,
-                duration_us: end - start,
-                source_start_us: rate.frames_to_micros(clip.source.source_start()),
-                audio: false,
-                lane: 0,
-            });
-        }
-    }
-
-    for (lane, track) in sequence
-        .tracks
-        .iter()
-        .filter(|t| t.kind == TrackKind::Audio && t.enabled)
-        .enumerate()
-    {
-        for clip in track.clips.iter().filter(|c| c.enabled) {
-            let Some(media) = project.media(clip.source.media_id()) else {
-                continue;
-            };
-            if !media.has_audio() {
-                continue;
-            }
-            let start = rate.frames_to_micros(clip.start);
-            let end = rate.frames_to_micros(clip.start + clip.duration);
-            out.push(Segment {
-                path: media.path.clone(),
-                start_us: start,
-                duration_us: end - start,
-                source_start_us: rate.frames_to_micros(clip.source.source_start()),
-                audio: true,
-                lane,
-            });
         }
     }
     out
@@ -223,26 +209,41 @@ impl Surface {
         mtm: MainThreadMarker,
     ) {
         let composition = unsafe { AVMutableComposition::composition() };
-        let lanes = segments.iter().filter(|s| s.audio).map(|s| s.lane).max();
 
-        let video = (!segments.iter().all(|s| s.audio))
-            .then(|| add_track(&composition, false))
-            .flatten();
-        let audio: Vec<_> = (0..=lanes.unwrap_or(0))
-            .map(|_| add_track(&composition, true))
-            .collect();
-
-        // Where each clip's fit transform takes effect. Gathered as the clips go in,
-        // because the source size is only known once its track has been read.
-        let mut fits: Vec<(i64, CGAffineTransform)> = Vec::new();
+        // A composition track per lane that has something on it. Only the lanes the
+        // segments actually use, so an enabled but empty track leaves no empty track in
+        // the composition for a layer instruction to point at.
+        let open_lanes = |audio: bool| {
+            let mut used: Vec<usize> = segments
+                .iter()
+                .filter(|s| s.audio == audio)
+                .map(|s| s.lane)
+                .collect();
+            used.sort_unstable();
+            used.dedup();
+            used.into_iter()
+                .map(|index| Lane {
+                    index,
+                    track: add_track(&composition, audio),
+                    keys: Vec::new(),
+                })
+                .collect::<Vec<_>>()
+        };
+        let mut video = open_lanes(false);
+        let mut audio = open_lanes(true);
 
         for segment in segments {
-            let track = if segment.audio {
-                audio.get(segment.lane).and_then(|t| t.as_ref())
+            let lanes = if segment.audio {
+                &mut audio
             } else {
-                video.as_ref()
+                &mut video
             };
-            let (Some(track), Some(asset)) = (track, asset(&segment.path)) else {
+            let Some(at) = lanes.iter().position(|l| l.index == segment.lane) else {
+                continue;
+            };
+            // Cloned so the lane can be written to below; a `Retained` clone is a
+            // retain, not a copy of the track.
+            let (Some(track), Some(asset)) = (lanes[at].track.clone(), asset(&segment.path)) else {
                 continue;
             };
             // Deprecated in favour of loadTracksWithMediaType:completionHandler:, which
@@ -262,20 +263,27 @@ impl Surface {
                 track.insertTimeRange_ofTrack_atTime_error(range, &source, time(segment.start_us))
             };
             if !segment.audio {
+                // The fit needs the source size, which is only known now that the
+                // track has been read, so the keyframe is gathered here.
                 let natural = unsafe { source.naturalSize() };
                 let preferred = unsafe { source.preferredTransform() };
-                fits.push((segment.start_us, fit(natural, preferred, canvas)));
+                let fitted = fit(natural, preferred, canvas);
+                lanes[at].keys.push(Keyframe {
+                    at_us: segment.start_us,
+                    transform: then(fitted, placement(segment.transform, canvas)),
+                    opacity: segment.transform.opacity_factor(),
+                });
             }
         }
 
         let item = unsafe { AVPlayerItem::playerItemWithAsset(&composition, mtm) };
-        if let Some(track) = video.as_ref() {
+        if !video.is_empty() {
             let end = segments
                 .iter()
                 .map(|s| s.start_us + s.duration_us)
                 .max()
                 .unwrap_or(0);
-            let rendered = render_into_canvas(track, &mut fits, canvas, end);
+            let rendered = render_into_canvas(&mut video, canvas, end);
             unsafe { item.setVideoComposition(Some(&rendered)) };
         }
         unsafe { self.player.replaceCurrentItemWithPlayerItem(Some(&item)) };
@@ -317,16 +325,104 @@ fn fit(natural: CGSize, preferred: CGAffineTransform, canvas: Canvas) -> CGAffin
     }
 }
 
-/// Render the flattened video track into the sequence frame.
+/// One lane's transform and opacity from a given instant, which is a clip's start.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct Keyframe {
+    at_us: i64,
+    transform: CGAffineTransform,
+    opacity: f64,
+}
+
+/// One track of the sequence, as a composition track plus what it does over time.
+///
+/// Lanes are held in `index` order, counting from the bottom of their kind, so reading
+/// them backwards gives the drawing order AVFoundation wants.
+struct Lane {
+    index: usize,
+    track: Option<Retained<AVMutableCompositionTrack>>,
+    keys: Vec<Keyframe>,
+}
+
+/// Apply `first`, then `second`.
+///
+/// Written out rather than borrowed from CoreGraphics so the order is stated here rather
+/// than remembered: `CGAffineTransformConcat` reads the other way round from the way
+/// these are composed.
+fn then(first: CGAffineTransform, second: CGAffineTransform) -> CGAffineTransform {
+    CGAffineTransform {
+        a: second.a * first.a + second.c * first.b,
+        b: second.b * first.a + second.d * first.b,
+        c: second.a * first.c + second.c * first.d,
+        d: second.b * first.c + second.d * first.d,
+        tx: second.a * first.tx + second.c * first.ty + second.tx,
+        ty: second.b * first.tx + second.d * first.ty + second.ty,
+    }
+}
+
+/// The clip's own transform, in the frame the fit has already placed it in.
+///
+/// Scale and rotation turn about the anchor, then the anchor is put where `position`
+/// says, which is Premiere's convention and the same arithmetic `export::render` does
+/// for FFmpeg. Rotation is clockwise: a video composition measures y downwards, which is
+/// why a camera's `preferredTransform` for a quarter turn has a positive `b`.
+fn placement(t: Transform, canvas: Canvas) -> CGAffineTransform {
+    let (cx, cy) = (
+        f64::from(canvas.width) / 2.0,
+        f64::from(canvas.height) / 2.0,
+    );
+    let (ax, ay) = t.anchor_px();
+    let (px, py) = t.position_px();
+    let (sx, sy) = t.scale_factor();
+    let (sin, cos) = t.rotation_radians().sin_cos();
+
+    // The anchor to the origin, scale, rotate, then the anchor to where it belongs.
+    let to_origin = shift(-(cx + ax), -(cy + ay));
+    let scale = CGAffineTransform {
+        a: sx,
+        b: 0.0,
+        c: 0.0,
+        d: sy,
+        tx: 0.0,
+        ty: 0.0,
+    };
+    let rotate = CGAffineTransform {
+        a: cos,
+        b: sin,
+        c: -sin,
+        d: cos,
+        tx: 0.0,
+        ty: 0.0,
+    };
+    then(
+        then(then(to_origin, scale), rotate),
+        shift(cx + px, cy + py),
+    )
+}
+
+fn shift(tx: f64, ty: f64) -> CGAffineTransform {
+    CGAffineTransform {
+        a: 1.0,
+        b: 0.0,
+        c: 0.0,
+        d: 1.0,
+        tx,
+        ty,
+    }
+}
+
+/// Render the video lanes into the sequence frame, stacked.
 ///
 /// Without this AVFoundation plays the source at its own size, so a clip that did not
-/// match the sequence looked nothing like the export. Every clip shares the one flattened
-/// video track, so one layer instruction covers the timeline and the transform changes at
-/// each clip's start, which is what `setTransform:atTime:` is for. That needs the times in
-/// order, and the flattening walks tracks rather than the clock.
+/// match the sequence looked nothing like the export. One layer instruction per lane,
+/// and within a lane the transform and opacity change at each clip's start, which is
+/// what `setTransform:atTime:` and `setOpacity:atTime:` are for. Both need their times
+/// in order, and the lanes are filled track by track rather than by the clock.
+///
+/// AVFoundation composites the layer instructions front to back, so the array runs from
+/// the top video track down, the opposite of the lane order, and the result matches the
+/// renderer: a later video track sits over an earlier one.
 fn render_into_canvas(
-    track: &AVMutableCompositionTrack,
-    fits: &mut [(i64, CGAffineTransform)],
+    lanes: &mut [Lane],
     canvas: Canvas,
     end_us: i64,
 ) -> Retained<AVMutableVideoComposition> {
@@ -344,16 +440,26 @@ fn render_into_canvas(
         });
     }
 
-    let layer = unsafe {
-        AVMutableVideoCompositionLayerInstruction::videoCompositionLayerInstructionWithAssetTrack(
-            track,
-        )
-    };
-    fits.sort_by_key(|(at_us, _)| *at_us);
-    for (at_us, transform) in fits.iter() {
-        unsafe { layer.setTransform_atTime(*transform, time(*at_us)) };
+    let mut instructions: Vec<Retained<AVVideoCompositionLayerInstruction>> = Vec::new();
+    // Highest lane first: AVFoundation draws the first layer instruction in front.
+    for lane in lanes.iter_mut().rev() {
+        let Some(track) = lane.track.as_ref() else {
+            continue;
+        };
+        let layer = unsafe {
+            AVMutableVideoCompositionLayerInstruction::videoCompositionLayerInstructionWithAssetTrack(
+                track,
+            )
+        };
+        lane.keys.sort_by_key(|k| k.at_us);
+        for key in &lane.keys {
+            unsafe {
+                layer.setTransform_atTime(key.transform, time(key.at_us));
+                layer.setOpacity_atTime(key.opacity as f32, time(key.at_us));
+            }
+        }
+        instructions.push(Retained::into_super(layer));
     }
-    let layers: Retained<AVVideoCompositionLayerInstruction> = Retained::into_super(layer);
 
     let instruction =
         unsafe { AVMutableVideoCompositionInstruction::videoCompositionInstruction() };
@@ -362,7 +468,7 @@ fn render_into_canvas(
             start: time(0),
             duration: time(end_us),
         });
-        instruction.setLayerInstructions(&NSArray::from_retained_slice(&[layers]));
+        instruction.setLayerInstructions(&NSArray::from_retained_slice(&instructions));
     }
 
     let instruction = ProtocolObject::from_retained(instruction);
@@ -514,7 +620,7 @@ pub fn seek(ns_window: *mut c_void, us: i64) {
 mod tests {
     use super::*;
     use studio_core::ids::ClipId;
-    use studio_core::model::{Clip, ClipSource, Track, Transform};
+    use studio_core::model::{Clip, ClipSource, Offset, Scale, Track, Transform, MILLI};
     use studio_core::testing::sample_edit;
 
     /// `sample_edit` puts linked clips at frames 12..60 (source from 6) and 100..124 at
@@ -539,9 +645,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn a_higher_video_track_hides_what_is_under_it() {
-        let mut project = sample_edit();
+    /// Add a V2 covering the first V1 clip exactly.
+    fn with_a_track_on_top(project: &mut Project) {
         let media_id = project.media[0].id;
         let mut over = Track::new(studio_core::model::TrackKind::Video, "V2");
         over.clips.push(Clip {
@@ -559,24 +664,46 @@ mod tests {
         });
         // Video tracks are stored bottom to top, before the audio tracks.
         project.first_sequence_mut().tracks.insert(1, over);
+    }
+
+    #[test]
+    fn a_covered_clip_is_kept_on_its_own_lane() {
+        // The preview used to drop whatever a higher track covered. It cannot any more:
+        // the clip on top may be scaled, turned or faded, and then what is under it has
+        // to be there to show through.
+        let mut project = sample_edit();
+        with_a_track_on_top(&mut project);
 
         let video: Vec<_> = segments(&project, project.first_sequence())
             .into_iter()
             .filter(|s| !s.audio)
             .collect();
-        assert_eq!(
-            video.len(),
-            2,
-            "the covered V1 clip is dropped, not stacked"
+        assert_eq!(video.len(), 3, "both V1 clips and the V2 clip");
+
+        let covered = video
+            .iter()
+            .find(|s| s.lane == 0 && s.start_us == 500_000)
+            .expect("the covered V1 clip survives");
+        assert_eq!(covered.source_start_us, 250_000);
+        let on_top = video
+            .iter()
+            .find(|s| s.lane == 1)
+            .expect("the V2 clip has its own lane");
+        assert_eq!(on_top.source_start_us, 0);
+    }
+
+    #[test]
+    fn lanes_count_from_the_bottom_of_each_kind() {
+        let mut project = sample_edit();
+        with_a_track_on_top(&mut project);
+        let all = segments(&project, project.first_sequence());
+        assert!(
+            all.iter().filter(|s| s.audio).all(|s| s.lane == 0),
+            "one audio track, one lane"
         );
-        assert_eq!(
-            video[0].source_start_us, 0,
-            "the V2 clip wins the shared range"
-        );
-        assert_eq!(
-            video[1].start_us, 4_166_667,
-            "the uncovered V1 clip survives"
-        );
+        let video_lanes: std::collections::BTreeSet<_> =
+            all.iter().filter(|s| !s.audio).map(|s| s.lane).collect();
+        assert_eq!(video_lanes, [0, 1].into_iter().collect());
     }
 
     #[test]
@@ -656,6 +783,141 @@ mod tests {
         assert!((t.c + scale).abs() < 1e-9);
         // Shown at 1080x1920, scaled to 607.5x1080, so it is inset horizontally.
         assert!((t.tx - (1080.0 * scale + (1920.0 - 1080.0 * scale) / 2.0)).abs() < 1e-9);
+    }
+
+    /// Where a transform sends a point.
+    fn at(t: CGAffineTransform, x: f64, y: f64) -> (f64, f64) {
+        (t.a * x + t.c * y + t.tx, t.b * x + t.d * y + t.ty)
+    }
+
+    fn close(got: (f64, f64), want: (f64, f64)) {
+        assert!(
+            (got.0 - want.0).abs() < 1e-6 && (got.1 - want.1).abs() < 1e-6,
+            "got {got:?}, want {want:?}"
+        );
+    }
+
+    /// The middle of a 1920x1080 frame.
+    const CENTRE: (f64, f64) = (960.0, 540.0);
+
+    fn moved(transform: Transform) -> CGAffineTransform {
+        placement(transform, hd())
+    }
+
+    #[test]
+    fn then_applies_its_first_argument_first() {
+        // Shift right by ten, then double: twenty, not ten.
+        let combined = then(
+            shift(10.0, 0.0),
+            CGAffineTransform {
+                a: 2.0,
+                b: 0.0,
+                c: 0.0,
+                d: 2.0,
+                tx: 0.0,
+                ty: 0.0,
+            },
+        );
+        close(at(combined, 0.0, 0.0), (20.0, 0.0));
+    }
+
+    #[test]
+    fn an_identity_transform_moves_nothing() {
+        let t = moved(Transform::IDENTITY);
+        close(at(t, CENTRE.0, CENTRE.1), CENTRE);
+        close(at(t, 0.0, 0.0), (0.0, 0.0));
+    }
+
+    #[test]
+    fn position_slides_the_picture() {
+        let t = moved(Transform {
+            position: Offset {
+                x: 40 * MILLI,
+                y: -10 * MILLI,
+            },
+            ..Transform::IDENTITY
+        });
+        close(at(t, CENTRE.0, CENTRE.1), (1000.0, 530.0));
+    }
+
+    #[test]
+    fn scale_grows_about_the_centre_when_the_anchor_is_there() {
+        let t = moved(Transform {
+            scale: Scale {
+                x: MILLI / 2,
+                y: MILLI / 2,
+            },
+            ..Transform::IDENTITY
+        });
+        close(at(t, CENTRE.0, CENTRE.1), CENTRE);
+        // The bottom right corner comes half way in.
+        close(at(t, 1920.0, 1080.0), (1440.0, 810.0));
+    }
+
+    #[test]
+    fn rotation_is_clockwise() {
+        // A point to the right of the centre ends up below it, which is clockwise in a
+        // render space that measures y downwards.
+        let t = moved(Transform {
+            rotation: 90 * MILLI,
+            ..Transform::IDENTITY
+        });
+        close(at(t, CENTRE.0 + 100.0, CENTRE.1), (960.0, 640.0));
+    }
+
+    #[test]
+    fn the_anchor_stays_where_position_puts_it() {
+        // Mirrors `rotation_turns_about_the_anchor_not_the_centre` in export::render:
+        // whatever the scale and rotation, the anchor lands at the centre plus position.
+        for rotation in [0, 30 * MILLI, -90 * MILLI, 200 * MILLI] {
+            let transform = Transform {
+                scale: Scale {
+                    x: MILLI / 2,
+                    y: MILLI / 2,
+                },
+                rotation,
+                anchor: Offset {
+                    x: 100 * MILLI,
+                    y: 0,
+                },
+                ..Transform::IDENTITY
+            };
+            // The anchor is 100 px right of the fitted picture's centre.
+            close(at(moved(transform), CENTRE.0 + 100.0, CENTRE.1), CENTRE);
+        }
+    }
+
+    #[test]
+    fn an_anchor_alone_slides_the_picture() {
+        // Premiere's convention, and what export::render does: position places the
+        // anchor, so pulling the anchor right slides the picture left.
+        let t = moved(Transform {
+            anchor: Offset {
+                x: 100 * MILLI,
+                y: 0,
+            },
+            ..Transform::IDENTITY
+        });
+        close(at(t, CENTRE.0, CENTRE.1), (860.0, 540.0));
+    }
+
+    #[test]
+    fn a_fitted_clip_is_still_centred_after_it_is_scaled() {
+        // Fit and placement together: a matching clip scaled by half keeps its middle in
+        // the middle of the frame, and its own corner lands half way in.
+        let fitted = fit(CGSize::new(1920.0, 1080.0), UPRIGHT, hd());
+        let t = then(
+            fitted,
+            moved(Transform {
+                scale: Scale {
+                    x: MILLI / 2,
+                    y: MILLI / 2,
+                },
+                ..Transform::IDENTITY
+            }),
+        );
+        close(at(t, 960.0, 540.0), CENTRE);
+        close(at(t, 0.0, 0.0), (480.0, 270.0));
     }
 
     #[test]
