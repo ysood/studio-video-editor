@@ -1,12 +1,12 @@
 # Architecture
 
-Last verified: 2026-10-17
+Last verified: 2026-10-20
 
 ## Layers
 
 ```
 ┌────────────────────────────── React UI (src/) ──────────────────────────────┐
-│  Workspace (Dockview)   Media bin   Viewer   Timeline (canvas)   Inspector   │
+│  Workspace (Dockview)  Media bin  Viewer  Timeline  Inspector + Transform    │
 │  store.ts: latest Snapshot + view state (selection, playhead, zoom)          │
 │  geometry.ts / resolve.ts: pure, tested previews that mirror core rules      │
 └───────────────▲──────────────────────────────────────────────┬──────────────┘
@@ -82,9 +82,12 @@ enum exported to TypeScript. Every way of starting one ends in `runAction` in
   through the asset protocol, re-seeked only beyond 120 ms of drift, with the playhead
   advanced from wall time because there is no player to follow.
 - **Render:** `export::render::plan` builds an FFmpeg argument vector (black canvas plus
-  silent bed, one seeked input per clip, fit, offset, overlay in track order, delayed and
-  mixed audio). The shell spawns it, streams `-progress` to `job://progress`, and deletes
-  partial output on failure or cancel.
+  silent bed, one seeked input per clip, fit, transform, offset, overlay in track order,
+  delayed and mixed audio). The shell spawns it, streams `-progress` to `job://progress`,
+  and deletes partial output on failure or cancel.
+- **Compositing:** a clip is overlaid at its own size, so whatever it does not cover shows
+  the layer below (ADR-0005). Each clip is fitted to the frame first and its `Transform`
+  applied in that space, which keeps an identity transform rendering what it always did.
 
 ## Handoff to Resolve and Premiere
 
@@ -104,14 +107,24 @@ copies used media next to both files plus a provenance manifest.
 
 ## Known limits (milestone 1)
 
-- No effects, transforms or transitions in the preview yet. On macOS the picture comes
+- Clips carry a transform (position, scale, rotation, anchor, opacity) and the stack
+  composites, in the renderer and both previews. No other effects and no transitions yet,
+  and no keyframes: a transform holds for the whole clip. On macOS the picture comes
   from AVFoundation and plays 60 Mbps H.264 smoothly; the element path used everywhere
   else still cannot stream that bitrate through the asset protocol.
+- Transforms do not reach Resolve or Premiere: OTIO and FCP7 XML both write empty effect
+  lists, so a transformed cut flattens on handoff. The Premiere path is FCP7's
+  `Basic Motion` filter (ADR-0005).
+- A clip cannot be dragged or scaled in the viewer. On macOS the picture is a native view
+  above the webview (ADR-0003), so a web overlay cannot be drawn over it; handles need a
+  second native view or to be drawn natively.
 - The playhead follows the player at 30 Hz, so on sequences faster than 30 fps the
   reported frame skips one between updates. Raise `OBSERVE_HZ` if that shows.
 - Still images are skipped by the macOS preview; only clips with a decodable video or
   audio track reach the composition.
 - No speed changes, ripple edits, transitions, markers, keyframes or audio levels.
+- A flip is not a negative scale: scale stays positive because FFmpeg's `scale` filter
+  needs positive dimensions. A flip will be its own effect.
 - FCP7 XML writes `in` and `out` at the sequence rate; mixed-rate footage may need conform.
 - FFmpeg must be installed; bundling it as a Tauri sidecar is planned.
 - Quitting (Cmd+Q) or closing the window does not yet ask about unsaved changes.
