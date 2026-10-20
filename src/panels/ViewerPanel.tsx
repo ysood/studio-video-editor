@@ -4,9 +4,10 @@ import type { MediaAsset } from "../bindings/MediaAsset";
 import { framesToSeconds } from "../format";
 import { useShortcut } from "../keyboard";
 import { useNativeViewer } from "../playback/nativeViewer";
-import { audioAt, sequenceEnd, videoAt } from "../playback/resolve";
+import { audioAt, sequenceEnd, videoStackAt } from "../playback/resolve";
 import { isBrowserPreview } from "../preview/mode";
 import { useEditor } from "../store";
+import { layerStyle } from "../transform";
 import { IconButton, Panel, Timecode } from "../ui";
 import "./viewer.css";
 import { useActiveSequence } from "../store";
@@ -18,10 +19,20 @@ function mediaUrl(media: MediaAsset): string {
   return convertFileSrc(media.path);
 }
 
+/** One element per track and file, so a cut within a track reuses what is loaded. */
+function layerKey(layer: { track: { id: string }; media: MediaAsset }): string {
+  return `${layer.track.id}\u0000${layer.media.id}`;
+}
+
+function mediaOf(key: string): string {
+  return key.slice(key.indexOf("\u0000") + 1);
+}
+
 /**
- * Preview uses the webview's own decoders: one muted <video> or <img> per visual media
- * and one <audio> per audio clip under the playhead. This shows cuts and stacking
- * faithfully; effects will need the GPU compositor described in ADR-0001.
+ * Preview uses the webview's own decoders: one muted <video> or <img> per visual layer
+ * and one <audio> per audio clip under the playhead. Every video clip under the
+ * playhead is drawn, lowest track at the back, each carrying its own transform as CSS,
+ * so a scaled or faded clip shows the layers beneath it the way the renderer does.
  */
 export function ViewerPanel() {
   const snapshot = useEditor((s) => s.snapshot);
@@ -32,6 +43,9 @@ export function ViewerPanel() {
   const stageRef = useRef<HTMLDivElement>(null);
   // Seeks issued before a video has loaded are dropped, so re-sync once data arrives.
   const [, resync] = useReducer((n: number) => n + 1, 0);
+  // Keyed by track and media rather than media alone: two tracks can show the same
+  // file at once, and within one track a cut between clips of the same file reuses the
+  // element that already has it loaded.
   const visuals = useRef(new Map<string, HTMLVideoElement | HTMLImageElement>());
   const sounds = useRef(new Map<string, HTMLAudioElement>());
 
@@ -41,7 +55,8 @@ export function ViewerPanel() {
   const rate = format?.frameRate ?? { num: 24, den: 1 };
   const end = sequence ? sequenceEnd(sequence) : 0;
   const offline = new Set(snapshot?.offlineMedia ?? []);
-  const current = project && sequence ? videoAt(project, sequence, playhead) : null;
+  const stack = project && sequence ? videoStackAt(project, sequence, playhead) : [];
+  const missing = stack.find((a) => offline.has(a.media.id)) ?? null;
 
   // macOS draws the picture natively; the element path below is the browser fallback.
   useNativeViewer(stageRef);
@@ -77,12 +92,16 @@ export function ViewerPanel() {
   // composite tracks.
   useEffect(() => {
     const stage = stageRef.current;
-    if (!isBrowserPreview || !stage || !project) return;
-    const activeId = current && !offline.has(current.media.id) ? current.media.id : null;
-    if (current && activeId && !visuals.current.has(activeId)) {
+    if (!isBrowserPreview || !stage || !project || !format) return;
+    const drawn = new Map<string, (typeof stack)[number]>();
+    for (const layer of stack) {
+      if (!offline.has(layer.media.id)) drawn.set(layerKey(layer), layer);
+    }
+    for (const [key, layer] of drawn) {
+      if (visuals.current.has(key)) continue;
       const element =
-        current.media.kind === "image" ? document.createElement("img") : document.createElement("video");
-      element.src = mediaUrl(current.media);
+        layer.media.kind === "image" ? document.createElement("img") : document.createElement("video");
+      element.src = mediaUrl(layer.media);
       element.className = "viewer-media";
       element.addEventListener(element instanceof HTMLVideoElement ? "loadeddata" : "load", resync);
       if (element instanceof HTMLVideoElement) {
@@ -91,17 +110,26 @@ export function ViewerPanel() {
         element.playsInline = true;
       }
       stage.appendChild(element);
-      visuals.current.set(activeId, element);
+      visuals.current.set(key, element);
     }
-    for (const [id, element] of visuals.current) {
-      const isActive = id === activeId;
-      element.style.visibility = isActive ? "visible" : "hidden";
+    for (const [key, element] of visuals.current) {
+      const layer = drawn.get(key);
+      element.style.visibility = layer ? "visible" : "hidden";
+      if (layer) {
+        // Painting order comes from the stack, not from the order elements happened to
+        // be created in, so a clip that starts later still sits on its own track.
+        const style = layerStyle(layer.clip.transform, format.width, format.height);
+        element.style.zIndex = String(stack.indexOf(layer));
+        element.style.transformOrigin = style.transformOrigin as string;
+        element.style.transform = style.transform as string;
+        element.style.opacity = String(style.opacity);
+      }
       if (!(element instanceof HTMLVideoElement)) continue;
-      if (!isActive) {
+      if (!layer) {
         if (!element.paused) element.pause();
         continue;
       }
-      const target = current!.sourceSeconds;
+      const target = layer.sourceSeconds;
       if (playing) {
         if (Math.abs(element.currentTime - target) > DRIFT_SECONDS) element.currentTime = target;
         if (element.paused) void element.play().catch(() => {});
@@ -141,10 +169,10 @@ export function ViewerPanel() {
   useEffect(() => {
     if (!project) return;
     const live = new Set(project.media.map((m) => m.id));
-    for (const [id, element] of visuals.current) {
-      if (!live.has(id)) {
+    for (const [key, element] of visuals.current) {
+      if (!live.has(mediaOf(key))) {
         element.remove();
-        visuals.current.delete(id);
+        visuals.current.delete(key);
       }
     }
   }, [project]);
@@ -200,10 +228,10 @@ export function ViewerPanel() {
           style={{ "--aspect": format.width / format.height } as React.CSSProperties}
           onClick={togglePlay}
         >
-          {current && offline.has(current.media.id) && (
+          {missing && (
             <div className="viewer-slate">
               <strong>Media offline</strong>
-              <span>{current.media.path}</span>
+              <span>{missing.media.path}</span>
             </div>
           )}
         </div>

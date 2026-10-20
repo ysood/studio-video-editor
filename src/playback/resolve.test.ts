@@ -3,7 +3,7 @@ import type { Clip } from "../bindings/Clip";
 import type { Project } from "../bindings/Project";
 import type { Track } from "../bindings/Track";
 import { IDENTITY } from "../transform";
-import { audioAt, sequenceEnd, videoAt } from "./resolve";
+import { audioAt, sequenceEnd, videoAt, videoStackAt } from "./resolve";
 
 const clip = (id: string, start: number, duration: number, sourceStart = 0): Clip => ({
   id,
@@ -67,6 +67,32 @@ describe("videoAt", () => {
     const p = project([track("v1", "video", [clip("c", 24, 48, 12)])]);
     expect(videoAt(p, p.sequences[0]!, 36)?.sourceSeconds).toBe(1);
     expect(videoAt(p, p.sequences[0]!, 72)).toBeNull();
+  });
+});
+
+describe("videoStackAt", () => {
+  it("returns every enabled video clip, lowest track first", () => {
+    const p = project([
+      track("v1", "video", [clip("low", 0, 48)]),
+      track("v2", "video", [clip("high", 24, 24)]),
+    ]);
+    // A covered clip is kept: the one on top may be scaled or faded, and then this one
+    // has to show through.
+    expect(videoStackAt(p, p.sequences[0]!, 30).map((a) => a.clip.id)).toEqual(["low", "high"]);
+    expect(videoStackAt(p, p.sequences[0]!, 10).map((a) => a.clip.id)).toEqual(["low"]);
+  });
+
+  it("leaves out disabled tracks", () => {
+    const p = project([
+      track("v1", "video", [clip("low", 0, 48)]),
+      track("v2", "video", [clip("high", 0, 48)], false),
+    ]);
+    expect(videoStackAt(p, p.sequences[0]!, 10).map((a) => a.clip.id)).toEqual(["low"]);
+  });
+
+  it("is empty where nothing plays", () => {
+    const p = project([track("v1", "video", [clip("c", 24, 24)])]);
+    expect(videoStackAt(p, p.sequences[0]!, 0)).toEqual([]);
   });
 });
 

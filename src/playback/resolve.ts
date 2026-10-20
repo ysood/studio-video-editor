@@ -1,6 +1,7 @@
 // What plays at a given frame. Mirrors the render graph in
-// crates/studio-core/src/export/render.rs: the highest enabled video track with an
-// enabled clip wins, and every enabled audio clip under the playhead is heard.
+// crates/studio-core/src/export/render.rs: every enabled video clip under the playhead
+// is drawn, lowest track first so higher ones sit over it, and every enabled audio clip
+// under the playhead is heard.
 
 import type { Clip } from "../bindings/Clip";
 import type { MediaAsset } from "../bindings/MediaAsset";
@@ -32,14 +33,23 @@ function active(project: Project, rate: Rational, track: Track, frame: number): 
   };
 }
 
-export function videoAt(project: Project, sequence: Sequence, frame: number): ActiveClip | null {
+/**
+ * Every enabled video clip under the playhead, in painting order: the lowest track
+ * first, so later ones are drawn over it. A clip no longer hides what is beneath it,
+ * because it may be scaled, turned or faded and then the layers below show through.
+ */
+export function videoStackAt(project: Project, sequence: Sequence, frame: number): ActiveClip[] {
   const rate = sequence.format.frameRate;
-  const video = sequence.tracks.filter((t) => t.kind === "video");
-  for (let i = video.length - 1; i >= 0; i--) {
-    const hit = active(project, rate, video[i]!, frame);
-    if (hit) return hit;
-  }
-  return null;
+  return sequence.tracks
+    .filter((t) => t.kind === "video")
+    .map((t) => active(project, rate, t, frame))
+    .filter((a): a is ActiveClip => a !== null);
+}
+
+/** The frontmost video clip under the playhead, or null when nothing is there. */
+export function videoAt(project: Project, sequence: Sequence, frame: number): ActiveClip | null {
+  const stack = videoStackAt(project, sequence, frame);
+  return stack.length === 0 ? null : stack[stack.length - 1]!;
 }
 
 export function audioAt(project: Project, sequence: Sequence, frame: number): ActiveClip[] {
