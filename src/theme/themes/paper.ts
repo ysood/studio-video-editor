@@ -15,7 +15,9 @@ const blue = "#2554ce"; // primary
 const black = "#151414"; // the timeline panel, and text on the grey
 const bone = "#f0e3de"; // text on the blue and the black
 
-/** A dark wash, for a lift or a dip on the blue, so one value works at any depth. */
+/** A dark wash, for a lift or a dip on the blue. Only the base block reads it now: no
+ *  panel is blue any more, so these are the fallback a surface would land on, not a
+ *  colour anything actually paints. */
 const onBlue = (a: number) => `rgba(4, 14, 48, ${a})`;
 /** The two text colours at an alpha. Borders and dividers are the text they separate,
  *  faded, rather than a grey of their own: that way they are right on every surface. */
@@ -133,10 +135,12 @@ export const paperTheme: Theme = {
   surfaces: {
     chrome,
     stage,
-    // A well is an inset inside a card, so it sinks into the blue rather than leaving it.
-    well: {
-      surface: { panel: onBlue(0.2), raised: onBlue(0.3), input: onBlue(0.26), overlay: "#1d3f9b" },
-    },
+    // A well is an inset inside a card, and every card is dark now, so a well is the
+    // stage. It used to be a dark wash on the blue, which was right while panels were
+    // blue and reads as a navy tint over near black. The same override also reaches
+    // every overlay, so this is what stops menus, dialogs and tooltips being the last
+    // blue things in the app.
+    well: stage,
   },
 
   elevation: {
