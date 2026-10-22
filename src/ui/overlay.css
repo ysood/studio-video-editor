@@ -101,6 +101,13 @@
   justify-content: space-between;
   gap: var(--space-3);
   text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.ui-select-trigger > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ui-select-trigger .ui-icon {

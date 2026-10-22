@@ -54,19 +54,25 @@
 
 /* One surface instead of a stack of cards: the sections are separated by a divider,
    which is quieter than a gap that lets the panel colour through between them.
-
-   It does NOT take the card inset, unlike every other content region in a card. At this
-   panel's width, the inset either side plus a fixed `size.fieldLabel` leaves too little
-   for the value beside it and the frame-size select wraps onto two lines. The two have
-   to be settled together; until then this stays narrow so nothing breaks. */
+   It takes the card inset like any other content in a card, as padding rather than a
+   margin so the scrollbar stays at the panel's edge where the media's does. */
 .ui-panel-body[data-layout="sheet"] {
-  margin: var(--space-3);
+  padding: var(--space-8);
   background: var(--color-surface-panel);
   border-radius: var(--radius-panel);
 }
 
 /* A divider earns its place only between two sections. Trailing content such as a
    hint is not a section, so the last section before it keeps no line. */
+/* In a sheet the body already carries the card inset, so a section adds only vertical
+   rhythm and the divider: padding at its sides would inset the inset, and the fields
+   would no longer line up with the toolbar above them. */
+.ui-panel-body[data-layout="sheet"] > .ui-section,
+.ui-panel-body[data-layout="sheet"] .ui-note {
+  padding-inline: 0;
+  margin-inline: 0;
+}
+
 .ui-panel-body[data-layout="sheet"] > .ui-section:not(:has(~ .ui-section)) {
   border-bottom: 0;
 }

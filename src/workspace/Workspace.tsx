@@ -26,6 +26,14 @@ const components: Record<string, FunctionComponent<IDockviewPanelProps>> = {
   timeline: TimelinePanel,
 };
 
+/**
+ * Both side panels, so the viewer sits in the middle of the window rather than being
+ * pushed off centre by whichever side happens to be wider. It is wide enough for the
+ * bin's pills to sit in one row beside its view buttons, and for the properties panel
+ * to show a label and its value side by side without the value wrapping.
+ */
+const SIDE_PANEL = 400;
+
 function defaultLayout(api: DockviewApi) {
   api.addPanel({ id: "viewer", component: "viewer", title: "Viewer" });
   api.addPanel({
@@ -40,9 +48,7 @@ function defaultLayout(api: DockviewApi) {
     component: "bin",
     title: "Media",
     position: { referencePanel: "viewer", direction: "left" },
-    // Wide enough for the bin pills to sit in one row beside the view buttons; the
-    // media wants the room too, now that nothing stands to the left of it.
-    initialWidth: 500,
+    initialWidth: SIDE_PANEL,
   });
   // The inspector and the transform are one panel with a pill between them, so there
   // is nothing to add for the second: they answer different questions about the same
@@ -52,7 +58,7 @@ function defaultLayout(api: DockviewApi) {
     component: "inspector",
     title: "Inspector",
     position: { referencePanel: "viewer", direction: "right" },
-    initialWidth: 320,
+    initialWidth: SIDE_PANEL,
   });
 }
 
