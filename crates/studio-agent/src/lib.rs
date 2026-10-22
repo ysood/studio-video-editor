@@ -23,7 +23,9 @@
 //! it may do, so errors carry what to do instead and whether trying again could help.
 
 pub mod commands;
+pub mod delta;
 pub mod error;
+pub mod host;
 pub mod queries;
 pub mod schema;
 pub mod session;
@@ -33,7 +35,9 @@ use schemars::schema_for;
 use serde_json::Value;
 use std::collections::BTreeMap;
 
+pub use delta::{delta, Delta};
 pub use error::{ToolError, ToolErrorCode};
+pub use host::{Host, NoHost};
 pub use session::Session;
 pub use tool::{Annotations, Area, Surface, Tool};
 
@@ -79,6 +83,7 @@ impl Policy {
 pub fn catalogue() -> Vec<Tool> {
     let mut tools = queries();
     tools.extend(commands::tools());
+    tools.extend(host_tools());
     tools.sort_by(|a, b| a.name.cmp(&b.name));
     tools
 }
@@ -100,6 +105,35 @@ pub fn find(name: &str) -> Option<Tool> {
 
 fn schema_of<T: schemars::JsonSchema>() -> Value {
     serde_json::to_value(schema_for!(T)).unwrap_or_else(|_| schema::nothing())
+}
+
+fn host_tools() -> Vec<Tool> {
+    vec![Tool {
+        name: "media.import".into(),
+        area: Area::Media,
+        title: "Bring media into the bin".into(),
+        description: "Read these files and add what is usable to the bin. A file that \
+            cannot be read is reported and the rest are still added. A path already in the \
+            bin is skipped rather than added twice, so running this again after a failure \
+            is safe."
+            .into(),
+        input_schema: serde_json::json!({
+            "type": "object",
+            "properties": {
+                "paths": {
+                    "type": "array",
+                    "items": { "type": "string" },
+                    "description": "Absolute paths to media files."
+                }
+            },
+            "required": ["paths"]
+        }),
+        // Idempotent by path, which is worth advertising: a caller retrying after a
+        // partial failure does not end up with the bin twice over.
+        annotations: Annotations::SETS.reaching_outside(),
+        surfaces: vec![Surface::InApp, Surface::External],
+        in_default_surface: true,
+    }]
 }
 
 fn queries() -> Vec<Tool> {
@@ -205,6 +239,63 @@ fn parse<T: serde::de::DeserializeOwned>(value: Value, revision: u64) -> Result<
     serde_json::from_value(value).map_err(|e| ToolError::bad_arguments(e.to_string(), revision))
 }
 
+/// Bring media into the bin.
+///
+/// The one command that cannot be a tool as it stands: `ImportMedia` takes assets
+/// already inspected, down to their size and modification time, and a caller cannot
+/// know those. So the host reads the files and this applies the ordinary command with
+/// what it found, which keeps adding to the bin on the same validated, undoable path as
+/// every other edit.
+pub fn import(
+    session: &mut dyn Session,
+    host: &dyn Host,
+    paths: &[String],
+    expected_revision: Option<u64>,
+) -> Result<Import, ToolError> {
+    let revision = session.revision();
+    if let Some(expected) = expected_revision {
+        if expected != revision {
+            return Err(ToolError::stale(expected, revision));
+        }
+    }
+    if paths.is_empty() {
+        return Err(ToolError::bad_arguments("no paths given", revision));
+    }
+    let (assets, failed) = host.probe(paths)?;
+    if assets.is_empty() {
+        return Ok(Import {
+            outcome: None,
+            failed: failed.into_iter().map(|f| (f.path, f.reason)).collect(),
+        });
+    }
+    let before = session.project().clone();
+    let command = studio_core::edit::EditCommand::ImportMedia { assets };
+    let report = session
+        .apply(&command)
+        .map_err(|e| ToolError::from_edit(e, revision))?;
+    Ok(Import {
+        outcome: Some(Outcome {
+            label: command.label().to_string(),
+            revision: session.revision(),
+            delta: delta::delta(&before, session.project()),
+            report,
+        }),
+        failed: failed.into_iter().map(|f| (f.path, f.reason)).collect(),
+    })
+}
+
+/// What an import did, and what it could not read.
+///
+/// A file that could not be read is not an error for the whole call: importing six
+/// files of which one is a text document should add five and say so.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Import {
+    /// Absent when nothing could be read, so nothing was applied.
+    pub outcome: Option<Outcome>,
+    pub failed: Vec<(String, String)>,
+}
+
 /// Do something that changes the document.
 ///
 /// `expected_revision` is how a caller says what it was looking at. The document
@@ -224,12 +315,16 @@ pub fn act(
     }
     let command = commands::to_command(session, name, arguments)?;
     let label = command.label();
+    // Kept so the edit can be compared against it afterwards. A command reports what it
+    // created; only the two states together say what it removed and changed.
+    let before = session.project().clone();
     let report = session
         .apply(&command)
         .map_err(|e| ToolError::from_edit(e, revision))?;
     Ok(Outcome {
         label: label.to_string(),
         revision: session.revision(),
+        delta: delta::delta(&before, session.project()),
         report,
     })
 }
@@ -242,6 +337,9 @@ pub struct Outcome {
     pub label: String,
     /// Where the document is now, to be handed back on the next call.
     pub revision: u64,
+    /// What the edit did, including what it did that nobody asked for.
+    pub delta: Delta,
+    /// What the command itself reports having created.
     pub report: studio_core::edit::EditReport,
 }
 

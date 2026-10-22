@@ -288,13 +288,15 @@ fn a_destructive_tool_says_so_and_a_safe_one_does_not() {
     );
     assert!(!find("timeline.trim_clip").unwrap().annotations.destructive);
     assert!(!find("clip.rename").unwrap().annotations.destructive);
-    for tool in catalogue() {
-        assert!(
-            !tool.annotations.open_world,
-            "{} reaches nothing outside the document yet",
-            tool.name
-        );
-    }
+    // Reaching outside the document is the exception and is worth naming: everything
+    // else is a closed world, and a caller deciding whether to ask first should not be
+    // told otherwise.
+    let outward: Vec<String> = catalogue()
+        .into_iter()
+        .filter(|t| t.annotations.open_world)
+        .map(|t| t.name)
+        .collect();
+    assert_eq!(outward, vec!["media.import".to_string()]);
 }
 
 #[test]
