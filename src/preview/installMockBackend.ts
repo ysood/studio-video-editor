@@ -37,6 +37,52 @@ function sampleRecents(now = Date.now()): Recent[] {
 const THINKING_MS = 600;
 
 /**
+ * A plausible model catalogue, shaped like the real one. Sample data in the same spirit
+ * as the sample project: enough to lay the picker out against, including a model with a
+ * shorter list of levels, since that is the case the layout has to survive.
+ */
+const sampleModels = [
+  {
+    slug: "gpt-6.1-sol",
+    name: "GPT-6.1-Sol",
+    description: "Latest workhorse model for coding and everyday work.",
+    contextWindow: 500000,
+    defaultEffort: "low",
+    efforts: [
+      { effort: "low", description: "Fast responses with lighter reasoning" },
+      { effort: "medium", description: "Balances speed and reasoning depth for everyday tasks" },
+      { effort: "high", description: "Greater reasoning depth for complex problems" },
+      { effort: "ultra", description: "Maximum reasoning with automatic task delegation" },
+    ],
+  },
+  {
+    slug: "gpt-6-astra",
+    name: "GPT-6-Astra",
+    description: "Frontier intelligence for the most demanding work.",
+    contextWindow: 272000,
+    defaultEffort: "medium",
+    efforts: [
+      { effort: "low", description: "Fast responses with lighter reasoning" },
+      { effort: "medium", description: "Balances speed and reasoning depth for everyday tasks" },
+      { effort: "high", description: "Greater reasoning depth for complex problems" },
+    ],
+  },
+  {
+    slug: "gpt-6-luna",
+    name: "GPT-6-Luna",
+    description: "Fast and affordable model for easier tasks.",
+    contextWindow: 272000,
+    defaultEffort: "medium",
+    efforts: [{ effort: "medium", description: "Balances speed and reasoning depth" }],
+  },
+];
+
+let sampleSettings: { model: string | null; effort: string | null } = {
+  model: null,
+  effort: null,
+};
+
+/**
  * A fixed reply, after a pause long enough to see the waiting state. It answers nothing:
  * the preview has no model, and a canned answer that pretended otherwise would be a
  * worse thing to leave in the window than an honest one.
@@ -92,6 +138,15 @@ export function installMockBackend() {
     chat_reset: () => null,
     chat_send: (args) => sampleTurn(String(args.message ?? "")),
     chat_approve: (args) => sampleDecision(Boolean(args.approved)),
+    chat_models: () => sampleModels,
+    chat_settings: () => sampleSettings,
+    chat_set_settings: (args) => {
+      sampleSettings = {
+        model: (args.model as string | null) ?? null,
+        effort: (args.effort as string | null) ?? null,
+      };
+      return sampleSettings;
+    },
   };
 
   Object.assign(window, {

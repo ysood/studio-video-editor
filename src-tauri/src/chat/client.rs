@@ -12,8 +12,9 @@
 
 use std::time::Duration;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use ts_rs::TS;
 
 use super::error::{ChatError, ChatErrorCode, ChatResult};
 
@@ -27,11 +28,32 @@ const TURN_TIMEOUT: Duration = Duration::from_secs(180);
 /// editor wants.
 const MAX_REPLY: usize = 1024 * 1024;
 
-/// One of the models this account may use.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Model {
+/// One of the models this account may use, as the picker needs it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ChatModel {
     pub slug: String,
-    pub display_name: String,
+    pub name: String,
+    /// The provider's own one line description, which is the only thing that makes one
+    /// slug choosable over another without having tried them all.
+    pub description: Option<String>,
+    #[ts(type = "number | null")]
+    pub context_window: Option<u64>,
+    /// How hard this model can be asked to think. Not the same list for every model, so
+    /// it comes from the model rather than from a constant here.
+    pub efforts: Vec<ChatEffort>,
+    /// What it does when not told, so the picker can say which option is the default
+    /// rather than presenting an empty choice.
+    pub default_effort: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ChatEffort {
+    pub effort: String,
+    pub description: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -40,13 +62,17 @@ struct ListedModel {
     display_name: Option<String>,
     /// Models the account has but is not meant to be offered are marked otherwise.
     visibility: Option<String>,
+    description: Option<String>,
+    context_window: Option<u64>,
+    supported_reasoning_levels: Option<Vec<ChatEffort>>,
+    default_reasoning_level: Option<String>,
 }
 
 /// What the account may use, in the order the service offers them.
 ///
 /// The order is kept rather than sorted, because it is the service's own ranking and is
 /// the only thing here that knows which model is the sensible default this month.
-pub async fn list_models(token: &str) -> ChatResult<Vec<Model>> {
+pub async fn list_models(token: &str) -> ChatResult<Vec<ChatModel>> {
     let response = super::oauth::http()?
         .get(format!("{API}/models"))
         .bearer_auth(token)
@@ -71,7 +97,7 @@ pub async fn list_models(token: &str) -> ChatResult<Vec<Model>> {
 ///
 /// Lenient on purpose. A catalogue that grows a field, or carries one entry this version
 /// cannot read, is not a reason to refuse to talk to any model at all.
-pub fn read_models(value: &Value) -> Vec<Model> {
+pub fn read_models(value: &Value) -> Vec<ChatModel> {
     let Some(listed) = value.get("models").and_then(Value::as_array) else {
         return Vec::new();
     };
@@ -83,8 +109,15 @@ pub fn read_models(value: &Value) -> Vec<Model> {
                 return None;
             }
             let slug = entry.slug.filter(|s| !s.trim().is_empty())?;
-            let display_name = entry.display_name.unwrap_or_else(|| slug.clone());
-            Some(Model { slug, display_name })
+            let name = entry.display_name.unwrap_or_else(|| slug.clone());
+            Some(ChatModel {
+                slug,
+                name,
+                description: entry.description.filter(|d| !d.trim().is_empty()),
+                context_window: entry.context_window,
+                efforts: entry.supported_reasoning_levels.unwrap_or_default(),
+                default_effort: entry.default_reasoning_level,
+            })
         })
         .collect()
 }
@@ -101,6 +134,8 @@ pub struct Turn<'a> {
     pub instructions: &'a str,
     /// What the model may call, already in the provider's shape.
     pub tools: &'a [Value],
+    /// How hard to think, or none to leave it to the model.
+    pub effort: Option<&'a str>,
 }
 
 pub fn request_body(turn: &Turn<'_>) -> Value {
@@ -117,6 +152,11 @@ pub fn request_body(turn: &Turn<'_>) -> Value {
     // a turn that offers nothing: the two read differently to a model.
     if !turn.tools.is_empty() {
         body["tools"] = json!(turn.tools);
+    }
+    // Left out entirely when nobody has chosen, so the model's own default applies.
+    // Sending a level we guessed would quietly override a default the provider tuned.
+    if let Some(effort) = turn.effort {
+        body["reasoning"] = json!({ "effort": effort });
     }
     body
 }
@@ -436,7 +476,63 @@ mod tests {
     #[test]
     fn a_model_with_no_name_is_shown_by_its_slug() {
         let value = json!({ "models": [{ "slug": "gpt-5.1", "visibility": "list" }] });
-        assert_eq!(read_models(&value)[0].display_name, "gpt-5.1");
+        assert_eq!(read_models(&value)[0].name, "gpt-5.1");
+    }
+
+    #[test]
+    fn what_a_model_can_be_asked_comes_from_the_model() {
+        // Recorded from the live listing: the levels are not the same for every model,
+        // so a constant here would offer somebody a level their model refuses.
+        let value = json!({ "models": [{
+            "slug": "gpt-6.1-sol",
+            "display_name": "GPT-6.1-Sol",
+            "visibility": "list",
+            "description": "Latest workhorse model for coding and everyday work.",
+            "context_window": 500000,
+            "default_reasoning_level": "low",
+            "supported_reasoning_levels": [
+                { "effort": "low", "description": "Fast responses with lighter reasoning" },
+                { "effort": "ultra", "description": "Maximum reasoning with automatic task delegation" },
+            ],
+        }]});
+        let model = &read_models(&value)[0];
+        assert_eq!(model.context_window, Some(500_000));
+        assert_eq!(model.default_effort.as_deref(), Some("low"));
+        assert_eq!(model.efforts.len(), 2);
+        assert_eq!(model.efforts[1].effort, "ultra");
+        assert!(model.description.is_some());
+    }
+
+    #[test]
+    fn a_model_that_says_nothing_about_thinking_offers_no_choice_about_it() {
+        let value = json!({ "models": [{ "slug": "m", "visibility": "list" }] });
+        let model = &read_models(&value)[0];
+        assert!(model.efforts.is_empty());
+        assert_eq!(model.default_effort, None);
+    }
+
+    #[test]
+    fn nothing_is_said_about_thinking_unless_somebody_chose() {
+        let plain = request_body(&Turn {
+            model: "m",
+            input: &[],
+            instructions: "",
+            tools: &[],
+            effort: None,
+        });
+        assert!(
+            plain.get("reasoning").is_none(),
+            "the model's default stands"
+        );
+
+        let chosen = request_body(&Turn {
+            model: "m",
+            input: &[],
+            instructions: "",
+            tools: &[],
+            effort: Some("high"),
+        });
+        assert_eq!(chosen["reasoning"], json!({ "effort": "high" }));
     }
 
     #[test]
@@ -447,6 +543,7 @@ mod tests {
             input: &input,
             instructions: "be useful",
             tools: &[],
+            effort: None,
         });
         assert_eq!(body["store"], json!(false), "the conversation stays here");
         assert_eq!(body["stream"], json!(true));
@@ -461,6 +558,7 @@ mod tests {
             input: &[],
             instructions: "",
             tools: &[],
+            effort: None,
         });
         assert!(body.get("tools").is_none());
 
@@ -470,6 +568,7 @@ mod tests {
             input: &[],
             instructions: "",
             tools: &tools,
+            effort: None,
         });
         assert_eq!(body["tools"], json!(tools));
     }

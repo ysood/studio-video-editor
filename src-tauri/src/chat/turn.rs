@@ -280,6 +280,7 @@ async fn drive(app: &AppHandle, token: &str, model: &str, said: String) -> ChatR
     let mut said = said;
 
     for _ in 0..MAX_STEPS {
+        let effort = super::settings::load(app).effort;
         let input = conversation().clone();
         let instructions = instructions(app);
         let before = revision(app);
@@ -291,6 +292,9 @@ async fn drive(app: &AppHandle, token: &str, model: &str, said: String) -> ChatR
                 input: &input,
                 instructions: &instructions,
                 tools: &tools,
+                // Read each time round rather than once: somebody who changes it
+                // mid-conversation means the next thing it does, not the one after.
+                effort: effort.as_deref(),
             },
             |text| {
                 let _ = app.emit(

@@ -15,6 +15,7 @@ mod client;
 pub mod credentials;
 mod error;
 mod oauth;
+mod settings;
 mod turn;
 
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -23,8 +24,10 @@ use std::time::Duration;
 
 use tauri::AppHandle;
 
+use client::ChatModel;
 use credentials::{ChatStatus, Credentials};
 pub use error::{ChatError, ChatErrorCode, ChatResult};
+use settings::ChatSettings;
 use turn::TurnEnd;
 
 /// Sign-in is through a person's own ChatGPT plan rather than an API key, so the scopes
@@ -308,7 +311,7 @@ pub async fn chat_send(app: AppHandle, message: String) -> ChatResult<TurnEnd> {
         ));
     }
     let token = access_token(&app).await?;
-    let model = model(&token).await?;
+    let model = model(&app, &token).await?;
     turn::send(&app, &token, &model, &message).await
 }
 
@@ -317,7 +320,7 @@ pub async fn chat_send(app: AppHandle, message: String) -> ChatResult<TurnEnd> {
 pub async fn chat_approve(app: AppHandle, approved: bool) -> ChatResult<TurnEnd> {
     let _guard = Answering::begin()?;
     let token = access_token(&app).await?;
-    let model = model(&token).await?;
+    let model = model(&app, &token).await?;
     turn::resume(&app, &token, &model, approved).await
 }
 
@@ -325,6 +328,46 @@ pub async fn chat_approve(app: AppHandle, approved: bool) -> ChatResult<TurnEnd>
 #[tauri::command]
 pub fn chat_reset() {
     turn::forget();
+}
+
+/// The models this account may use, newest first, as the service ranks them.
+#[tauri::command]
+pub async fn chat_models(app: AppHandle) -> ChatResult<Vec<ChatModel>> {
+    let token = access_token(&app).await?;
+    client::list_models(&token).await
+}
+
+/// What has been chosen, if anything.
+#[tauri::command]
+pub fn chat_settings(app: AppHandle) -> ChatSettings {
+    settings::load(&app)
+}
+
+/// Choose a model, an effort, or neither.
+///
+/// Changing the model starts a new conversation. What the model produced last turn goes
+/// back to it the next one, reasoning items included, and those belong to the model that
+/// made them: handing one model another's thinking is not something to find out about
+/// halfway through somebody's edit.
+#[tauri::command]
+pub fn chat_set_settings(
+    app: AppHandle,
+    model: Option<String>,
+    effort: Option<String>,
+) -> ChatResult<ChatSettings> {
+    let before = settings::load(&app);
+    let chosen = ChatSettings {
+        model: model.filter(|m| !m.trim().is_empty()),
+        effort: effort.filter(|e| !e.trim().is_empty()),
+    };
+    settings::save(&app, &chosen)?;
+    if chosen.model != before.model {
+        turn::forget();
+        // The run's automatic pick is no longer the answer, whether a model was chosen
+        // or the choice was taken away again.
+        *MODEL.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
+    Ok(chosen)
 }
 
 /// A token that will still be good when the request arrives.
@@ -348,8 +391,14 @@ async fn access_token(app: &AppHandle) -> ChatResult<String> {
     Ok(stored.access_token)
 }
 
-/// Which model to ask, fetched once and kept.
-async fn model(token: &str) -> ChatResult<String> {
+/// Which model to ask.
+///
+/// A chosen one wins. Otherwise the service's own first listing is taken and kept for
+/// the run, because that is a question worth asking once rather than every turn.
+async fn model(app: &AppHandle, token: &str) -> ChatResult<String> {
+    if let Some(chosen) = settings::load(app).model {
+        return Ok(chosen);
+    }
     if let Some(chosen) = MODEL.lock().unwrap_or_else(|e| e.into_inner()).clone() {
         return Ok(chosen);
     }

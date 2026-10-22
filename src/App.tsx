@@ -3,6 +3,7 @@ import { runAction } from "./actions";
 import { events } from "./ipc";
 import { useGlobalShortcuts } from "./keyboard";
 import { useEditor } from "./store";
+import { ChatDialogs } from "./panels/ChatPanel";
 import { ExportDialog } from "./workspace/ExportDialog";
 import { HomeScreen } from "./workspace/HomeScreen";
 import { MatchSequenceDialog } from "./workspace/MatchSequenceDialog";
@@ -67,6 +68,7 @@ export function App() {
       <ExportDialog open={exportOpen} onClose={() => setExportOpen(false)} />
       <MatchSequenceDialog />
       <NewProjectDialog open={newProjectOpen} onClose={() => setNewProjectOpen(false)} />
+      <ChatDialogs />
     </div>
   );
 }

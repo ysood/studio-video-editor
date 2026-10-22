@@ -9,6 +9,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { events } from "../ipc";
 import { isBrowserPreview } from "../preview/mode";
 import { Button, EmptyState, Icon, IconButton, Panel, PanelBody, PanelToolbar } from "../ui";
+import { ChatSettingsDialog } from "./ChatSettingsDialog";
 import { useChat, type Entry } from "./chat-store";
 import "./chat.css";
 
@@ -26,6 +27,18 @@ export function ChatPanel() {
   if (!status.signedIn) return <SignedOut />;
   if (!status.canInfer) return <PlanNotShared />;
   return <Conversation />;
+}
+
+/**
+ * The settings dialog, mounted beside the panel rather than inside it.
+ *
+ * A dock panel is unmounted when its group is hidden, and a modal that goes with it
+ * would take the window's focus trap down with it.
+ */
+export function ChatDialogs() {
+  const open = useChat((s) => s.settingsOpen);
+  const setOpen = useChat((s) => s.setSettingsOpen);
+  return <ChatSettingsDialog open={open} onClose={() => setOpen(false)} />;
 }
 
 function SignedOut() {
@@ -233,13 +246,24 @@ function Shell({ children, footer }: { children: ReactNode; footer?: ReactNode }
  * row of their own: both are rare, and a chat panel's space is for the chat.
  */
 export function chatMenu() {
-  const { reset, signOut, status } = useChat.getState();
+  // The state is read when an entry is chosen, never when the menu is built. The dock's
+  // header does not subscribe to this store and has no reason to re-render when it
+  // changes, so anything decided here from a snapshot is decided once, on the frame the
+  // header first rendered, and stays wrong afterwards. That is how both of these came
+  // to be permanently disabled: the snapshot was taken before anyone had signed in.
   return [
-    { label: "New conversation", icon: "plus" as const, onSelect: () => void reset() },
+    {
+      label: "New conversation",
+      icon: "plus" as const,
+      onSelect: () => void useChat.getState().reset(),
+    },
+    {
+      label: "Model and thinking…",
+      onSelect: () => useChat.getState().setSettingsOpen(true),
+    },
     {
       label: "Sign out of ChatGPT",
-      disabled: !status?.signedIn,
-      onSelect: () => void signOut(),
+      onSelect: () => void useChat.getState().signOut(),
     },
   ];
 }

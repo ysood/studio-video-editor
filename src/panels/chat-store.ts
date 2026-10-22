@@ -6,6 +6,7 @@
 // two items there; a question that failed is nothing there and a line to read here.
 
 import { create } from "zustand";
+import type { ChatSettings } from "../bindings/ChatSettings";
 import type { ChatStatus } from "../bindings/ChatStatus";
 import type { ChatToolRun } from "../bindings/ChatToolRun";
 import type { TurnEnd } from "../bindings/TurnEnd";
@@ -44,6 +45,10 @@ function troubleOf(error: unknown): Trouble | null {
 interface ChatState {
   /** Null until the first answer about who is signed in. */
   status: ChatStatus | null;
+  /** Null until read. Both of its fields may be null, which means "no opinion". */
+  settings: ChatSettings | null;
+  /** Whether the settings dialog is open. */
+  settingsOpen: boolean;
   entries: Entry[];
   /** The answer so far, while it is being written. Null when nothing is in flight. */
   streaming: string | null;
@@ -52,6 +57,8 @@ interface ChatState {
   trouble: Trouble | null;
 
   load: () => Promise<void>;
+  choose: (model: string | null, effort: string | null) => Promise<void>;
+  setSettingsOpen: (open: boolean) => void;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
   send: (text: string) => Promise<void>;
@@ -65,6 +72,8 @@ interface ChatState {
 
 export const useChat = create<ChatState>((set, get) => ({
   status: null,
+  settings: null,
+  settingsOpen: false,
   entries: [],
   streaming: null,
   busy: false,
@@ -77,7 +86,31 @@ export const useChat = create<ChatState>((set, get) => ({
       // Outside the desktop app there is nothing to be signed in to.
       set({ status: { signedIn: false, email: null, canInfer: false } });
     }
+    try {
+      set({ settings: await ipc.chatSettings() });
+    } catch {
+      set({ settings: { model: null, effort: null } });
+    }
   },
+
+  choose: async (model, effort) => {
+    try {
+      const settings = await ipc.chatSetSettings(model, effort);
+      // Changing the model starts a new conversation in Rust, so the transcript here
+      // has to go with it. Leaving it on screen would show a thread the model no
+      // longer has, and the next answer would read as a non sequitur.
+      const restart = settings.model !== get().settings?.model;
+      set((state) => ({
+        settings,
+        entries: restart ? [] : state.entries,
+        streaming: restart ? null : state.streaming,
+      }));
+    } catch (error) {
+      set({ trouble: troubleOf(error) });
+    }
+  },
+
+  setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
 
   signIn: async () => {
     set({ busy: true, trouble: null });

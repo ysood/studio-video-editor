@@ -7,6 +7,8 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { AgentReply } from "../bindings/AgentReply";
 import type { ChatDelta } from "../bindings/ChatDelta";
 import type { ChatError } from "../bindings/ChatError";
+import type { ChatModel } from "../bindings/ChatModel";
+import type { ChatSettings } from "../bindings/ChatSettings";
 import type { ChatToolRun } from "../bindings/ChatToolRun";
 import type { ChatStatus } from "../bindings/ChatStatus";
 import type { TurnEnd } from "../bindings/TurnEnd";
@@ -129,6 +131,15 @@ export const ipc = {
   /** Say whether to go ahead. The turn carries on either way. */
   chatApprove: (approved: boolean) => invoke<TurnEnd>("chat_approve", { approved }),
   chatReset: () => invoke<void>("chat_reset"),
+  /** The models this account may use, in the order the service ranks them. */
+  chatModels: () => invoke<ChatModel[]>("chat_models"),
+  chatSettings: () => invoke<ChatSettings>("chat_settings"),
+  /**
+   * Choose a model, an effort, or neither. Null for either means "whatever the service
+   * thinks", which is not the same as a choice and has to stay expressible.
+   */
+  chatSetSettings: (model: string | null, effort: string | null) =>
+    invoke<ChatSettings>("chat_set_settings", { model, effort }),
 };
 
 export const events = {

@@ -57,6 +57,9 @@ pub fn run() {
             chat::chat_send,
             chat::chat_approve,
             chat::chat_reset,
+            chat::chat_models,
+            chat::chat_settings,
+            chat::chat_set_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Studio");
