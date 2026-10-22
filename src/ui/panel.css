@@ -11,8 +11,11 @@
   border-radius: var(--radius-panel);
 }
 
-/* Every toolbar: same height, padding and spacing. Use Gap between groups. */
+/* Every toolbar: same height, padding and spacing. Use Gap between groups. Positioned,
+   so a toolbar can park something at its edge without that thing taking part in the
+   centring of what sits in the middle. */
 .ui-panel-toolbar {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-2);

@@ -15,6 +15,14 @@ const PANEL_SURFACES: Record<string, SurfaceName> = {
   timeline: "stage",
 };
 
+/**
+ * Panels that show no header strip at all: no title, no overflow menu. For a panel whose
+ * own toolbar already says what it is, the strip is a second label for the same thing.
+ * The cost is that such a panel cannot be dragged by a tab it does not have; the shared
+ * actions, reset layout among them, stay reachable from any other panel's menu.
+ */
+const HEADLESS = new Set(["bin"]);
+
 /** Panel-specific entries shown above the shared ones in a panel's overflow menu. */
 export type PanelMenus = Record<string, () => MenuEntry[]>;
 
@@ -37,6 +45,7 @@ export function makeHeaderActions(menus: PanelMenus, shared: () => MenuEntry[]) 
     useEffect(() => {
       const strip = ref.current?.closest(".dv-tabs-and-actions-container");
       strip?.setAttribute("data-surface", PANEL_SURFACES[panelId] ?? "chrome");
+      strip?.toggleAttribute("data-headless", HEADLESS.has(panelId));
     }, [panelId]);
 
     const own = menus[panelId]?.() ?? [];

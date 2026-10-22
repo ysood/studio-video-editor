@@ -176,8 +176,11 @@ Graphite defines no overrides. Mark a new region with `<Panel surface="...">`, `
 resolved colors from `surfaceColors(theme, "stage")`.
 
 Panel header strips follow the active panel: `PANEL_SURFACES` in
-`src/workspace/PanelHeader.tsx` maps a panel id to a surface (the timeline uses `stage`),
-and everything else stays `chrome`. Each header has a title (the `heading` type role) and
+`src/workspace/PanelHeader.tsx` maps a panel id to a surface (the timeline and the media
+bin use `stage`), and everything else stays `chrome`. A panel listed in `HEADLESS` there
+shows no strip at all, for a panel whose own toolbar already says what it is; it cannot
+then be dragged by a tab it does not have, and its menu's shared actions stay reachable
+from any other panel. Each header has a title (the `heading` type role) and
 an overflow menu built from that panel's entries plus the shared ones (maximize, reset
 layout). Add a panel's actions to the `makeHeaderActions` call in `Workspace.tsx`.
 

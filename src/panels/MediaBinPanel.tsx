@@ -7,7 +7,7 @@ import { chord } from "../keyboard";
 import { formatDuration, formatRate } from "../format";
 import { useEditor } from "../store";
 import { useTheme } from "../theme";
-import { ContextMenu, EmptyState, Icon, IconButton, List, Menu, type MenuEntry, Panel, PanelToolbar, Row, Segmented, Spacer, TextInput } from "../ui";
+import { ContextMenu, EmptyState, Icon, IconButton, List, Menu, type MenuEntry, Panel, PanelToolbar, Row, Segmented, TextInput } from "../ui";
 import { activeSequence } from "../sequences";
 import { smartBins, sortLabels, TIMELINES_BIN, type BinId, type SortKey } from "./bins";
 import { MediaTile } from "./MediaTile";
@@ -174,9 +174,13 @@ export function MediaBinPanel() {
           onChange={(id) => setPrefs({ ...prefs, bin: id as BinId })}
           options={binOptions}
         />
-        <Spacer />
         {showingTimelines && (
-          <IconButton icon="plus" label="New timeline" onClick={() => setNewSequence(true)} />
+          <IconButton
+            className="bin-new-timeline"
+            icon="plus"
+            label="New timeline"
+            onClick={() => setNewSequence(true)}
+          />
         )}
       </PanelToolbar>
 
