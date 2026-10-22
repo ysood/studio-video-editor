@@ -1,0 +1,27 @@
+/* Trouble sits under whatever it is about rather than replacing it, so a failed sign-in
+   does not take away the button that would retry it. */
+.chat-trouble {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+  margin: 0;
+  padding: var(--space-5) var(--space-6) var(--space-6);
+  color: var(--color-text-secondary);
+  font: var(--type-caption);
+}
+
+.chat-trouble svg {
+  flex: none;
+  color: var(--color-status-warning);
+}
+
+/* The account at one end of the footer and the action at the other, so the thing being
+   acted on and the act of ending it are not read as one control. */
+.chat-account {
+  flex: 1;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font: var(--type-caption);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

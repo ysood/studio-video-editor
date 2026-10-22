@@ -5,6 +5,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { AgentReply } from "../bindings/AgentReply";
+import type { ChatError } from "../bindings/ChatError";
+import type { ChatStatus } from "../bindings/ChatStatus";
 import type { CommandError } from "../bindings/CommandError";
 import type { DocumentChanged } from "../bindings/DocumentChanged";
 import type { EditCommand } from "../bindings/EditCommand";
@@ -22,6 +24,20 @@ import type { Tool } from "../bindings/Tool";
 import type { ToolsStatus } from "../bindings/ToolsStatus";
 import type { ViewerOverlay } from "../bindings/ViewerOverlay";
 import type { ViewerPointer } from "../bindings/ViewerPointer";
+
+/**
+ * A chat failure rather than a document one. The two look alike from here, so the
+ * discriminator is the field only one of them has: `retryable` is the whole reason the
+ * chat errors are a separate shape.
+ */
+export function isChatError(value: unknown): value is ChatError {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "code" in value &&
+    "retryable" in value
+  );
+}
 
 export function isCommandError(value: unknown): value is CommandError {
   return (
@@ -92,6 +108,15 @@ export const ipc = {
       arguments: args ?? null,
       expectedRevision: expectedRevision ?? null,
     }),
+
+  /** Who is signed in, from what is stored. Answers without touching the network. */
+  chatStatus: () => invoke<ChatStatus>("chat_status"),
+  /**
+   * Sign in, or make an existing sign-in usable again. Opens a browser only when there
+   * is nothing left to refresh, so this is also the right call for "it stopped working".
+   */
+  chatSignIn: () => invoke<ChatStatus>("chat_sign_in"),
+  chatSignOut: () => invoke<ChatStatus>("chat_sign_out"),
 };
 
 export const events = {

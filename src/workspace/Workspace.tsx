@@ -7,11 +7,12 @@ import {
 } from "dockview-react";
 import "dockview-react/dist/styles/dockview.css";
 import type { FunctionComponent } from "react";
+import { ChatPanel } from "../panels/ChatPanel";
 import { MediaBinPanel } from "../panels/MediaBinPanel";
 import { TimelinePanel } from "../panels/TimelinePanel";
 import { PropertiesPanel } from "../panels/PropertiesPanel";
 import { ViewerPanel } from "../panels/ViewerPanel";
-import { LAYOUT_KEY, resetLayout } from "./layout";
+import { DEFAULT_PANELS, holdDock, LAYOUT_KEY, resetLayout } from "./layout";
 import { makeHeaderActions, PanelTab } from "./PanelHeader";
 
 
@@ -20,6 +21,7 @@ const components: Record<string, FunctionComponent<IDockviewPanelProps>> = {
   viewer: ViewerPanel,
   inspector: PropertiesPanel,
   timeline: TimelinePanel,
+  chat: ChatPanel,
 };
 
 /**
@@ -71,12 +73,16 @@ function defaultLayout(api: DockviewApi) {
 
 function onReady(event: DockviewReadyEvent) {
   const { api } = event;
+  holdDock(api);
   let restored = false;
   try {
     const saved = localStorage.getItem(LAYOUT_KEY);
     if (saved) {
       api.fromJSON(JSON.parse(saved));
-      restored = Object.keys(components).every((id) => api.getPanel(id));
+      // Only the panels the default layout places. Checking every registered component
+      // would make a saved layout stale the moment a panel exists that is opened on
+      // demand, and throw away an arrangement somebody chose.
+      restored = DEFAULT_PANELS.every((id) => api.getPanel(id));
     }
   } catch {
     restored = false;

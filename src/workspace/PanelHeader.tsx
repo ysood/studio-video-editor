@@ -14,6 +14,7 @@ const PANEL_SURFACES: Record<string, SurfaceName> = {
   bin: "stage",
   inspector: "stage",
   timeline: "stage",
+  chat: "stage",
 };
 
 /**

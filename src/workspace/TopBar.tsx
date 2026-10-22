@@ -3,6 +3,7 @@ import { runAction } from "../actions";
 import { formatRate } from "../format";
 import { chord } from "../keyboard";
 import { useActiveSequence, useEditor } from "../store";
+import { toggleChat } from "./layout";
 import { Button, IconButton, Menu, type MenuEntry, TextInput } from "../ui";
 
 export function TopBar() {
@@ -80,6 +81,7 @@ export function TopBar() {
           onClick={() => runAction("redo")}
         />
       </div>
+      <IconButton icon="chat" label="Assistant" onClick={toggleChat} />
       <Button variant="solid" icon="export" onClick={() => runAction("export")} disabled={!hasClips}>
         Export
       </Button>

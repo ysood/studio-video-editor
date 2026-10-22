@@ -47,6 +47,10 @@ export function installMockBackend() {
     native_menu_active: () => false,
     recents_list: () => sampleRecents(),
     recents_forget: () => null,
+    // Answered rather than refused so the panel can be styled in a browser. Signing in
+    // needs a loopback listener and the system browser, so the panel says as much and
+    // offers no button there.
+    chat_status: () => ({ signedIn: false, email: null, canInfer: false }),
   };
 
   Object.assign(window, {
