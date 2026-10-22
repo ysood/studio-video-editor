@@ -263,10 +263,10 @@ export function ViewerPanel() {
     ),
   );
 
-  if (!project || !format) return <Panel surface="stage" />;
+  if (!project || !format) return <Panel />;
 
   return (
-    <Panel className="viewer" surface="stage">
+    <Panel className="viewer">
       <div className="viewer-surround">
         <div
           ref={stageRef}

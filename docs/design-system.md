@@ -45,7 +45,7 @@ Paper (light) is the default. It is three colours and where each one goes:
 |---|---|
 | `#e6e5e9` grey | the ground: the top bar, the status bar, the tab strips, the gaps between panels |
 | `#2554ce` blue | the panel surface, so the media bin, inspector and transform cards |
-| `#181818` black | the stage: the timeline and the viewer |
+| `#181818` black | the stage: the timeline |
 
 Text is `#ffffff` on the blue and on the black, and `#000000` on the grey, which is the
 only surface where the ground is the backdrop for words. The blue is also the accent on
@@ -83,9 +83,8 @@ Selection is deliberately *not* the accent: it is plain `stone` at the far end o
 ramp, white on Ink and near-black on Paper. If selection were brass, "this is chosen" and
 "this is now" would be the same colour on the same timeline.
 
-**The stage stays neutral.** The viewer sits on the stage with the timeline rather than
-on a card, so the picture keeps a neutral near black around it whatever the chrome is
-doing.
+**The viewer is a card like the others.** The picture sits on the blue; only the frame
+itself is black, because that is what letterboxing has to be.
 
 ## Surfaces
 
