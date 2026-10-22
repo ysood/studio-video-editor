@@ -57,9 +57,8 @@ pub enum TrackChoice {
 #[serde(tag = "type", rename_all_fields = "camelCase")]
 #[ts(export)]
 pub enum EditCommand {
-    RenameProject {
-        name: String,
-    },
+    /// Renames the project. The name is trimmed and must be 1 to 256 characters.
+    RenameProject { name: String },
     /// The frame rate can change only while that sequence is empty, because every
     /// frame count stored in it is relative to the rate.
     SetSequenceFormat {
@@ -72,28 +71,32 @@ pub enum EditCommand {
         format: SequenceFormat,
     },
     /// Rejected for the last sequence: a project always has one.
-    RemoveSequence {
-        sequence_id: SequenceId,
-    },
+    RemoveSequence { sequence_id: SequenceId },
+    /// Renames one sequence. The name is trimmed and must be 1 to 256 characters.
     RenameSequence {
         sequence_id: SequenceId,
         name: String,
     },
     /// Adds probed assets to the bin. An asset whose path is already in the bin is skipped.
-    ImportMedia {
-        assets: Vec<MediaAsset>,
-    },
+    ImportMedia { assets: Vec<MediaAsset> },
     /// Rejected while any clip uses the media.
-    RemoveMedia {
-        media_id: MediaId,
-    },
+    RemoveMedia { media_id: MediaId },
+    /// Adds an empty track of this kind, named from the kind and how many of that kind
+    /// there already are (V1, V2, A1). It goes last among its own kind, which puts a new
+    /// video track on top of the stack and a new audio track at the bottom. The new
+    /// track's id comes back in the report.
     AddTrack {
         sequence_id: SequenceId,
         kind: TrackKind,
     },
-    RemoveTrack {
-        track_id: TrackId,
-    },
+    /// Removes a track and every clip on it. Rejected while the track is locked. A
+    /// track knows its own sequence, so the command does not name one.
+    RemoveTrack { track_id: TrackId },
+    /// Turns a track's output on or off, and locks or unlocks it against editing. A
+    /// field left `None` keeps the value it had, so either can be set without sending
+    /// the other back unchanged. A disabled track still holds its clips; it is left out
+    /// of playback and of the render. Locking changes what may be edited, not what
+    /// plays.
     SetTrackState {
         track_id: TrackId,
         enabled: Option<bool>,
@@ -136,17 +139,20 @@ pub enum EditCommand {
         #[ts(type = "number")]
         at: Frame,
     },
-    DeleteClips {
-        clip_ids: Vec<ClipId>,
-    },
+    /// Removes each listed clip and the rest of its link group, so deleting a picture
+    /// takes its sound with it. Rejected if any of them sits on a locked track.
+    DeleteClips { clip_ids: Vec<ClipId> },
+    /// Takes clips out of playback and the render while leaving them in place on the
+    /// timeline. Reaches the whole link group, and is rejected if any of them sits on a
+    /// locked track.
     SetClipsEnabled {
         clip_ids: Vec<ClipId>,
         enabled: bool,
     },
-    RenameClip {
-        clip_id: ClipId,
-        name: String,
-    },
+    /// Renames one clip. Unlike the commands that change timing, this does not reach
+    /// the link group: a picture and its sound can be named separately. The name is
+    /// trimmed and must be 1 to 256 characters, and the clip's track must be unlocked.
+    RenameClip { clip_id: ClipId, name: String },
     /// Moves, scales, rotates or fades the picture of each listed clip. A field left
     /// `None` keeps the value it had, so a panel commits one number at a time without
     /// having to send the rest back unchanged. Out of range values are clamped, and
@@ -163,9 +169,10 @@ pub enum EditCommand {
         anchor: Option<Offset>,
         opacity: Option<Milli>,
     },
-    UnlinkClips {
-        clip_ids: Vec<ClipId>,
-    },
+    /// Breaks the link between a picture and its sound so that each can then be moved,
+    /// trimmed and deleted on its own. Unlinking any clip unlinks the whole group it
+    /// belonged to.
+    UnlinkClips { clip_ids: Vec<ClipId> },
 }
 
 impl EditCommand {
