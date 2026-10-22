@@ -147,8 +147,9 @@
    and the outer radius is the inner radius plus the gap so the card's corners come out
    at `radius.panel`. */
 .app .dv-groupview {
-  border: var(--space-2) solid transparent;
-  border-radius: calc(var(--radius-panel) + var(--space-2));
+  border: var(--space-4) solid transparent;
+  border-radius: calc(var(--radius-panel) + var(--space-4));
   background-clip: padding-box;
+  box-shadow: inset 0 0 0 var(--border-width) var(--color-border-subtle);
   overflow: hidden;
 }

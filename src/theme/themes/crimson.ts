@@ -153,5 +153,5 @@ export const crimsonTheme: Theme = {
   // Softened, but still restrained: enough curve to read as deliberate, not enough to
   // turn playful. Each step is far enough from the last to be a real choice, and the
   // radius grows with the surface, so a dialog is rounder than a button.
-  radius: { control: 4, panel: 6, dialog: 8, clip: 4, round: 9999 },
+  radius: { control: 4, button: 4, panel: 6, dialog: 8, clip: 4, round: 9999 },
 };

@@ -89,7 +89,7 @@ export const inkTheme: Theme = {
 
   // Graphite squares its panels off, which suits a theme with no gaps between them.
   // Here a panel is a card lying on the ground, and a card has corners.
-  radius: { ...base.radius, control: 4, panel: 8 },
+  radius: { ...base.radius, control: 4, button: base.radius.round, panel: 8 },
 
   /**
    * Three rules, taken from measuring a site that reads as one piece rather than as a

@@ -101,7 +101,7 @@ export const graphiteTheme: Theme = {
   // out: each is a third again on the one before, so no two are confusable.
   space: { hairline: 1, 1: 2, 2: 4, 3: 6, 4: 8, 5: 10, 6: 12, 7: 16, 8: 20, 9: 24, 10: 32, 11: 48, 12: 64 },
 
-  radius: { control: 3, panel: 0, dialog: 6, clip: 3, round: 9999 },
+  radius: { control: 3, button: 3, panel: 0, dialog: 6, clip: 3, round: 9999 },
 
   border: { width: 1, focusWidth: 2, iconStroke: 1.4 },
 

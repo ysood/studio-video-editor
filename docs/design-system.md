@@ -45,10 +45,16 @@ Paper (light) is the default. It is three colours and where each one goes:
 |---|---|
 | `#e6e5e9` grey | the ground: the top bar, the status bar, the tab strips, the gaps between panels |
 | `#2554ce` blue | the panel surface: the media bin, inspector and transform cards |
-| `#181818` black | the stage: the timeline |
+| `#151414` black | the stage (the timeline), and text on the grey |
+| `#f0e3de` bone | text on the blue and on the black |
 
-Text is `#ffffff` on the blue and on the black, and `#000000` on the grey, which is the
-only surface where the ground is the backdrop for words. The blue is also the accent on
+Text is `bone` on the blue and on the black, and `black` on the grey, which is the only
+surface where the ground is the backdrop for words. Neither is pure: a pure white on a
+saturated blue buzzes, and a pure black on a warm grey looks like a hole.
+
+**Borders are the text they separate, at 12.5%.** There is no grey of its own for a
+hairline. `border.subtle` is the surface's own text colour faded, which is why one value
+is right on the grey, on the blue and on the black without a theme listing three. The blue is also the accent on
 the grey (the Export button); on the blue card the accent is white, because blue on blue
 says nothing, and on the stage it is the same blue lifted to `#5b8bf5` so it can hold a
 playhead line against near black.
@@ -101,6 +107,20 @@ Four layers, and a thing belongs to exactly one:
 A card is a card because you can see the ground around it: the gutter between two groups
 is the ground showing through, not a line drawn over them. `.dv-groupview` gets that gap
 as a transparent border, which costs no layout, and `radius.panel` gives it corners.
+
+The card geometry is one set of numbers, used everywhere:
+
+| | Value |
+|---|---|
+| gutter between cards | `space[4]`, 8px |
+| inset inside a card | `space[8]`, 20px |
+| gap between things in a card | `space[7]`, 16px |
+| corner | `radius.panel`, 8px |
+| edge | `border.width` at `border.subtle` |
+| shadow | none |
+
+A panel toolbar takes the card inset too, so what is in it starts on the same line as
+what is in the body under it.
 
 Stacking is `src/theme/layers.ts`, not a theme: `--z-raised`, `--z-sticky`,
 `--z-overlay`. How things stack is a fact about the interface rather than a look, and a
@@ -157,7 +177,10 @@ These keep every panel reading as one product. The gallery shows each rule.
 
 1. **One control height.** Every button, input, select and segmented control is
    `size.control` tall. Only icon buttons inside dense rows (track headers, list items)
-   use `size="small"` (`size.controlSmall`).
+   use `size="small"` (`size.controlSmall`). Buttons and segmented controls take
+   `radius.button`, which Ink and Paper make a pill; inputs, menu items and swatches
+   keep `radius.control`, because rounding those off to match turns a field into a
+   lozenge.
 2. **Button hierarchy.** `solid` is the one primary action in a region (Export, Import
    media in an empty bin, a dialog's confirm). `quiet` is the default action. `ghost`
    is for low-emphasis actions; square icon buttons are ghost. Toggles that are on show

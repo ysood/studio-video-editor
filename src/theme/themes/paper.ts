@@ -12,12 +12,18 @@ import { inkTheme } from "./ink";
 
 const grey = "#e6e5e9"; // the ground
 const blue = "#2554ce"; // primary
-const black = "#181818"; // the timeline panel
+const black = "#151414"; // the timeline panel, and text on the grey
+const bone = "#f0e3de"; // text on the blue and the black
 
 /** A dark wash, for a lift or a dip on the blue, so one value works at any depth. */
 const onBlue = (a: number) => `rgba(4, 14, 48, ${a})`;
-const white = (a: number) => `rgba(255, 255, 255, ${a})`;
-const ink = (a: number) => `rgba(0, 0, 0, ${a})`;
+/** The two text colours at an alpha. Borders and dividers are the text they separate,
+ *  faded, rather than a grey of their own: that way they are right on every surface. */
+const white = (a: number) => `rgba(240, 227, 222, ${a})`;
+const ink = (a: number) => `rgba(21, 20, 20, ${a})`;
+
+/** What a hairline between or around anything is worth. */
+const HAIRLINE = 0.125;
 
 /** Chrome: the top bar, the status bar and the panel tab strips, on the grey ground. */
 const chrome: DeepPartial<ColorRoles> = {
@@ -30,17 +36,17 @@ const chrome: DeepPartial<ColorRoles> = {
     locked: ink(0.12),
   },
   state: { hover: ink(0.055), selected: ink(0.1) },
-  border: { strong: ink(0.22), subtle: ink(0.11) },
+  border: { strong: ink(0.25), subtle: ink(HAIRLINE) },
   text: {
-    primary: "#000000",
+    primary: black,
     secondary: ink(0.66),
     tertiary: ink(0.45),
-    onAccent: "#ffffff",
+    onAccent: bone,
     heading: ink(0.66),
   },
   // On the grey, the primary blue is the accent: it is the one thing that carries it.
   accent: { base: blue, hover: "#1c44ac", wash: "rgba(37, 84, 206, 0.12)" },
-  selection: "#000000",
+  selection: black,
   status: { danger: "#b4231c" },
 };
 
@@ -55,18 +61,18 @@ const stage: DeepPartial<ColorRoles> = {
     locked: "#232323",
   },
   state: { hover: white(0.06), selected: white(0.12) },
-  border: { strong: white(0.2), subtle: white(0.11) },
+  border: { strong: white(0.25), subtle: white(HAIRLINE) },
   text: {
-    primary: "#ffffff",
+    primary: bone,
     secondary: white(0.68),
     tertiary: white(0.46),
-    onAccent: "#ffffff",
+    onAccent: bone,
     heading: white(0.68),
   },
   // The primary blue is too dark to hold a line on near black, so the stage takes it
   // at the lightness this surface needs. Same colour, read at a different depth.
   accent: { base: "#5b8bf5", hover: "#7ba4f8", wash: "rgba(91, 139, 245, 0.16)" },
-  selection: "#ffffff",
+  selection: bone,
   status: { danger: "#ff6b63" },
   media: { video: cobalt.base, videoEdge: cobalt.edge },
 };
@@ -90,9 +96,9 @@ export const paperTheme: Theme = {
       locked: onBlue(0.34),
     },
     state: { hover: white(0.1), selected: white(0.18) },
-    border: { strong: white(0.3), subtle: white(0.16) },
+    border: { strong: white(0.3), subtle: white(HAIRLINE) },
     text: {
-      primary: "#ffffff",
+      primary: bone,
       secondary: white(0.74),
       tertiary: white(0.52),
       // A white button on the blue card, with the blue read back out of it.
@@ -101,9 +107,9 @@ export const paperTheme: Theme = {
       heading: white(0.74),
     },
     // Blue on blue says nothing, so on the card the accent is white.
-    accent: { base: "#ffffff", hover: "#ffffff", wash: white(0.18) },
+    accent: { base: bone, hover: "#ffffff", wash: white(0.18) },
     wordmark: { core: "#f1f0f3", edge: "#d6d5db" },
-    selection: "#ffffff",
+    selection: bone,
     // Video is the one media colour that shares a hue with the card, so on the blue it
     // takes the lighter step and reads as a chip rather than a smudge. The stage puts
     // the deeper one back, because there it sits on near black.

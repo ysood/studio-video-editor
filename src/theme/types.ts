@@ -170,6 +170,9 @@ export interface Theme {
 
   radius: {
     control: number;
+    /** Buttons and segmented controls, which a theme may make pills without rounding
+     *  every input and menu item to match. */
+    button: number;
     panel: number;
     dialog: number;
     clip: number;
