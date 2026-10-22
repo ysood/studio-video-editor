@@ -86,4 +86,8 @@ export const inkTheme: Theme = {
   },
 
   font: { ...base.font, wordmark: systemSans },
+
+  // Graphite squares its panels off, which suits a theme with no gaps between them.
+  // Here a panel is a card lying on the ground, and a card has corners.
+  radius: { ...base.radius, panel: 8 },
 };

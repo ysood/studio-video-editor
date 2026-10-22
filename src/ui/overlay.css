@@ -2,7 +2,7 @@
    Overlays sit on the well surface so they read the same over any panel. */
 
 .ui-overlay {
-  z-index: 50;
+  z-index: var(--z-overlay);
   min-width: var(--size-menu-min-width);
   padding: var(--space-2);
   border: var(--border-width) solid var(--color-border-strong);

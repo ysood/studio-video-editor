@@ -2,6 +2,7 @@
 // (the timeline canvas) to repaint. `toCssVars` is pure and tested.
 
 import { useSyncExternalStore } from "react";
+import { layers } from "./layers";
 import { defaultTheme, themes } from "./themes";
 import type { ColorRoles, DeepPartial, SurfaceName, Theme, TypeRoleName } from "./types";
 
@@ -49,6 +50,10 @@ export function toCssVars(theme: Theme): Record<string, string> {
   for (const [key, value] of Object.entries(theme.radius)) vars[`--radius-${kebab(key)}`] = px(value);
   for (const [key, value] of Object.entries(theme.border)) vars[`--border-${kebab(key)}`] = px(value);
   for (const [key, value] of Object.entries(theme.size)) vars[`--size-${kebab(key)}`] = px(value);
+
+  // The stacking scale is the same for every theme; it rides along so that one writer
+  // puts every design variable on the document.
+  for (const [name, value] of Object.entries(layers)) vars[`--z-${name}`] = String(value);
 
   vars["--opacity-disabled"] = String(theme.opacity.disabled);
   vars["--motion-quick"] = `${theme.motion.quick}ms`;

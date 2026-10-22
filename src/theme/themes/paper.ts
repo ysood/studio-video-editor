@@ -116,9 +116,9 @@ export const paperTheme: Theme = {
       imageEdge: clay.edge,
     },
     status: { danger: "#ff6b63" },
-    // The viewer is a card like the others, so the picture sits on the blue. Only the
-    // frame itself stays black, because that is what letterboxing has to be.
-    viewer: { surround: blue, matte: "#000000" },
+    // The viewer is not a card. It is a window cut in the ground, so the picture sits
+    // on the grey; only the frame itself is black, which is what letterboxing has to be.
+    viewer: { surround: grey, matte: "#000000" },
     scrim: "rgba(14, 16, 24, 0.46)",
     shadow: "rgba(12, 16, 36, 0.2)",
   },

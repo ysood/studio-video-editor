@@ -44,7 +44,7 @@ Paper (light) is the default. It is three colours and where each one goes:
 | | Where |
 |---|---|
 | `#e6e5e9` grey | the ground: the top bar, the status bar, the tab strips, the gaps between panels |
-| `#2554ce` blue | the panel surface, so the media bin, inspector and transform cards |
+| `#2554ce` blue | the panel surface: the media bin, inspector and transform cards |
 | `#181818` black | the stage: the timeline |
 
 Text is `#ffffff` on the blue and on the black, and `#000000` on the grey, which is the
@@ -83,8 +83,30 @@ Selection is deliberately *not* the accent: it is plain `stone` at the far end o
 ramp, white on Ink and near-black on Paper. If selection were brass, "this is chosen" and
 "this is now" would be the same colour on the same timeline.
 
-**The viewer is a card like the others.** The picture sits on the blue; only the frame
-itself is black, because that is what letterboxing has to be.
+**The viewer is not a card.** It sits on the ground, so the picture is on the grey and
+only the frame itself is black, which is what letterboxing has to be. The blue is for
+panels that hold controls.
+
+## Depth
+
+Four layers, and a thing belongs to exactly one:
+
+| Layer | What is on it |
+|---|---|
+| ground | the top bar, the status bar, the tab strips, the gaps between cards, the viewer |
+| card | a dock group: the panel surface or the stage |
+| well | an inset inside a card: bin lists, inspector groups, overlays |
+| raised | a control lifted on whatever it sits on |
+
+A card is a card because you can see the ground around it: the gutter between two groups
+is the ground showing through, not a line drawn over them. `.dv-groupview` gets that gap
+as a transparent border, which costs no layout, and `radius.panel` gives it corners.
+
+Stacking is `src/theme/layers.ts`, not a theme: `--z-raised`, `--z-sticky`,
+`--z-overlay`. How things stack is a fact about the interface rather than a look, and a
+theme that could reorder it would only be a way to break it. Dialogs are deliberately
+absent from the scale: they are real `<dialog>` elements, so the browser puts them and
+their backdrop in the top layer, above every z-index on the page.
 
 ## Surfaces
 

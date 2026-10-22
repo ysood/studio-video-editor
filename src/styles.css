@@ -124,7 +124,7 @@
   --dv-activegroup-hiddenpanel-tab-color: var(--color-text-secondary);
   --dv-inactivegroup-hiddenpanel-tab-background-color: var(--color-surface-base);
   --dv-inactivegroup-hiddenpanel-tab-color: var(--color-text-tertiary);
-  --dv-separator-border: var(--color-surface-gutter);
+  --dv-separator-border: transparent;
   --dv-sash-color: transparent;
   --dv-active-sash-color: var(--color-accent-base);
   --dv-tab-divider-color: transparent;
@@ -137,4 +137,18 @@
 /* Every panel is part of the editor; closing one would leave no way to get it back. */
 .app .dv-tab .dv-default-tab .dv-default-tab-action {
   display: none;
+}
+
+/* Depth, so the layers can be seen and not only named.
+   A dock group is a card lying on the ground. The gutter between two of them is the
+   ground showing through, not a line drawn on top of them, which is why the gap is a
+   transparent border: it costs no layout and Dockview keeps sizing the group as if it
+   filled the space. `background-clip` keeps the group's own fill inside that border,
+   and the outer radius is the inner radius plus the gap so the card's corners come out
+   at `radius.panel`. */
+.app .dv-groupview {
+  border: var(--space-2) solid transparent;
+  border-radius: calc(var(--radius-panel) + var(--space-2));
+  background-clip: padding-box;
+  overflow: hidden;
 }
