@@ -19,6 +19,14 @@ macro_rules! define_id {
             pub fn new() -> Self {
                 Self(Uuid::new_v4())
             }
+
+            /// Read one back from the text `Display` writes, so a caller that was given
+            /// an id as text can turn it into the typed form. Surrounding space is
+            /// tolerated; anything that is not a uuid is `None` rather than an error,
+            /// because the usual caller is deciding whether this is an id at all.
+            pub fn parse(text: &str) -> Option<Self> {
+                Uuid::parse_str(text.trim()).ok().map(Self)
+            }
         }
 
         impl Default for $name {

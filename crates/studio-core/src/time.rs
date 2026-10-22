@@ -101,6 +101,34 @@ pub fn timecode(frame: Frame, rate: Rational) -> String {
     format!("{sign}{hh:02}:{mm:02}:{ss:02}:{ff:02}")
 }
 
+/// Read back what [`timecode`] writes.
+///
+/// Non-drop-frame, like its inverse, so the two agree exactly: the frame count is read
+/// against `rate.timebase()`, the nearest whole frames per second, and a rate of
+/// 24000/1001 counts twenty four frames to the second here just as it does there.
+///
+/// Returns `None` rather than clamping when a field is out of range, because "00:00:00:30"
+/// at 24 fps is a caller that has misunderstood something, and rounding it to the next
+/// second would hide that.
+pub fn parse_timecode(text: &str, rate: Rational) -> Option<Frame> {
+    let text = text.trim();
+    let (sign, digits) = match text.strip_prefix('-') {
+        Some(rest) => (-1, rest),
+        None => (1, text),
+    };
+    let mut parts = digits.split(':');
+    let mut next = || parts.next()?.parse::<Frame>().ok().filter(|n| *n >= 0);
+    let (hh, mm, ss, ff) = (next()?, next()?, next()?, next()?);
+    if parts.next().is_some() {
+        return None;
+    }
+    let fps = Frame::from(rate.timebase().max(1));
+    if mm > 59 || ss > 59 || ff >= fps {
+        return None;
+    }
+    Some(sign * (((hh * 3600 + mm * 60 + ss) * fps) + ff))
+}
+
 #[cfg(test)]
 mod tests {
     #[test]
@@ -154,5 +182,69 @@ mod tests {
         let rate = Rational::new(24, 1);
         assert_eq!(timecode(0, rate), "00:00:00:00");
         assert_eq!(timecode(24 * 3661 + 5, rate), "01:01:01:05");
+    }
+}
+
+#[cfg(test)]
+mod timecode_parsing {
+    use super::*;
+
+    #[test]
+    fn round_trips_against_the_formatter() {
+        for rate in [
+            Rational::new(24, 1),
+            Rational::new(25, 1),
+            Rational::new(30, 1),
+            Rational::new(24000, 1001),
+            Rational::new(30000, 1001),
+        ] {
+            for frame in [0, 1, 23, 24, 100, 1439, 86_399, -1, -4321] {
+                let text = timecode(frame, rate);
+                assert_eq!(
+                    parse_timecode(&text, rate),
+                    Some(frame),
+                    "{rate:?} frame {frame} wrote {text}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn rejects_a_frame_the_rate_cannot_hold() {
+        let rate = Rational::new(24, 1);
+        assert_eq!(parse_timecode("00:00:00:23", rate), Some(23));
+        assert_eq!(
+            parse_timecode("00:00:00:24", rate),
+            None,
+            "24 fps has no frame 24"
+        );
+        assert_eq!(
+            parse_timecode("00:00:00:24", Rational::new(25, 1)),
+            Some(24)
+        );
+    }
+
+    #[test]
+    fn rejects_what_is_not_a_timecode() {
+        let rate = Rational::new(24, 1);
+        for text in [
+            "",
+            "1:2:3",
+            "00:00:00:00:00",
+            "aa:bb:cc:dd",
+            "00:60:00:00",
+            "00:00:60:00",
+            "12",
+        ] {
+            assert_eq!(parse_timecode(text, rate), None, "{text} should not parse");
+        }
+    }
+
+    #[test]
+    fn tolerates_surrounding_space() {
+        assert_eq!(
+            parse_timecode("  00:00:01:00  ", Rational::new(24, 1)),
+            Some(24)
+        );
     }
 }
