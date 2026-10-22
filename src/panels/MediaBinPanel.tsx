@@ -7,7 +7,7 @@ import { chord } from "../keyboard";
 import { formatDuration, formatRate } from "../format";
 import { useEditor } from "../store";
 import { useTheme } from "../theme";
-import { ContextMenu, EmptyState, Icon, IconButton, List, Menu, type MenuEntry, Panel, PanelToolbar, Row, Segmented, Slider, Spacer, TextInput } from "../ui";
+import { ContextMenu, EmptyState, Gap, Icon, IconButton, List, Menu, type MenuEntry, Panel, PanelToolbar, Row, Segmented, Spacer, TextInput } from "../ui";
 import { activeSequence } from "../sequences";
 import { smartBins, sortLabels, TIMELINES_BIN, type BinId, type SortKey } from "./bins";
 import { MediaTile } from "./MediaTile";
@@ -23,7 +23,6 @@ interface Prefs {
   bin: BinId;
   view: ViewMode;
   sort: SortKey;
-  thumbnail: number | null;
 }
 
 function loadPrefs(): Prefs {
@@ -33,10 +32,9 @@ function loadPrefs(): Prefs {
       bin: parsed.bin ?? "all",
       view: parsed.view ?? "grid",
       sort: parsed.sort ?? "name",
-      thumbnail: parsed.thumbnail ?? null,
     };
   } catch {
-    return { bin: "all", view: "grid", sort: "name", thumbnail: null };
+    return { bin: "all", view: "grid", sort: "name" };
   }
 }
 
@@ -109,10 +107,15 @@ export function MediaBinPanel() {
   const usedIds = new Set(
     snapshot ? snapshot.project.sequences.flatMap((q) => q.tracks.flatMap((t) => t.clips.map((c) => c.source.mediaId))) : [],
   );
-  const thumbnail = Math.min(
-    theme.size.thumbnailMax,
-    Math.max(theme.size.thumbnailMin, prefs.thumbnail ?? theme.size.thumbnail),
-  );
+  const thumbnail = theme.size.thumbnail;
+
+  // Smart bins plus the timelines, as one row of choices. Names only: five of these
+  // with an icon each needs more width than the panel has, and the names are already
+  // the whole of what a bin is.
+  const binOptions = [
+    ...bins.map((b) => ({ value: b.id, label: b.name })),
+    { value: TIMELINES_BIN, label: "Timelines" },
+  ];
 
   const removeMedia = (id: MediaId) =>
     void edit({ type: "RemoveMedia", mediaId: id }).then(() => setSelected((s) => (s === id ? null : s)));
@@ -159,45 +162,39 @@ export function MediaBinPanel() {
   });
 
   return (
-    <Panel>
-      {/* The folder column shows even with an empty bin: timelines live here too, and
-          they exist before any footage does. */}
-      <div className="bin-layout">
-          <div className="bin-folders">
-            <List label="Bins">
-              {bins.map((b) => (
-                <Row
-                  key={b.id}
-                  selected={!showingTimelines && b.id === bin.id}
-                  className="bin-folder"
-                  tone={b.id === "offline" ? "danger" : undefined}
-                  onClick={() => setPrefs({ ...prefs, bin: b.id })}
-                >
-                  <Icon name={b.icon} />
-                  <span className="bin-folder-name">{b.name}</span>
-                  <span className="bin-folder-count numeric">{b.media.length}</span>
-                </Row>
-              ))}
-              <Row
-                selected={showingTimelines}
-                className="bin-folder"
-                onClick={() => setPrefs({ ...prefs, bin: TIMELINES_BIN })}
-              >
-                <Icon name="timeline" />
-                <span className="bin-folder-name">Timelines</span>
-                <IconButton
-                  icon="plus"
-                  label="New timeline"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setNewSequence(true);
-                  }}
-                />
-              </Row>
-            </List>
-          </div>
+    <Panel surface="stage">
+      {/* How the media is shown on the left, which media on the right: the view is a
+          setting you make once, the bin is the choice you keep making. */}
+      <PanelToolbar>
+        <Segmented
+          label="View"
+          value={prefs.view}
+          onChange={(view) => setPrefs({ ...prefs, view: view as ViewMode })}
+          options={[
+            { value: "grid", label: "Grid view", icon: "grid", iconOnly: true },
+            { value: "list", label: "List view", icon: "list", iconOnly: true },
+          ]}
+        />
+        <Menu
+          trigger={<IconButton icon="sort" label={`Sort by ${sortLabels[prefs.sort].toLowerCase()}`} />}
+          entries={sortEntries}
+        />
+        <Gap />
+        <Segmented
+          className="bin-picker"
+          emphasis="accent"
+          label="Bin"
+          value={prefs.bin}
+          onChange={(id) => setPrefs({ ...prefs, bin: id as BinId })}
+          options={binOptions}
+        />
+        <Spacer />
+        {showingTimelines && (
+          <IconButton icon="plus" label="New timeline" onClick={() => setNewSequence(true)} />
+        )}
+      </PanelToolbar>
 
-          <div className="bin-content">
+      <div className="bin-content">
             {media.length === 0 && !showingTimelines ? (
               <EmptyState
                 action={<IconButton icon="plus" shape="round" label="Import media" shortcut={chord("I")} onClick={importMedia} />}
@@ -290,38 +287,9 @@ export function MediaBinPanel() {
                   ))}
               </List>
             )}
-          </div>
-        </div>
+      </div>
 
       <NewSequenceDialog open={newSequence} onClose={() => setNewSequence(false)} />
-
-      <PanelToolbar placement="bottom">
-        <Segmented
-          label="View"
-          value={prefs.view}
-          onChange={(view) => setPrefs({ ...prefs, view: view as ViewMode })}
-          options={[
-            { value: "grid", label: "Grid view", icon: "grid" },
-            { value: "list", label: "List view", icon: "list" },
-          ]}
-        />
-        <Menu
-          trigger={<IconButton icon="sort" label={`Sort by ${sortLabels[prefs.sort].toLowerCase()}`} />}
-          entries={sortEntries}
-        />
-        <Spacer />
-        {prefs.view === "grid" && (
-          <Slider
-            className="bin-size"
-            ariaLabel="Thumbnail size"
-            min={theme.size.thumbnailMin}
-            max={theme.size.thumbnailMax}
-            step={1}
-            value={thumbnail}
-            onChange={(value) => setPrefs({ ...prefs, thumbnail: value })}
-          />
-        )}
-      </PanelToolbar>
     </Panel>
   );
 }

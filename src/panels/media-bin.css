@@ -1,56 +1,19 @@
-/* Two panes, divided rather than spaced: the bins run to the panel's own edge so a
-   selected one can be marked there, and the hairline between the columns is the same
-   one that edges a card. */
-.bin-layout {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: var(--size-bin-pane) minmax(0, 1fr);
+/* The bins are a row of pills in the toolbar now rather than a column beside the
+   media, so the media has the whole panel. The picker is allowed to shrink and scroll:
+   in a narrow panel it is better to slide the bins than to crush the view buttons. */
+.bin-picker {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
-/* Bins */
-.bin-folders {
-  overflow: auto;
-  padding: var(--space-4) 0;
-  border-right: var(--border-width) solid var(--color-border-subtle);
-}
-
-/* Taller than a control, because these are places rather than buttons, and full width
-   so the fill and the selected edge reach the panel. */
-.bin-folder {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-6);
-  min-height: var(--size-control-large);
-  padding: 0 var(--space-6);
-  color: var(--color-text-secondary);
-  font: var(--type-label);
-}
-
-/* The name firms up under the pointer and when the bin is the one being shown. */
-.bin-folder:hover,
-.bin-folder[aria-selected="true"] {
-  color: var(--color-text-primary);
-}
-
-.bin-folder .ui-icon {
-  color: var(--color-accent-base);
-}
-
-.bin-folder-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.bin-folder-count {
-  color: var(--color-text-tertiary);
-  font: var(--type-caption);
+.bin-picker::-webkit-scrollbar {
+  display: none;
 }
 
 /* Gallery */
 .bin-content {
+  flex: 1;
   min-width: 0;
   min-height: 0;
   overflow: auto;
@@ -196,9 +159,4 @@
 .bin-offline {
   color: var(--color-status-danger);
   font-style: normal;
-}
-
-/* Footer: thumbnail size */
-.bin-size {
-  width: var(--size-zoom-slider);
 }

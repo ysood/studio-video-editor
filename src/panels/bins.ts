@@ -52,7 +52,7 @@ export function smartBins(media: MediaAsset[], offline: ReadonlySet<string>, sor
   // Sort once up front so every bin shows the same order.
   media = sortMedia(media, sort);
   const bins: Bin[] = [
-    { id: "all", name: "All media", icon: "stack", media },
+    { id: "all", name: "All", icon: "stack", media },
     { id: "footage", name: "Footage", icon: "video", media: media.filter((m) => m.kind === "video") },
     { id: "audio", name: "Audio", icon: "audio", media: media.filter((m) => m.kind === "audio") },
     { id: "stills", name: "Stills", icon: "image", media: media.filter((m) => m.kind === "image") },

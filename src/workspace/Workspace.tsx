@@ -42,7 +42,9 @@ function defaultLayout(api: DockviewApi) {
     component: "bin",
     title: "Media",
     position: { referencePanel: "viewer", direction: "left" },
-    initialWidth: 440,
+    // Wide enough for the bin pills to sit in one row beside the view buttons; the
+    // media wants the room too, now that nothing stands to the left of it.
+    initialWidth: 500,
   });
   api.addPanel({
     id: "inspector",

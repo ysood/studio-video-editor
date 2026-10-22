@@ -66,7 +66,8 @@ const stage: DeepPartial<ColorRoles> = {
     primary: bone,
     secondary: white(0.68),
     tertiary: white(0.46),
-    onAccent: bone,
+    // A light blue fill needs dark text on it, not more light.
+    onAccent: black,
     heading: white(0.68),
   },
   // The primary blue is too dark to hold a line on near black, so the stage takes it

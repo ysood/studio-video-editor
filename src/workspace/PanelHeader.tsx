@@ -11,6 +11,7 @@ import "./panel-header.css";
 
 /** Panels whose header should sit on a surface other than chrome. */
 const PANEL_SURFACES: Record<string, SurfaceName> = {
+  bin: "stage",
   timeline: "stage",
 };
 

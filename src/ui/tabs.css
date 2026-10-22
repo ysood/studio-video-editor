@@ -60,7 +60,19 @@
   color: var(--color-text-primary);
 }
 
+.ui-segment {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
 .ui-segment[data-state="on"] {
   background: var(--color-state-selected);
   color: var(--color-text-primary);
+}
+
+/* The panel's main choice: filled, the way a primary button is. */
+.ui-segmented[data-emphasis="accent"] .ui-segment[data-state="on"] {
+  background: var(--color-accent-base);
+  color: var(--color-text-on-accent);
 }

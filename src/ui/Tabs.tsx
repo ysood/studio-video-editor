@@ -40,22 +40,33 @@ export interface SegmentOption {
   value: string;
   label: string;
   icon?: IconName;
+  /** Show the icon alone, with the label as its tooltip and its accessible name. */
+  iconOnly?: boolean;
 }
 
 /**
- * A segmented control: pick exactly one of a few options. With icons, labels become
- * tooltips and accessible names.
+ * A segmented control: pick exactly one of a few options. An option may carry an icon,
+ * a label, or both; `iconOnly` drops the text and moves the label into a tooltip, which
+ * is what a dense toolbar wants.
  */
-export function Segmented({ value, options, onChange, label }: {
+export function Segmented({ value, options, onChange, label, emphasis = "quiet", className }: {
   value: string;
   options: SegmentOption[];
   onChange: (value: string) => void;
   label: string;
+  className?: string;
+  /**
+   * "accent" fills the chosen segment, for the control that is a panel's main choice.
+   * "quiet" lifts it instead, for a secondary one such as a view toggle. Two accented
+   * groups in one toolbar would both claim to be the main thing.
+   */
+  emphasis?: "quiet" | "accent";
 }) {
   return (
     <ToggleGroupPrimitive.Root
       type="single"
-      className="ui-segmented"
+      className={className ? `ui-segmented ${className}` : "ui-segmented"}
+      data-emphasis={emphasis}
       value={value}
       aria-label={label}
       onValueChange={(next) => next && onChange(next)}
@@ -66,13 +77,14 @@ export function Segmented({ value, options, onChange, label }: {
             key={o.value}
             value={o.value}
             className="ui-segment"
-            data-icon-only={o.icon ? "" : undefined}
+            data-icon-only={o.iconOnly ? "" : undefined}
             aria-label={o.label}
           >
-            {o.icon ? <Icon name={o.icon} /> : o.label}
+            {o.icon && <Icon name={o.icon} />}
+            {!o.iconOnly && o.label}
           </ToggleGroupPrimitive.Item>
         );
-        return o.icon ? (
+        return o.iconOnly ? (
           <Tooltip key={o.value} label={o.label}>
             {item}
           </Tooltip>
