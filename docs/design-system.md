@@ -203,8 +203,11 @@ These keep every panel reading as one product. The gallery shows each rule.
 4. **Inputs.** `surface.input` fill, `border.subtle` outline, `border.strong` on hover,
    the accent focus ring on keyboard focus. Select triggers look like inputs.
 5. **Toolbars.** `PanelToolbar` at the top or bottom of a panel: `size.toolbar` tall,
-   `space.3` side padding, `space.2` between controls, `Gap` between groups. Prefer
-   icon buttons with tooltips over text buttons in toolbars.
+   the card inset at the sides, `space.2` between controls, `Gap` between groups.
+   Prefer icon buttons with tooltips over text buttons in toolbars. A toolbar draws no
+   rule against the body: it sits on the same surface, so a line there would mark a
+   boundary where nothing changes. Taking the card inset is what lines a toolbar's
+   contents up with the content under it, which is what actually reads as a division.
 6. **Wells.** A panel body that holds wells uses `PanelBody layout="wells"`: `space.3`
    inset and `space.3` between wells. Wells never set their own margins.
 

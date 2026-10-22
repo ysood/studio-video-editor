@@ -7,7 +7,7 @@ import { chord } from "../keyboard";
 import { formatDuration, formatRate } from "../format";
 import { useEditor } from "../store";
 import { useTheme } from "../theme";
-import { ContextMenu, EmptyState, Gap, Icon, IconButton, List, Menu, type MenuEntry, Panel, PanelToolbar, Row, Segmented, Spacer, TextInput } from "../ui";
+import { ContextMenu, EmptyState, Icon, IconButton, List, Menu, type MenuEntry, Panel, PanelToolbar, Row, Segmented, Spacer, TextInput } from "../ui";
 import { activeSequence } from "../sequences";
 import { smartBins, sortLabels, TIMELINES_BIN, type BinId, type SortKey } from "./bins";
 import { MediaTile } from "./MediaTile";
@@ -167,20 +167,6 @@ export function MediaBinPanel() {
           setting you make once, the bin is the choice you keep making. */}
       <PanelToolbar>
         <Segmented
-          label="View"
-          value={prefs.view}
-          onChange={(view) => setPrefs({ ...prefs, view: view as ViewMode })}
-          options={[
-            { value: "grid", label: "Grid view", icon: "grid", iconOnly: true },
-            { value: "list", label: "List view", icon: "list", iconOnly: true },
-          ]}
-        />
-        <Menu
-          trigger={<IconButton icon="sort" label={`Sort by ${sortLabels[prefs.sort].toLowerCase()}`} />}
-          entries={sortEntries}
-        />
-        <Gap />
-        <Segmented
           className="bin-picker"
           emphasis="accent"
           label="Bin"
@@ -290,6 +276,22 @@ export function MediaBinPanel() {
       </div>
 
       <NewSequenceDialog open={newSequence} onClose={() => setNewSequence(false)} />
+
+      <PanelToolbar placement="bottom">
+        <Segmented
+          label="View"
+          value={prefs.view}
+          onChange={(view) => setPrefs({ ...prefs, view: view as ViewMode })}
+          options={[
+            { value: "grid", label: "Grid view", icon: "grid", iconOnly: true },
+            { value: "list", label: "List view", icon: "list", iconOnly: true },
+          ]}
+        />
+        <Menu
+          trigger={<IconButton icon="sort" label={`Sort by ${sortLabels[prefs.sort].toLowerCase()}`} />}
+          entries={sortEntries}
+        />
+      </PanelToolbar>
     </Panel>
   );
 }
