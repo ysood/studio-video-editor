@@ -2,6 +2,7 @@
 //! spawn FFmpeg where needed, and return snapshots. No editing logic lives here.
 
 mod agent;
+mod chat;
 mod commands;
 mod error;
 mod menu;
@@ -50,6 +51,9 @@ pub fn run() {
             commands::viewer_seek,
             agent::agent_list_tools,
             agent::agent_call_tool,
+            chat::chat_status,
+            chat::chat_sign_in,
+            chat::chat_sign_out,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Studio");
