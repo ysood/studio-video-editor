@@ -13,21 +13,28 @@
 
 /* Every toolbar: same height, padding and spacing. Use Gap between groups. Positioned,
    so a toolbar can park something at its edge without that thing taking part in the
-   centring of what sits in the middle. */
+   centring of what sits in the middle.
+
+   The card inset applies on every side, so a toolbar stands off the edge it faces by
+   the same amount it stands off the sides. It is a margin rather than padding, so
+   `size.toolbar` keeps meaning the height of the row of controls and not the height of
+   the row plus the air around it. */
 .ui-panel-toolbar {
   position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-2);
   height: var(--size-toolbar);
+  margin-top: var(--space-8);
   padding: 0 var(--space-8);
   flex: none;
 }
 
-/* Bottom strips line up across panels, whatever they contain, so the rule that closes
-   one panel continues into its neighbour. */
+/* Bottom strips line up across panels, whatever they contain. */
 .ui-panel-toolbar[data-placement="bottom"] {
   height: var(--size-panel-footer);
+  margin-top: 0;
+  margin-bottom: var(--space-8);
 }
 
 .ui-panel-body {

@@ -113,14 +113,16 @@ The card geometry is one set of numbers, used everywhere:
 | | Value |
 |---|---|
 | gutter between cards | `space[4]`, 8px |
-| inset inside a card | `space[8]`, 20px |
+| inset inside a card | `space[8]`, 20px, on all four sides |
 | gap between things in a card | `space[7]`, 16px |
 | corner | `radius.panel`, 8px |
 | edge | `border.width` at `border.subtle` |
 | shadow | none |
 
-A panel toolbar takes the card inset too, so what is in it starts on the same line as
-what is in the body under it.
+A panel toolbar takes the card inset on every side: at the sides as padding, and at the
+edge it faces as a margin, so `size.toolbar` keeps meaning the height of the row of
+controls rather than the row plus the air around it. That is what lines a toolbar's
+contents up with the content under it.
 
 Inside a card, a region is told from its neighbour by **the same hairline**, not by a
 gap or a well: the reference uses one value for card edges and dividers alike. Content
