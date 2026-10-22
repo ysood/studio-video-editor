@@ -11,12 +11,8 @@ import { MediaBinPanel } from "../panels/MediaBinPanel";
 import { TimelinePanel } from "../panels/TimelinePanel";
 import { PropertiesPanel } from "../panels/PropertiesPanel";
 import { ViewerPanel } from "../panels/ViewerPanel";
-import { importMedia } from "../actions";
-import { chord } from "../keyboard";
-import { useEditor } from "../store";
 import { LAYOUT_KEY, resetLayout } from "./layout";
 import { makeHeaderActions, PanelTab } from "./PanelHeader";
-import { activeSequence } from "../sequences";
 
 
 const components: Record<string, FunctionComponent<IDockviewPanelProps>> = {
@@ -87,19 +83,12 @@ function onReady(event: DockviewReadyEvent) {
   });
 }
 
+// No panel-specific entries: the panels that had them are headless now, and both
+// actions already live somewhere better. Importing is on the File menu, on the shortcut
+// and on the empty bin's own button; adding a track is the plus in the timeline's
+// toolbar. A panel that keeps its header can add entries here again.
 const HeaderActions = makeHeaderActions(
-  {
-    bin: () => [{ label: "Import media…", icon: "plus", shortcut: chord("I"), onSelect: () => void importMedia() }],
-    timeline: () => {
-      const { edit, snapshot } = useEditor.getState();
-      if (!snapshot) return [];
-      const sequenceId = activeSequence(snapshot.project, useEditor.getState().activeSequenceId).id;
-      return [
-        { label: "Add video track", icon: "video", onSelect: () => void edit({ type: "AddTrack", sequenceId, kind: "video" }) },
-        { label: "Add audio track", icon: "audio", onSelect: () => void edit({ type: "AddTrack", sequenceId, kind: "audio" }) },
-      ];
-    },
-  },
+  {},
   () => [{ label: "Reset layout", icon: "grid", onSelect: resetLayout }],
 );
 
