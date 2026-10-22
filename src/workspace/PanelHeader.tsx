@@ -12,6 +12,7 @@ import "./panel-header.css";
 /** Panels whose header should sit on a surface other than chrome. */
 const PANEL_SURFACES: Record<string, SurfaceName> = {
   timeline: "stage",
+  viewer: "stage",
 };
 
 /** Panel-specific entries shown above the shared ones in a panel's overflow menu. */

@@ -39,10 +39,23 @@ Tiers inside a theme:
 
 ## Colour
 
-Ink (dark) and Paper (light) are the pair the app is designed in. Ink is the default.
-Paper overrides `color`, `surfaces` and `elevation` and takes everything else from Ink,
-so the two cannot drift in type, density or timeline metrics. Graphite and Crimson stay
-as alternates.
+Paper (light) is the default. It is three colours and where each one goes:
+
+| | Where |
+|---|---|
+| `#e6e5e9` grey | the ground: the top bar, the status bar, the tab strips, the gaps between panels |
+| `#2554ce` blue | the panel surface, so the media bin, inspector and transform cards |
+| `#181818` black | the stage: the timeline and the viewer |
+
+Text is `#ffffff` on the blue and on the black, and `#000000` on the grey, which is the
+only surface where the ground is the backdrop for words. The blue is also the accent on
+the grey (the Export button); on the blue card the accent is white, because blue on blue
+says nothing, and on the stage it is the same blue lifted to `#5b8bf5` so it can hold a
+playhead line against near black.
+
+Ink (dark) is unfinished. Paper overrides `color`, `surfaces` and `elevation` and takes
+everything else from Ink, so the pair cannot drift in type, density or timeline metrics.
+Graphite and Crimson stay as alternates.
 
 **The budget.** The whole palette is one neutral ramp plus five hues:
 
@@ -70,10 +83,9 @@ Selection is deliberately *not* the accent: it is plain `stone` at the far end o
 ramp, white on Ink and near-black on Paper. If selection were brass, "this is chosen" and
 "this is now" would be the same colour on the same timeline.
 
-**The chrome stays neutral.** A saturated surround changes what you think a picture is
-doing, so `viewer.surround` and the timeline stage are neutral in both themes, and Paper
-keeps a mid grey around the frame rather than going white. Crimson breaks this on purpose
-and is a look, not a grading environment.
+**The stage stays neutral.** The viewer sits on the stage with the timeline rather than
+on a card, so the picture keeps a neutral near black around it whatever the chrome is
+doing.
 
 ## Surfaces
 
