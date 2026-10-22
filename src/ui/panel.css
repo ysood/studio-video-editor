@@ -53,7 +53,12 @@
 }
 
 /* One surface instead of a stack of cards: the sections are separated by a divider,
-   which is quieter than a gap that lets the panel colour through between them. */
+   which is quieter than a gap that lets the panel colour through between them.
+
+   It does NOT take the card inset, unlike every other content region in a card. At this
+   panel's width, the inset either side plus a fixed `size.fieldLabel` leaves too little
+   for the value beside it and the frame-size select wraps onto two lines. The two have
+   to be settled together; until then this stays narrow so nothing breaks. */
 .ui-panel-body[data-layout="sheet"] {
   margin: var(--space-3);
   background: var(--color-surface-panel);
