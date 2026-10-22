@@ -89,5 +89,31 @@ export const inkTheme: Theme = {
 
   // Graphite squares its panels off, which suits a theme with no gaps between them.
   // Here a panel is a card lying on the ground, and a card has corners.
-  radius: { ...base.radius, panel: 8 },
+  radius: { ...base.radius, control: 4, panel: 8 },
+
+  /**
+   * Three rules, taken from measuring a site that reads as one piece rather than as a
+   * dozen regions that each chose their own emphasis:
+   *
+   * 1. Two weights, 400 and 500, and nothing heavier. Weight is for telling a label
+   *    from its value, not for shouting; 600 was doing the shouting in four roles here
+   *    and in every solid button, which is what made the app look patchy.
+   * 2. Tracking goes negative as size goes up, about -0.02em from 16px, because a face
+   *    spaced for 13px falls apart when it is set at 20. Below that it stays at zero.
+   * 3. Three line heights and no others: 1 for display, 1.2 for anything dense, 1.5 for
+   *    prose that is meant to be read in sentences.
+   */
+  type: {
+    ...base.type,
+    label: { ...base.type.label, lineHeight: 1.35 },
+    body: { ...base.type.body, lineHeight: 1.5 },
+    heading: { family: "ui", size: 12, weight: 500, lineHeight: 1.3, tracking: 0 },
+    title: { family: "display", size: 16, weight: 500, lineHeight: 1.2, tracking: -0.02 },
+    timecode: { family: "numeric", size: 14, weight: 500, lineHeight: 1.2, tracking: 0 },
+    timecodeDisplay: { family: "numeric", size: 20, weight: 500, lineHeight: 1.1, tracking: -0.02 },
+    projectName: { family: "wordmark", size: 20, weight: 500, lineHeight: 1.2, tracking: -0.015 },
+    // Still tracked, because small capitals need air, but 0.38em was a different
+    // typeface's worth of it.
+    overline: { family: "ui", size: 11, weight: 500, lineHeight: 1.2, tracking: 0.18 },
+  },
 };

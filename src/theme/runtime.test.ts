@@ -3,15 +3,22 @@ import { canvasFont, surfaceColors, toCssVars, toStylesheet } from "./runtime";
 import { themes } from "./themes";
 
 describe("toCssVars", () => {
-  const vars = toCssVars(themes[0]!);
+  const theme = themes[0]!;
+  const vars = toCssVars(theme);
 
+  // The values come from the theme rather than being written out here: what is under
+  // test is that a token's path becomes its variable name, not what any theme sets.
   it("derives names mechanically from token paths", () => {
-    expect(vars["--color-text-secondary"]).toBeDefined();
-    expect(vars["--color-surface-base"]).toBeDefined();
-    expect(vars["--size-control-small"]).toBe("22px");
-    expect(vars["--type-timecode-display-size"]).toBe("22px");
+    expect(vars["--color-text-secondary"]).toBe(theme.color.text.secondary);
+    expect(vars["--color-surface-base"]).toBe(theme.color.surface.base);
+    expect(vars["--size-control-small"]).toBe(`${theme.size.controlSmall}px`);
+    expect(vars["--type-timecode-display-size"]).toBe(`${theme.type.timecodeDisplay.size}px`);
     expect(vars["--type-body-family"]).toBe("var(--font-ui)");
-    expect(vars["--space-4"]).toBe("8px");
+    expect(vars["--space-4"]).toBe(`${theme.space[4]}px`);
+  });
+
+  it("gives the stacking scale to every theme", () => {
+    expect(vars["--z-overlay"]).toBe("100");
   });
 
   it("gives every theme the same set of variables", () => {

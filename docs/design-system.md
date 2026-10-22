@@ -108,6 +108,24 @@ theme that could reorder it would only be a way to break it. Dialogs are deliber
 absent from the scale: they are real `<dialog>` elements, so the browser puts them and
 their backdrop in the top layer, above every z-index on the page.
 
+## Type
+
+Three rules, measured off a reference that reads as one piece rather than as a dozen
+regions that each picked their own emphasis. They live in Ink and Paper inherits them;
+Graphite and Crimson keep the older scale.
+
+1. **Two weights, 400 and 500.** Nothing heavier exists. Weight tells a label from its
+   value; it is not for emphasis. Four roles were at 600, and so was every solid button
+   (they take `type.heading.weight`), which is most of why the app looked patchy.
+2. **Tracking goes negative as size goes up**, about `-0.02em` from 16px, and stays at
+   zero below it. A face spaced for 13px falls apart set at 20. Positive tracking on
+   large text is what makes it look loose.
+3. **Three line heights.** `1` for display, `1.2` for anything dense, `1.5` for prose
+   meant to be read in sentences. No fourth value.
+
+The one exception is `overline`, which is small capitals and still needs air between
+them, at `0.18em`.
+
 ## Surfaces
 
 A theme can color regions differently. Every element marked `data-surface="<name>"` gets
