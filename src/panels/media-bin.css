@@ -1,25 +1,29 @@
-/* Two panes: bins on the left in a well, the gallery or list on the right. */
+/* Two panes, divided rather than spaced: the bins run to the panel's own edge so a
+   selected one can be marked there, and the hairline between the columns is the same
+   one that edges a card. */
 .bin-layout {
   flex: 1;
   min-height: 0;
   display: grid;
   grid-template-columns: var(--size-bin-pane) minmax(0, 1fr);
-  gap: var(--space-7);
-  padding: var(--space-8);
 }
 
 /* Bins */
 .bin-folders {
   overflow: auto;
+  padding: var(--space-4) 0;
+  border-right: var(--border-width) solid var(--color-border-subtle);
 }
 
+/* Taller than a control, because these are places rather than buttons, and full width
+   so the fill and the selected edge reach the panel. */
 .bin-folder {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--space-4);
-  min-height: var(--size-control);
-  padding: 0 var(--space-5);
+  gap: var(--space-6);
+  min-height: var(--size-control-large);
+  padding: 0 var(--space-6);
   color: var(--color-text-secondary);
   font: var(--type-label);
 }
@@ -52,10 +56,19 @@
   overflow: auto;
 }
 
+/* Tiles are cards, so they take the card inset from the panel edge. */
+.bin-grid {
+  padding: var(--space-8);
+}
+
+/* One card: the picture runs to its edges and the caption sits under it, with the
+   hairline doing what it does everywhere else. */
 .bin-tile {
   display: flex;
   flex-direction: column;
+  border: var(--border-width) solid var(--color-border-subtle);
   border-radius: var(--radius-panel);
+  background: var(--color-surface-raised);
   overflow: hidden;
 }
 
@@ -106,9 +119,8 @@
 
 .bin-tile-caption {
   display: grid;
-  gap: var(--space-1);
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-surface-panel);
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-6);
 }
 
 .bin-tile-name {
@@ -116,6 +128,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font: var(--type-label);
+  font-weight: var(--type-heading-weight);
 }
 
 .bin-tile-meta {
@@ -131,11 +144,7 @@
   height: var(--type-caption-size);
 }
 
-/* List */
-.bin-list-well {
-  min-height: 100%;
-}
-
+/* List. The rows run the full width of the pane, like the bins do. */
 .bin-row {
   display: grid;
   grid-template-columns: var(--size-swatch) minmax(0, 1fr) auto;

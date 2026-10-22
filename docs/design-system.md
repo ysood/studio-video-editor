@@ -122,6 +122,13 @@ The card geometry is one set of numbers, used everywhere:
 A panel toolbar takes the card inset too, so what is in it starts on the same line as
 what is in the body under it.
 
+Inside a card, a region is told from its neighbour by **the same hairline**, not by a
+gap or a well: the media bin's two columns are divided by `border.subtle`, and its rows
+run the full width so a selected one can be marked at the panel's own edge. The
+reference does the same, using one value for card edges and dividers alike. Content laid
+out as cards, such as the bin's tiles, takes the card inset from the panel edge and sits
+`space[4]` apart, like the dock cards do.
+
 Stacking is `src/theme/layers.ts`, not a theme: `--z-raised`, `--z-sticky`,
 `--z-overlay`. How things stack is a fact about the interface rather than a look, and a
 theme that could reorder it would only be a way to break it. Dialogs are deliberately
@@ -155,7 +162,7 @@ the base colors merged with that surface's overrides from `theme.surfaces`:
 |---|---|
 | `chrome` | top bar, status bar, panel tab strips, gaps between panels |
 | `panel` | panel bodies (the default) |
-| `well` | inset content: bin folders, list view, inspector groups, dialogs, tile captions |
+| `well` | inset content: inspector groups, dialogs, menus and other overlays |
 | `stage` | picture and time: the viewer frame and the timeline |
 
 Components keep using the same variables (`--color-surface-panel`,

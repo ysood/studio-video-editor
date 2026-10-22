@@ -91,6 +91,10 @@ export const inkTheme: Theme = {
   // Here a panel is a card lying on the ground, and a card has corners.
   radius: { ...base.radius, control: 4, button: base.radius.round, panel: 8 },
 
+  // The bins are a column of names now rather than a narrow strip, and 136 clipped the
+  // longest of them.
+  size: { ...base.size, binPane: 168 },
+
   /**
    * Three rules, taken from measuring a site that reads as one piece rather than as a
    * dozen regions that each chose their own emphasis:

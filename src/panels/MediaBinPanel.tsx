@@ -7,7 +7,7 @@ import { chord } from "../keyboard";
 import { formatDuration, formatRate } from "../format";
 import { useEditor } from "../store";
 import { useTheme } from "../theme";
-import { ContextMenu, EmptyState, Icon, IconButton, List, Menu, type MenuEntry, Panel, PanelToolbar, Row, Segmented, Slider, Spacer, TextInput, Well } from "../ui";
+import { ContextMenu, EmptyState, Icon, IconButton, List, Menu, type MenuEntry, Panel, PanelToolbar, Row, Segmented, Slider, Spacer, TextInput } from "../ui";
 import { activeSequence } from "../sequences";
 import { smartBins, sortLabels, TIMELINES_BIN, type BinId, type SortKey } from "./bins";
 import { MediaTile } from "./MediaTile";
@@ -163,7 +163,7 @@ export function MediaBinPanel() {
       {/* The folder column shows even with an empty bin: timelines live here too, and
           they exist before any footage does. */}
       <div className="bin-layout">
-          <Well className="bin-folders">
+          <div className="bin-folders">
             <List label="Bins">
               {bins.map((b) => (
                 <Row
@@ -195,7 +195,7 @@ export function MediaBinPanel() {
                 />
               </Row>
             </List>
-          </Well>
+          </div>
 
           <div className="bin-content">
             {media.length === 0 && !showingTimelines ? (
@@ -203,8 +203,7 @@ export function MediaBinPanel() {
                 action={<IconButton icon="plus" shape="round" label="Import media" shortcut={chord("I")} onClick={importMedia} />}
               />
             ) : showingTimelines ? (
-              <Well className="bin-list-well">
-                <List label="Timelines">
+              <List className="bin-list" label="Timelines">
                   {sequences.map((q) => (
                     <ContextMenu key={q.id} entries={sequenceMenu(q)}>
                       <Row
@@ -241,12 +240,12 @@ export function MediaBinPanel() {
                       </Row>
                     </ContextMenu>
                   ))}
-                </List>
-              </Well>
+              </List>
             ) : bin.media.length === 0 ? (
               <EmptyState>Nothing in {bin.name.toLowerCase()} yet.</EmptyState>
             ) : prefs.view === "grid" ? (
               <List
+                className="bin-grid"
                 label={bin.name}
                 layout="grid"
                 style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${thumbnail}px, 1fr))` }}
@@ -265,8 +264,7 @@ export function MediaBinPanel() {
                 ))}
               </List>
             ) : (
-              <Well className="bin-list-well">
-                <List label={bin.name}>
+              <List className="bin-list" label={bin.name}>
                   {bin.media.map((m) => (
                     <ContextMenu key={m.id} entries={menuFor(m)}>
                       <Row
@@ -290,8 +288,7 @@ export function MediaBinPanel() {
                       </Row>
                     </ContextMenu>
                   ))}
-                </List>
-              </Well>
+              </List>
             )}
           </div>
         </div>
