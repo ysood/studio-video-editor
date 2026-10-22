@@ -10,6 +10,7 @@ pub mod ids;
 pub mod model;
 pub mod persist;
 pub mod probe;
+pub mod query;
 pub mod time;
 pub mod validate;
 

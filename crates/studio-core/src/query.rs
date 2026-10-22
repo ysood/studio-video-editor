@@ -1,0 +1,303 @@
+//! Questions about a project, answered without handing the whole document over.
+//!
+//! A caller that can only fetch the entire project has to re-derive everything it wants
+//! to know, and every such caller derives it slightly differently. These functions are
+//! the one answer, so the shell, a second window and an agent all read the same thing.
+//!
+//! Two rules hold throughout.
+//!
+//! Every frame carries its timecode beside it. A caller that knows a clip starts at
+//! frame 288 still has to find the sequence rate and do the arithmetic to say where that
+//! is, and the rate is not always 24. Answering both at once costs a format call and
+//! removes a whole class of wrong answers.
+//!
+//! Nothing here touches the filesystem. Whether media is offline is stated by the
+//! caller, because only the shell knows, and keeping it out leaves these functions pure
+//! and testable.
+
+use crate::ids::{ClipId, MediaId, SequenceId, TrackId};
+use crate::model::{Clip, Project, Sequence, SequenceFormat, Track, TrackKind};
+use crate::time::{timecode, Frame};
+use serde::Serialize;
+use ts_rs::TS;
+
+/// One sequence, without its contents.
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct SequenceSummary {
+    pub id: SequenceId,
+    pub name: String,
+    pub format: SequenceFormat,
+    /// One past the last frame of the last clip, so an empty sequence is zero.
+    #[ts(type = "number")]
+    pub duration: Frame,
+    pub duration_timecode: String,
+    pub video_tracks: usize,
+    pub audio_tracks: usize,
+    pub clip_count: usize,
+}
+
+/// The project, and enough of each sequence to choose one.
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ProjectOverview {
+    pub name: String,
+    pub media_count: usize,
+    pub sequences: Vec<SequenceSummary>,
+}
+
+/// One clip, flattened: the things asked about a clip, without walking to its track and
+/// its media to find them.
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ClipSummary {
+    pub id: ClipId,
+    pub name: String,
+    pub track_id: TrackId,
+    #[ts(type = "number")]
+    pub start: Frame,
+    pub start_timecode: String,
+    #[ts(type = "number")]
+    pub duration: Frame,
+    /// Frame after the clip's last, which is where the next clip may begin.
+    #[ts(type = "number")]
+    pub end: Frame,
+    pub end_timecode: String,
+    pub enabled: bool,
+    pub media_id: MediaId,
+    /// Carried so that naming a clip does not need a second lookup in the bin.
+    pub media_name: Option<String>,
+    #[ts(type = "number")]
+    pub source_start: Frame,
+    /// Every clip that moves with this one, this clip included. A clip with no link is
+    /// a group of one, so a caller never has to tell the two cases apart.
+    pub link_group: Vec<ClipId>,
+    /// Whether the picture is moved, scaled, turned or faded. The values themselves are
+    /// left out: they are five more numbers and are rarely the question.
+    pub has_transform: bool,
+}
+
+/// One track and what is on it.
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct TrackView {
+    pub id: TrackId,
+    pub name: String,
+    pub kind: TrackKind,
+    pub enabled: bool,
+    pub locked: bool,
+    pub clips: Vec<ClipSummary>,
+}
+
+/// A sequence and its tracks, in the order the renderer reads them: video lowest first,
+/// so a later track is drawn over an earlier one.
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct TimelineView {
+    pub sequence: SequenceSummary,
+    pub tracks: Vec<TrackView>,
+    /// The window asked for, when one was, so a caller reading a long timeline in pieces
+    /// can tell which piece came back.
+    #[ts(type = "number | null")]
+    pub window_start: Option<Frame>,
+    #[ts(type = "number | null")]
+    pub window_end: Option<Frame>,
+}
+
+/// The project and its sequences, without any clips.
+pub fn overview(project: &Project) -> ProjectOverview {
+    ProjectOverview {
+        name: project.name.clone(),
+        media_count: project.media.len(),
+        sequences: project.sequences.iter().map(sequence_summary).collect(),
+    }
+}
+
+pub fn sequence_summary(sequence: &Sequence) -> SequenceSummary {
+    let rate = sequence.format.frame_rate;
+    let duration = sequence.duration();
+    SequenceSummary {
+        id: sequence.id,
+        name: sequence.name.clone(),
+        format: sequence.format,
+        duration,
+        duration_timecode: timecode(duration, rate),
+        video_tracks: sequence
+            .tracks
+            .iter()
+            .filter(|t| t.kind == TrackKind::Video)
+            .count(),
+        audio_tracks: sequence
+            .tracks
+            .iter()
+            .filter(|t| t.kind == TrackKind::Audio)
+            .count(),
+        clip_count: sequence.tracks.iter().map(|t| t.clips.len()).sum(),
+    }
+}
+
+/// One clip, flattened. `project` is read for the media name and the link group.
+pub fn clip_summary(
+    project: &Project,
+    sequence: &Sequence,
+    track: &Track,
+    clip: &Clip,
+) -> ClipSummary {
+    let rate = sequence.format.frame_rate;
+    let media_id = clip.source.media_id();
+    ClipSummary {
+        id: clip.id,
+        name: clip.name.clone(),
+        track_id: track.id,
+        start: clip.start,
+        start_timecode: timecode(clip.start, rate),
+        duration: clip.duration,
+        end: clip.end(),
+        end_timecode: timecode(clip.end(), rate),
+        enabled: clip.enabled,
+        media_id,
+        media_name: project.media(media_id).map(|m| m.name.clone()),
+        source_start: clip.source.source_start(),
+        link_group: project.link_group(clip.id),
+        has_transform: !clip.transform.is_identity(),
+    }
+}
+
+/// A sequence with its tracks and clips.
+///
+/// `window` keeps a long timeline readable in pieces: a clip is in the window when any
+/// part of it is, so a clip that straddles the edge is reported by both pieces rather
+/// than by neither.
+pub fn describe(
+    project: &Project,
+    sequence: &Sequence,
+    window: Option<(Frame, Frame)>,
+) -> TimelineView {
+    let in_window = |clip: &Clip| match window {
+        None => true,
+        Some((from, to)) => clip.start < to && from < clip.end(),
+    };
+    TimelineView {
+        sequence: sequence_summary(sequence),
+        tracks: sequence
+            .tracks
+            .iter()
+            .map(|track| TrackView {
+                id: track.id,
+                name: track.name.clone(),
+                kind: track.kind,
+                enabled: track.enabled,
+                locked: track.locked,
+                clips: track
+                    .clips
+                    .iter()
+                    .filter(|c| in_window(c))
+                    .map(|c| clip_summary(project, sequence, track, c))
+                    .collect(),
+            })
+            .collect(),
+        window_start: window.map(|(from, _)| from),
+        window_end: window.map(|(_, to)| to),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::testing::{media_with_av, project_with, sample_edit};
+
+    /// `sample_edit` puts linked video and audio at frames 12..60 and 100..124, at 24 fps.
+    fn sample() -> (Project, Sequence) {
+        let project = sample_edit();
+        let sequence = project.first_sequence().clone();
+        (project, sequence)
+    }
+
+    #[test]
+    fn overview_counts_without_listing_clips() {
+        let (project, _) = sample();
+        let view = overview(&project);
+        assert_eq!(view.media_count, 1);
+        assert_eq!(view.sequences.len(), 1);
+        let s = &view.sequences[0];
+        assert_eq!(s.video_tracks, 1);
+        assert_eq!(s.audio_tracks, 1);
+        assert_eq!(s.clip_count, 4, "two linked pairs");
+        assert_eq!(s.duration, 124, "one past the last frame of the last clip");
+    }
+
+    #[test]
+    fn an_empty_sequence_is_zero_long() {
+        let project = project_with(vec![media_with_av(5)]);
+        let summary = sequence_summary(project.first_sequence());
+        assert_eq!(summary.duration, 0);
+        assert_eq!(summary.duration_timecode, "00:00:00:00");
+        assert_eq!(summary.clip_count, 0);
+    }
+
+    #[test]
+    fn every_frame_is_answered_with_its_timecode() {
+        let (project, sequence) = sample();
+        let view = describe(&project, &sequence, None);
+        let clip = &view.tracks[0].clips[0];
+        assert_eq!(clip.start, 12);
+        assert_eq!(
+            clip.start_timecode, "00:00:00:12",
+            "24 fps, so frame 12 is :12"
+        );
+        assert_eq!(clip.end, 60);
+        assert_eq!(clip.end_timecode, "00:00:02:12");
+        assert_eq!(view.sequence.duration_timecode, "00:00:05:04", "frame 124");
+    }
+
+    #[test]
+    fn a_clip_carries_its_link_group_and_its_media_name() {
+        let (project, sequence) = sample();
+        let view = describe(&project, &sequence, None);
+        let clip = &view.tracks[0].clips[0];
+        assert_eq!(clip.media_name.as_deref(), Some("shot.mov"));
+        assert_eq!(clip.link_group.len(), 2, "the picture and its sound");
+        assert!(clip.link_group.contains(&clip.id));
+        assert!(!clip.has_transform, "nothing has been moved or scaled");
+    }
+
+    #[test]
+    fn a_window_keeps_a_clip_that_straddles_its_edge() {
+        let (project, sequence) = sample();
+        // The first clip runs 12..60. A window starting inside it must still report it,
+        // or a caller reading a timeline in pieces would lose every clip on a seam.
+        let view = describe(&project, &sequence, Some((30, 90)));
+        let ids: Vec<_> = view.tracks[0].clips.iter().map(|c| c.start).collect();
+        assert_eq!(
+            ids,
+            vec![12],
+            "straddling clip kept, the 100.. one left out"
+        );
+
+        // Touching is not overlapping: a window ending exactly where a clip starts does
+        // not include it, so two adjacent windows do not both report the same clip.
+        let view = describe(&project, &sequence, Some((0, 12)));
+        assert!(view.tracks[0].clips.is_empty());
+    }
+
+    #[test]
+    fn a_window_is_reported_back() {
+        let (project, sequence) = sample();
+        assert_eq!(describe(&project, &sequence, None).window_start, None);
+        let view = describe(&project, &sequence, Some((10, 20)));
+        assert_eq!((view.window_start, view.window_end), (Some(10), Some(20)));
+    }
+
+    #[test]
+    fn tracks_come_back_in_painting_order() {
+        let (project, sequence) = sample();
+        let view = describe(&project, &sequence, None);
+        let kinds: Vec<_> = view.tracks.iter().map(|t| t.kind).collect();
+        assert_eq!(kinds, vec![TrackKind::Video, TrackKind::Audio]);
+    }
+}
