@@ -13,12 +13,12 @@
 }
 
 .export-choice:hover {
-  background: var(--color-surface-raised);
+  background: var(--color-state-hover);
 }
 
 .export-choice[data-checked="true"] {
-  border-color: var(--color-border-strong);
-  background: var(--color-surface-raised);
+  border-color: var(--color-selection);
+  background: var(--color-state-selected);
 }
 
 .export-choice input {

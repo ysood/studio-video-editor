@@ -32,13 +32,13 @@
 }
 
 .bin-folder:hover {
-  background: var(--color-surface-raised);
+  background: var(--color-state-hover);
   color: var(--color-text-primary);
 }
 
 .bin-folder[aria-selected="true"] {
-  border-left-color: var(--color-accent-base);
-  background: var(--color-surface-raised);
+  border-left-color: var(--color-selection);
+  background: var(--color-state-selected);
   color: var(--color-text-primary);
 }
 
@@ -186,11 +186,11 @@
 }
 
 .bin-row:hover {
-  background: var(--color-surface-raised);
+  background: var(--color-state-hover);
 }
 
 .bin-row[aria-selected="true"] {
-  background: var(--color-surface-raised);
+  background: var(--color-state-selected);
   border-left-color: var(--color-selection);
 }
 

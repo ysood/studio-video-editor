@@ -1,6 +1,6 @@
 # Design system
 
-Last verified: 2026-10-17
+Last verified: 2026-10-22
 
 Every visual decision in Studio lives in one place, `src/theme/`. Components and panels
 never hardcode a color, size, font or spacing value, and `npm run check:design` fails the
@@ -30,8 +30,8 @@ Tiers inside a theme:
 
 1. **Primitives**: raw values such as `graphite[850]`. Never referenced by components.
 2. **Semantic roles**: what a value is for. `color.surface.raised`, `color.text.secondary`,
-   `color.accent.base`, `type.label`, `space[4]`, `radius.control`, `size.control`,
-   `motion.quick`, `elevation.dialog`.
+   `color.accent.base`, `color.state.hover`, `type.label`, `space[4]`, `radius.control`,
+   `size.control`, `motion.quick`, `elevation.dialog`.
 3. **Component tokens**: knobs specific to one part, kept in their own group. Today that
    is `timeline.*` (row and ruler height, header width, clip inset, band height, playhead
    and selection widths, ghost dash, alphas).
@@ -86,7 +86,18 @@ These keep every panel reading as one product. The gallery shows each rule.
    highlight fill instead of a focus ring, shortcuts in tertiary text on the right.
 8. **Icon buttons always explain themselves.** `IconButton` requires a label, shown as
    a tooltip with the keyboard shortcut when there is one.
-9. **Menus mirror the toolbar.** A context menu or overflow menu offers the same action
+9. **Interaction fills are translucent.** What a thing *is* comes from
+   `color.surface.*`: `raised` is the resting fill of anything lifted off the panel, a
+   quiet button, a track header, a slider rail, the trough of a segmented control. What
+   is *happening to it* comes from `color.state.*`: `hover`, and `selected` for the
+   chosen row, tile, menu item or segment. The state fills are translucent so one value
+   is right over a bare row and over a raised button alike, which is what stops the two
+   from drifting into separate ladders of opaque greys. Where the element has no resting
+   fill, set one as the background directly; where it has one, layer it as a
+   `background-image` so the fill underneath survives. Selection also carries
+   `color.selection` on a border or outline, never a different fill per panel.
+
+10. **Menus mirror the toolbar.** A context menu or overflow menu offers the same action
    with the same label, icon and shortcut as its button, so `chord()` from
    `src/keyboard.ts` writes every shortcut. A right click selects what is under the
    pointer before the menu opens. Destructive items use `tone: "danger"` and sit last,

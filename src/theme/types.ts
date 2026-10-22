@@ -66,11 +66,23 @@ export interface ColorRoles {
     base: string; // app background behind everything; on chrome, the panel tab strips
     gutter: string; // the gaps between dock panels
     panel: string; // the background of the current surface
-    raised: string; // buttons, track headers, selected rows
-    hover: string; // hover state of raised things
+    /** The resting fill of something lifted off the panel: a quiet button, a track
+     *  header, a slider rail, the trough of a segmented control. */
+    raised: string;
     input: string; // text fields
     overlay: string; // dialogs
     locked: string; // locked track rows
+  };
+  /**
+   * Interaction fills: what is happening to a thing, rather than what the thing is.
+   * They are translucent and layer over whatever the element already carries, so one
+   * value is right on a bare row and on a raised button alike and a theme never has to
+   * keep two ladders of opaque greys in step. A surface that inverts, such as a light
+   * frame around dark wells, overrides them to darken instead of lighten.
+   */
+  state: {
+    hover: string;
+    selected: string; // a selected row, item or tile
   };
   border: {
     strong: string; // control outlines

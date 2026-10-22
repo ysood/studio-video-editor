@@ -32,11 +32,12 @@ const dark: DeepPartial<ColorRoles> = {
     base: ink[0],
     panel: ink[2],
     raised: ink[5],
-    hover: ink[7],
     input: ink[2],
     overlay: ink[2],
     locked: ink[4],
   },
+  // Wells and the stage are near black, so their interaction fills lighten.
+  state: { hover: "rgba(255, 255, 255, 0.05)", selected: "rgba(255, 255, 255, 0.1)" },
   border: { strong: ink[8], subtle: ink[6] },
   text: {
     primary: "#f3eeee",
@@ -64,11 +65,13 @@ export const crimsonTheme: Theme = {
       panel: red.signal,
       // Dark washes rather than other reds, so controls read clearly on the frame.
       raised: "rgba(20, 0, 3, 0.24)",
-      hover: "rgba(20, 0, 3, 0.36)",
       input: "rgba(20, 0, 3, 0.12)",
       overlay: ink[2],
       locked: red.deep,
     },
+    // The frame is the one light surface in the app, so here the interaction fills
+    // darken. Everything else in the theme inherits the lightening pair from `dark`.
+    state: { hover: "rgba(20, 0, 3, 0.12)", selected: "rgba(20, 0, 3, 0.22)" },
     border: {
       strong: "rgba(20, 0, 3, 0.55)",
       subtle: "rgba(20, 0, 3, 0.22)",

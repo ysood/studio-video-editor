@@ -15,10 +15,16 @@ export const graphiteTheme: Theme = {
       gutter: graphite[950],
       panel: graphite[900],
       raised: graphite[850],
-      hover: graphite[750],
       input: graphite[950],
       overlay: graphite[900],
       locked: graphite[850],
+    },
+    // Light, because Graphite is dark. These two alphas were chosen to reproduce the
+    // opaque ladder they replaced: 4.5% over the panel lands on the old `raised`, and
+    // the same value over a raised button lands on the old `hover`.
+    state: {
+      hover: "rgba(255, 255, 255, 0.045)",
+      selected: "rgba(255, 255, 255, 0.09)",
     },
     border: {
       strong: graphite[700],

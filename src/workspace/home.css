@@ -122,7 +122,7 @@
 
 .home-row:hover:not([data-missing="true"]),
 .home-row:focus-within {
-  background: var(--color-surface-hover);
+  background: var(--color-state-hover);
 }
 
 /* Name and time on one line, path under the name: two rows and two columns, so the times
@@ -217,6 +217,6 @@
 }
 
 .home-forget:hover {
-  background: var(--color-surface-raised);
+  background: var(--color-state-hover);
   color: var(--color-text-primary);
 }

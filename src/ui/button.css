@@ -39,10 +39,6 @@
   color: var(--color-text-primary);
 }
 
-.ui-button[data-variant="quiet"]:hover:not(:disabled) {
-  background: var(--color-surface-hover);
-}
-
 /* solid */
 .ui-button[data-variant="solid"],
 .ui-icon-button[data-shape="round"] {
@@ -68,8 +64,17 @@
 
 .ui-button[data-variant="ghost"]:hover:not(:disabled),
 .ui-icon-button:hover:not(:disabled) {
-  background: var(--color-surface-raised);
   color: var(--color-text-primary);
+}
+
+/* One hover fill for all three variants. It is translucent and layers as a background
+   image, so it lands on the quiet button's resting fill and on the ghost button's
+   transparency without either needing a value of its own. A layer cannot be faded in,
+   which suits a dense editor: the feedback is immediate. */
+.ui-button[data-variant="quiet"]:hover:not(:disabled),
+.ui-button[data-variant="ghost"]:hover:not(:disabled),
+.ui-icon-button:hover:not(:disabled) {
+  background-image: linear-gradient(var(--color-state-hover), var(--color-state-hover));
 }
 
 /* Toggles that are on read the same everywhere: accent text on an accent wash. */
