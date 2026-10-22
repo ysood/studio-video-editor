@@ -284,7 +284,12 @@ struct Claims {
 // The network
 // ---------------------------------------------------------------------------
 
-fn client() -> ChatResult<&'static reqwest::Client> {
+/// The one HTTP client everything here uses.
+///
+/// Shared so that its two settings are impossible to forget: no redirects, because a
+/// redirect resends the body and the body is a credential or a document; and a timeout,
+/// because a request with none is a window that never closes.
+pub fn http() -> ChatResult<&'static reqwest::Client> {
     static CLIENT: OnceLock<Option<reqwest::Client>> = OnceLock::new();
     CLIENT
         .get_or_init(|| {
@@ -317,11 +322,7 @@ fn unreachable(error: &reqwest::Error) -> ChatError {
 
 pub async fn discover() -> ChatResult<Discovery> {
     let url = format!("{ISSUER}/.well-known/openid-configuration");
-    let response = client()?
-        .get(url)
-        .send()
-        .await
-        .map_err(|e| unreachable(&e))?;
+    let response = http()?.get(url).send().await.map_err(|e| unreachable(&e))?;
     let value: Value = response.json().await.map_err(|_| {
         ChatError::retryable(
             ChatErrorCode::Discovery,
@@ -342,7 +343,7 @@ fn form_body(fields: &[(&str, &str)]) -> String {
 
 /// POST a form to the token endpoint and read what comes back.
 async fn post_form(url: &str, form: &[(&str, &str)]) -> ChatResult<Value> {
-    let response = client()?
+    let response = http()?
         .post(url)
         .header(reqwest::header::ACCEPT, "application/json")
         .header(
@@ -444,7 +445,7 @@ pub async fn revoke(discovery: &Discovery, client_id: &str, refresh_token: &str)
     let Some(url) = discovery.revoke.as_deref() else {
         return Ok(());
     };
-    let response = client()?
+    let response = http()?
         .post(url)
         .header(
             reqwest::header::CONTENT_TYPE,
@@ -479,7 +480,7 @@ pub async fn verify_identity(
     client_id: &str,
     nonce: Option<&str>,
 ) -> ChatResult<Identity> {
-    let response = client()?
+    let response = http()?
         .get(&discovery.jwks)
         .send()
         .await

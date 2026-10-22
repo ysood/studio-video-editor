@@ -15,7 +15,7 @@
 use serde::Serialize;
 use ts_rs::TS;
 
-#[derive(Debug, Clone, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct ChatError {
@@ -46,8 +46,12 @@ pub enum ChatErrorCode {
     Identity,
     /// Sign-in finished without the app registration it needs.
     Registration,
+    /// Signed in, but the ChatGPT plan was not shared, so there is nothing to ask.
+    ScopeDenied,
     /// The stored grant is no longer good. Signing in again is the fix.
     Expired,
+    /// Nobody is signed in.
+    SignedOut,
     /// The credentials could not be read or written.
     Storage,
     /// A sign-in is already in progress.
@@ -71,6 +75,13 @@ impl ChatError {
             message: message.into(),
             retryable: true,
         }
+    }
+
+    pub fn signed_out() -> Self {
+        Self::new(
+            ChatErrorCode::SignedOut,
+            "Sign in with ChatGPT to use the assistant.",
+        )
     }
 
     pub fn cancelled() -> Self {

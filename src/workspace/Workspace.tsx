@@ -7,7 +7,7 @@ import {
 } from "dockview-react";
 import "dockview-react/dist/styles/dockview.css";
 import type { FunctionComponent } from "react";
-import { ChatPanel } from "../panels/ChatPanel";
+import { ChatPanel, chatMenu } from "../panels/ChatPanel";
 import { MediaBinPanel } from "../panels/MediaBinPanel";
 import { TimelinePanel } from "../panels/TimelinePanel";
 import { PropertiesPanel } from "../panels/PropertiesPanel";
@@ -100,12 +100,12 @@ function onReady(event: DockviewReadyEvent) {
   });
 }
 
-// No panel-specific entries: the panels that had them are headless now, and both
-// actions already live somewhere better. Importing is on the File menu, on the shortcut
-// and on the empty bin's own button; adding a track is the plus in the timeline's
-// toolbar. A panel that keeps its header can add entries here again.
+// The headless panels have no entries: both of their actions already live somewhere
+// better. Importing is on the File menu, on the shortcut and on the empty bin's own
+// button; adding a track is the plus in the timeline's toolbar. The assistant keeps its
+// header, so its two rare actions go here rather than taking a row of a small panel.
 const HeaderActions = makeHeaderActions(
-  {},
+  { chat: chatMenu },
   () => [{ label: "Reset layout", icon: "grid", onSelect: resetLayout }],
 );
 

@@ -5,6 +5,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { AgentReply } from "../bindings/AgentReply";
+import type { ChatDelta } from "../bindings/ChatDelta";
 import type { ChatError } from "../bindings/ChatError";
 import type { ChatStatus } from "../bindings/ChatStatus";
 import type { CommandError } from "../bindings/CommandError";
@@ -117,6 +118,12 @@ export const ipc = {
    */
   chatSignIn: () => invoke<ChatStatus>("chat_sign_in"),
   chatSignOut: () => invoke<ChatStatus>("chat_sign_out"),
+  /**
+   * Ask. Resolves with the whole answer; the same text also arrives piece by piece as
+   * `chat://delta` while this is still running.
+   */
+  chatSend: (message: string) => invoke<string>("chat_send", { message }),
+  chatReset: () => invoke<void>("chat_reset"),
 };
 
 export const events = {
@@ -141,4 +148,7 @@ export const events = {
    */
   onDocumentChanged: (handler: (change: DocumentChanged) => void): Promise<UnlistenFn> =>
     listen<DocumentChanged>("document://changed", (e) => handler(e.payload)),
+  /** More of an answer, while it is being written. */
+  onChatDelta: (handler: (delta: ChatDelta) => void): Promise<UnlistenFn> =>
+    listen<ChatDelta>("chat://delta", (e) => handler(e.payload)),
 };

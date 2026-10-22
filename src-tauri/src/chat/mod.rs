@@ -11,15 +11,21 @@
 //! given, and the panel is the part most likely to have bugs.
 
 mod callback;
+mod client;
 pub mod credentials;
 mod error;
 mod oauth;
 
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 use std::time::Duration;
 
-use tauri::AppHandle;
+use serde::Serialize;
+use serde_json::{json, Value};
+use tauri::{AppHandle, Emitter, Manager};
+use ts_rs::TS;
 
+use crate::state::AppState;
 use credentials::{ChatStatus, Credentials};
 pub use error::{ChatError, ChatErrorCode, ChatResult};
 
@@ -75,7 +81,7 @@ pub async fn chat_sign_in(app: AppHandle) -> ChatResult<ChatStatus> {
             return Ok(ChatStatus::from(&stored));
         }
         match renew(&app, &stored).await {
-            Ok(status) => return Ok(status),
+            Ok(fresh) => return Ok(ChatStatus::from(&fresh)),
             // A grant that is genuinely finished is the one case worth a browser. Any
             // other failure is reported rather than papered over with a sign-in prompt,
             // which would hide an outage behind a confusing request to authenticate.
@@ -109,7 +115,7 @@ pub async fn chat_sign_out(app: AppHandle) -> ChatStatus {
 }
 
 /// Exchange the refresh token for a fresh access token.
-async fn renew(app: &AppHandle, stored: &Credentials) -> ChatResult<ChatStatus> {
+async fn renew(app: &AppHandle, stored: &Credentials) -> ChatResult<Credentials> {
     let token = stored
         .refresh_token
         .as_deref()
@@ -147,7 +153,7 @@ async fn renew(app: &AppHandle, stored: &Credentials) -> ChatResult<ChatStatus> 
         scopes: granted.scopes,
     };
     credentials::save(app, &fresh)?;
-    Ok(ChatStatus::from(&fresh))
+    Ok(fresh)
 }
 
 /// The browser half: register if needed, authorize, exchange, verify, store.
@@ -277,5 +283,203 @@ impl SignIn {
 impl Drop for SignIn {
     fn drop(&mut self) {
         IN_PROGRESS.store(false, Ordering::SeqCst);
+    }
+}
+
+/// Emitted as `chat://delta` while an answer is being written.
+#[derive(Debug, Clone, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ChatDelta {
+    pub text: String,
+}
+
+/// Standing guidance, sent with every turn rather than put in the conversation.
+///
+/// Not a message, because it is not something anybody said and should not be answered
+/// as though it were. Resent each turn because the API keeps nothing between them, which
+/// is the same reason the conversation itself is carried in full.
+const INSTRUCTIONS: &str = "\
+You are the assistant inside Studio, a desktop video editor. The person you are talking \
+to has a project open and can see its timeline, media and viewer.
+
+Be brief and concrete. Answer in plain sentences, not lists, unless a list is genuinely \
+the shape of the answer. Use timecodes the way an editor does.
+
+You are shown a summary of the open project below. It is a summary: it says how many \
+clips and tracks a sequence has, not what is on them. When you need detail you do not \
+have, say what you would need rather than guessing, and never state a specific clip, \
+time or name you were not told.
+
+You cannot change the project yet. If you are asked to make an edit, say plainly that \
+making edits is not switched on yet, and say what you would have done.";
+
+/// The guidance plus what is open right now.
+///
+/// Rebuilt every turn rather than once per conversation, so an answer is never given
+/// against a project that has since been closed, saved as something else, or edited by
+/// hand while the conversation was sitting idle.
+fn instructions(app: &AppHandle) -> String {
+    let state = app.state::<AppState>();
+    let mut slot = state.session();
+    let Some(session) = slot.as_mut() else {
+        return format!("{INSTRUCTIONS}\n\nNo project is open.");
+    };
+    match studio_agent::queries::overview(&session.editor) {
+        Ok(overview) => format!(
+            "{INSTRUCTIONS}\n\nThe open project:\n{}",
+            serde_json::to_string_pretty(&overview).unwrap_or_default()
+        ),
+        Err(_) => format!("{INSTRUCTIONS}\n\nNo project is open."),
+    }
+}
+
+/// The conversation, for as long as the app is running.
+///
+/// Items rather than messages, because a turn holds more than what was said: a reasoning
+/// model produces items it expects to see again, and a tool call and its result are part
+/// of the record too. Deliberately not written to disk: nothing here asked to be kept.
+static CONVERSATION: Mutex<Vec<Value>> = Mutex::new(Vec::new());
+
+/// The model to use, chosen once per run.
+///
+/// Not written down as a slug, because which models a plan offers changes and a slug in
+/// the source goes stale silently. The service lists them in its own order, and the
+/// first is its own answer to which one to use.
+static MODEL: Mutex<Option<String>> = Mutex::new(None);
+
+static ANSWERING: AtomicBool = AtomicBool::new(false);
+
+/// Say something, and get the answer.
+///
+/// The answer also arrives piece by piece as `chat://delta` while this is still running,
+/// so the panel can show it being written. What this returns is the same text, whole:
+/// the panel replaces what it has been showing, which is also how it recovers if it
+/// missed a piece.
+#[tauri::command]
+pub async fn chat_send(app: AppHandle, message: String) -> ChatResult<String> {
+    let message = message.trim().to_string();
+    if message.is_empty() {
+        return Ok(String::new());
+    }
+    let _guard = Answering::begin()?;
+
+    let token = access_token(&app).await?;
+    let model = model(&token).await?;
+
+    // The question joins the conversation before the answer is asked for, so the model
+    // sees it in order. If the ask fails it comes back out: a question nobody answered
+    // would otherwise be asked again, silently, with the next one.
+    let asked = {
+        let mut conversation = CONVERSATION.lock().unwrap_or_else(|e| e.into_inner());
+        conversation.push(json!({ "role": "user", "content": message }));
+        conversation.clone()
+    };
+
+    let instructions = instructions(&app);
+    let answered = client::ask(
+        &token,
+        &client::Turn {
+            model: &model,
+            input: &asked,
+            instructions: &instructions,
+        },
+        |text| {
+            let _ = app.emit(
+                EVENT_DELTA,
+                ChatDelta {
+                    text: text.to_string(),
+                },
+            );
+        },
+    )
+    .await;
+
+    let mut conversation = CONVERSATION.lock().unwrap_or_else(|e| e.into_inner());
+    match answered {
+        Ok(response) => {
+            conversation.extend(client::output_items(&response));
+            Ok(client::output_text(&response))
+        }
+        Err(error) => {
+            conversation.pop();
+            Err(error)
+        }
+    }
+}
+
+/// Start again, forgetting what was said.
+#[tauri::command]
+pub fn chat_reset() {
+    CONVERSATION
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .clear();
+}
+
+pub const EVENT_DELTA: &str = "chat://delta";
+
+/// A token that will still be good when the request arrives.
+///
+/// Refreshed here rather than on a timer: a timer runs while nobody is asking anything,
+/// and the only moment a token's freshness matters is the moment before it is used.
+async fn access_token(app: &AppHandle) -> ChatResult<String> {
+    let stored = credentials::load(app).ok_or_else(ChatError::signed_out)?;
+    let stored = if stored.needs_refresh(credentials::now_unix()) {
+        renew(app, &stored).await?
+    } else {
+        stored
+    };
+    if !stored.may_infer() {
+        return Err(ChatError::new(
+            ChatErrorCode::ScopeDenied,
+            "Studio was not given permission to use your ChatGPT plan. Sign out and sign \
+             in again, allowing it.",
+        ));
+    }
+    Ok(stored.access_token)
+}
+
+/// Which model to ask, fetched once and kept.
+async fn model(token: &str) -> ChatResult<String> {
+    if let Some(chosen) = MODEL.lock().unwrap_or_else(|e| e.into_inner()).clone() {
+        return Ok(chosen);
+    }
+    let offered = client::list_models(token).await?;
+    let chosen = offered
+        .into_iter()
+        .next()
+        .map(|model| model.slug)
+        .ok_or_else(|| {
+            ChatError::new(
+                ChatErrorCode::Provider,
+                "Your ChatGPT plan does not offer a model Studio can use.",
+            )
+        })?;
+    *MODEL.lock().unwrap_or_else(|e| e.into_inner()) = Some(chosen.clone());
+    Ok(chosen)
+}
+
+/// One question at a time.
+///
+/// Two answers streaming into one panel would interleave, and the conversation they both
+/// appended to would end up in an order neither of them asked for.
+struct Answering;
+
+impl Answering {
+    fn begin() -> ChatResult<Self> {
+        if ANSWERING.swap(true, Ordering::SeqCst) {
+            return Err(ChatError::new(
+                ChatErrorCode::Busy,
+                "Studio is still answering the last question.",
+            ));
+        }
+        Ok(Self)
+    }
+}
+
+impl Drop for Answering {
+    fn drop(&mut self) {
+        ANSWERING.store(false, Ordering::SeqCst);
     }
 }

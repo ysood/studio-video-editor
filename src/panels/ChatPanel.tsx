@@ -1,132 +1,190 @@
-// The assistant's panel. For now it only answers one question: who is signed in.
+// The assistant's panel: a conversation, and what it takes to have one.
 //
-// That is deliberately the first thing built. Everything else the panel will do runs on
-// a token, and the sign-in path is the only part that cannot be tested from a test run:
-// it needs a real browser, a real account and a loopback port. So it gets a panel of its
-// own first, where it can be exercised before anything depends on it.
+// Three states, and they are genuinely different rather than variations on a theme.
+// Signed out, there is nothing to say and one thing to do. Signed in without the plan
+// shared, the sign-in worked and still nothing can be asked, which needs its own words.
+// Signed in properly, it is a chat.
 
-import { useCallback, useEffect, useState } from "react";
-import type { ChatStatus } from "../bindings/ChatStatus";
-import { ipc, isChatError } from "../ipc";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { events } from "../ipc";
 import { isBrowserPreview } from "../preview/mode";
-import { Button, EmptyState, Icon, Panel, PanelBody, PanelToolbar } from "../ui";
+import { Button, EmptyState, Icon, IconButton, Panel, PanelBody, PanelToolbar } from "../ui";
+import { useChat, type Message } from "./chat-store";
 import "./chat.css";
 
-/** What went wrong, and whether doing the same thing again is worth a try. */
-type Trouble = { message: string; retryable: boolean };
-
-function troubleOf(error: unknown): Trouble | null {
-  if (isChatError(error)) {
-    // A cancelled sign-in is somebody changing their mind. Reporting it back to them as
-    // a failure would be telling them off for closing a tab.
-    if (error.code === "cancelled") return null;
-    return { message: error.message, retryable: error.retryable };
-  }
-  return {
-    message: error instanceof Error ? error.message : String(error),
-    retryable: true,
-  };
-}
-
 export function ChatPanel() {
-  const [status, setStatus] = useState<ChatStatus | null>(null);
-  const [working, setWorking] = useState(false);
-  const [trouble, setTrouble] = useState<Trouble | null>(null);
+  const status = useChat((s) => s.status);
+  const load = useChat((s) => s.load);
 
   useEffect(() => {
-    let current = true;
-    void ipc
-      .chatStatus()
-      .then((found) => current && setStatus(found))
-      .catch(() => current && setStatus({ signedIn: false, email: null, canInfer: false }));
-    return () => {
-      current = false;
-    };
-  }, []);
+    void load();
+  }, [load]);
 
-  const run = useCallback(async (what: () => Promise<ChatStatus>) => {
-    setWorking(true);
-    setTrouble(null);
-    try {
-      setStatus(await what());
-    } catch (error) {
-      setTrouble(troubleOf(error));
-    } finally {
-      setWorking(false);
-    }
-  }, []);
-
-  // Nothing is known yet. Shown blank rather than signed out, because guessing wrong for
-  // one frame makes the panel flicker between two different layouts on every open.
+  // Nothing known yet. Blank rather than signed out: guessing wrong for one frame makes
+  // the panel flick between two different layouts every time it opens.
   if (!status) return <Panel surface="stage" className="chat" />;
+  if (!status.signedIn) return <SignedOut />;
+  if (!status.canInfer) return <PlanNotShared />;
+  return <Conversation />;
+}
+
+function SignedOut() {
+  const busy = useChat((s) => s.busy);
+  const signIn = useChat((s) => s.signIn);
+  return (
+    <Shell>
+      {isBrowserPreview ? (
+        <EmptyState>Browser preview: signing in needs the desktop app.</EmptyState>
+      ) : (
+        <EmptyState
+          action={
+            <Button variant="solid" icon="chat" disabled={busy} onClick={() => void signIn()}>
+              {busy ? "Waiting for your browser…" : "Sign in with ChatGPT"}
+            </Button>
+          }
+        >
+          Sign in to ask about your edit in plain words. Studio uses your own ChatGPT
+          plan, so there is no key to paste.
+        </EmptyState>
+      )}
+    </Shell>
+  );
+}
+
+function PlanNotShared() {
+  const busy = useChat((s) => s.busy);
+  const signOut = useChat((s) => s.signOut);
+  return (
+    <Shell>
+      <EmptyState
+        action={
+          <Button variant="ghost" disabled={busy} onClick={() => void signOut()}>
+            Sign out and start again
+          </Button>
+        }
+      >
+        Signed in, but Studio was not given permission to use your ChatGPT plan. Sign in
+        again and allow it.
+      </EmptyState>
+    </Shell>
+  );
+}
+
+function Conversation() {
+  const messages = useChat((s) => s.messages);
+  const streaming = useChat((s) => s.streaming);
+  const send = useChat((s) => s.send);
+  const append = useChat((s) => s.append);
+  const [draft, setDraft] = useState("");
+  const end = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    void events.onChatDelta(({ text }) => append(text)).then((stop) => {
+      unlisten = stop;
+    });
+    return () => unlisten?.();
+  }, [append]);
+
+  // Follow the answer as it is written, the way a terminal does.
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: "end" });
+  }, [messages, streaming]);
+
+  const answering = streaming !== null;
+  const submit = () => {
+    if (draft.trim() === "" || answering) return;
+    void send(draft);
+    setDraft("");
+  };
+
+  const composer = (
+    <PanelToolbar placement="bottom">
+      <textarea
+        className="chat-draft"
+        rows={1}
+        value={draft}
+        placeholder={answering ? "Answering…" : "Ask about your edit"}
+        aria-label="Ask the assistant"
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          // Enter sends, since that is what every other chat does. A newline is still
+          // reachable, which matters for anyone pasting something with shape to it.
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            submit();
+          }
+        }}
+      />
+      <IconButton
+        icon="send"
+        label="Send"
+        disabled={draft.trim() === "" || answering}
+        onClick={submit}
+      />
+    </PanelToolbar>
+  );
 
   return (
-    <Panel surface="stage" className="chat">
-      <PanelBody layout="sheet">
-        {status.signedIn ? (
-          <Account status={status} />
-        ) : (
-          <SignIn
-            working={working}
-            onSignIn={() => void run(ipc.chatSignIn)}
-          />
-        )}
-        {trouble && (
-          <p className="chat-trouble" role="alert">
-            <Icon name="warning" />
-            <span>{trouble.message}</span>
-          </p>
-        )}
-      </PanelBody>
-      {status.signedIn && (
-        <PanelToolbar placement="bottom">
-          <span className="chat-account">{status.email ?? "Signed in"}</span>
-          <Button variant="ghost" disabled={working} onClick={() => void run(ipc.chatSignOut)}>
-            Sign out
-          </Button>
-        </PanelToolbar>
+    <Shell footer={composer}>
+      {messages.length === 0 && streaming === null ? (
+        <EmptyState>
+          Ask about what is open: what is on the timeline, how long a sequence runs,
+          where a clip sits.
+        </EmptyState>
+      ) : (
+        <div className="chat-thread">
+          {messages.map((message, i) => (
+            <Said key={i} message={message} />
+          ))}
+          {streaming !== null && <Said message={{ from: "studio", text: streaming }} pending />}
+          <div ref={end} />
+        </div>
       )}
+    </Shell>
+  );
+}
+
+/** One thing somebody said. */
+function Said({ message, pending }: { message: Message; pending?: boolean }) {
+  return (
+    <div className="chat-said" data-from={message.from}>
+      {/* An answer that has been asked for but not begun still needs to take up room,
+          or the panel jumps when the first words arrive. */}
+      {message.text === "" && pending ? <span className="chat-thinking" /> : message.text}
+    </div>
+  );
+}
+
+/** The panel, with whatever trouble there is shown between its content and its footer. */
+function Shell({ children, footer }: { children: ReactNode; footer?: ReactNode }) {
+  const trouble = useChat((s) => s.trouble);
+  return (
+    <Panel surface="stage" className="chat">
+      <PanelBody>{children}</PanelBody>
+      {trouble && (
+        <p className="chat-trouble" role="alert">
+          <Icon name="warning" />
+          <span>{trouble.message}</span>
+        </p>
+      )}
+      {footer}
     </Panel>
   );
 }
 
-function SignIn({ working, onSignIn }: { working: boolean; onSignIn: () => void }) {
-  if (isBrowserPreview) {
-    return (
-      <EmptyState>
-        Browser preview: signing in needs the desktop app.
-      </EmptyState>
-    );
-  }
-  return (
-    <EmptyState
-      action={
-        <Button variant="solid" icon="chat" disabled={working} onClick={onSignIn}>
-          {working ? "Waiting for your browser…" : "Sign in with ChatGPT"}
-        </Button>
-      }
-    >
-      Sign in to ask for edits in plain words. Studio uses your own ChatGPT plan, so
-      there is no key to paste.
-    </EmptyState>
-  );
-}
-
-function Account({ status }: { status: ChatStatus }) {
-  // Signed in and unable to ask anything is its own state, not a kind of signed out. It
-  // happens when the plan was not shared during sign-in, and the fix is to sign in again
-  // and allow it, which is nothing like signing in from scratch.
-  if (!status.canInfer) {
-    return (
-      <EmptyState>
-        Signed in, but ChatGPT plan access was not shared. Sign out and sign in again,
-        allowing Studio to use your plan.
-      </EmptyState>
-    );
-  }
-  return (
-    <EmptyState>
-      Signed in and ready. Asking for edits comes next.
-    </EmptyState>
-  );
+/**
+ * The panel's own entries in the dock header's menu. They belong there rather than in a
+ * row of their own: both are rare, and a chat panel's space is for the chat.
+ */
+export function chatMenu() {
+  const { reset, signOut, status } = useChat.getState();
+  return [
+    { label: "New conversation", icon: "plus" as const, onSelect: () => void reset() },
+    {
+      label: "Sign out of ChatGPT",
+      disabled: !status?.signedIn,
+      onSelect: () => void signOut(),
+    },
+  ];
 }

@@ -113,6 +113,7 @@ const paths = {
   stack: <path d="M8 2.5l5.5 3L8 8.5l-5.5-3zM2.5 8.5L8 11.5l5.5-3M2.5 11L8 14l5.5-3" />,
   warning: <path d="M8 2.5l6 11H2zM8 6.5v3.5M8 12h0" />,
   chat: <path d="M2.5 3.5h11v7.5h-6l-3 2.5v-2.5h-2z" />,
+  send: <path d="M2.5 8h9M8 4.5L11.5 8 8 11.5" />,
 } as const;
 
 export type IconName = keyof typeof paths;

@@ -34,12 +34,22 @@ function sampleRecents(now = Date.now()): Recent[] {
   ];
 }
 
+/**
+ * A fixed reply, after a pause long enough to see the waiting state. It answers nothing:
+ * the preview has no model, and a canned answer that pretended otherwise would be a
+ * worse thing to leave in the window than an honest one.
+ */
+async function sampleAnswer(message: string): Promise<string> {
+  await new Promise((done) => setTimeout(done, 600));
+  return `Browser preview: there is no model here, so nothing can answer "${message}". In the desktop app this is where the reply appears.`;
+}
+
 export function installMockBackend() {
   const snapshot = sampleSnapshot();
   const tools: ToolsStatus = { ffmpeg: "preview", ffprobe: "preview" };
   let callbackId = 0;
 
-  const handlers: Record<string, () => unknown> = {
+  const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
     session_snapshot: () => (previewingHome() ? null : snapshot),
     tools_status: () => tools,
     undo: () => snapshot,
@@ -47,10 +57,11 @@ export function installMockBackend() {
     native_menu_active: () => false,
     recents_list: () => sampleRecents(),
     recents_forget: () => null,
-    // Answered rather than refused so the panel can be styled in a browser. Signing in
-    // needs a loopback listener and the system browser, so the panel says as much and
-    // offers no button there.
-    chat_status: () => ({ signedIn: false, email: null, canInfer: false }),
+    // Answered rather than refused, so the assistant can be styled in a browser the way
+    // the rest of the app can. The sample account is as real as the sample project.
+    chat_status: () => ({ signedIn: true, email: "you@example.com", canInfer: true }),
+    chat_reset: () => null,
+    chat_send: (args) => sampleAnswer(String(args.message ?? "")),
   };
 
   Object.assign(window, {
@@ -59,10 +70,10 @@ export function installMockBackend() {
       metadata: { currentWindow: { label: "main" }, currentWebview: { label: "main", windowLabel: "main" } },
       transformCallback: () => ++callbackId,
       convertFileSrc: (path: string) => previewMediaUrls[path] ?? "",
-      invoke: async (command: string) => {
+      invoke: async (command: string, args: Record<string, unknown> = {}) => {
         if (command.startsWith("plugin:event|")) return ++callbackId;
         const handler = handlers[command];
-        if (handler) return handler();
+        if (handler) return handler(args);
         throw PREVIEW_ERROR;
       },
     },
