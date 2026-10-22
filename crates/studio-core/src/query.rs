@@ -16,9 +16,9 @@
 //! and testable.
 
 use crate::ids::{ClipId, MediaId, SequenceId, TrackId};
-use crate::model::{Clip, Project, Sequence, SequenceFormat, Track, TrackKind};
-use crate::time::{timecode, Frame};
-use serde::Serialize;
+use crate::model::{Clip, MediaKind, Project, Sequence, SequenceFormat, Track, TrackKind};
+use crate::time::{timecode, Frame, Micros, Rational};
+use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 /// One sequence, without its contents.
@@ -274,6 +274,116 @@ pub fn clips_at(project: &Project, sequence: &Sequence, frame: Frame) -> Stack {
     }
 }
 
+/// One asset in the bin, with the things asked about it.
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct MediaSummary {
+    pub id: MediaId,
+    pub name: String,
+    pub path: String,
+    pub kind: MediaKind,
+    #[ts(type = "number | null")]
+    pub duration_us: Option<Micros>,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+    pub frame_rate: Option<Rational>,
+    pub has_video: bool,
+    pub has_audio: bool,
+    /// As told by the caller: only the shell knows whether the file is still there.
+    pub offline: bool,
+    /// How many clips read this asset. Nothing can be removed from the bin while this
+    /// is above zero, so a caller refused for that reason can see what is holding it.
+    pub used_by_clips: usize,
+}
+
+/// Which clips to find. Every field left out widens the search, so an empty filter
+/// returns the whole project.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase", default)]
+#[ts(export)]
+pub struct ClipFilter {
+    pub sequence: Option<SequenceId>,
+    pub tracks: Vec<TrackId>,
+    pub media: Option<MediaId>,
+    /// Matched without regard to case, so that searching for a camera's prefix works
+    /// whichever way the files were named.
+    pub name_contains: Option<String>,
+    /// Clips with any part inside these frames, on the same rule `describe` windows by.
+    #[ts(type = "number | null")]
+    pub from: Option<Frame>,
+    #[ts(type = "number | null")]
+    pub to: Option<Frame>,
+    pub enabled: Option<bool>,
+}
+
+/// The bin. `offline` is the ids the caller found missing on disk.
+pub fn media(project: &Project, offline: &[MediaId]) -> Vec<MediaSummary> {
+    let mut used: std::collections::HashMap<MediaId, usize> = std::collections::HashMap::new();
+    for (_, clip) in project.all_clips() {
+        *used.entry(clip.source.media_id()).or_default() += 1;
+    }
+    project
+        .media
+        .iter()
+        .map(|m| MediaSummary {
+            id: m.id,
+            name: m.name.clone(),
+            path: m.path.clone(),
+            kind: m.kind,
+            duration_us: m.duration_us,
+            width: m.video.as_ref().map(|v| v.width),
+            height: m.video.as_ref().map(|v| v.height),
+            frame_rate: m.video.as_ref().map(|v| v.frame_rate),
+            has_video: m.has_video(),
+            has_audio: m.has_audio(),
+            offline: offline.contains(&m.id),
+            used_by_clips: used.get(&m.id).copied().unwrap_or(0),
+        })
+        .collect()
+}
+
+/// Clips matching every condition the filter states.
+///
+/// One filter rather than a query per question: "the clips that use this media", "the
+/// clips on V2 between these two timecodes" and "the disabled ones" are the same search
+/// with different fields set, and each would otherwise be a tool of its own.
+pub fn find(project: &Project, filter: &ClipFilter) -> Vec<ClipSummary> {
+    let needle = filter.name_contains.as_ref().map(|n| n.to_lowercase());
+    let mut out = Vec::new();
+    for sequence in &project.sequences {
+        if filter.sequence.is_some_and(|id| id != sequence.id) {
+            continue;
+        }
+        for track in &sequence.tracks {
+            if !filter.tracks.is_empty() && !filter.tracks.contains(&track.id) {
+                continue;
+            }
+            for clip in &track.clips {
+                if filter.media.is_some_and(|id| id != clip.source.media_id()) {
+                    continue;
+                }
+                if filter.enabled.is_some_and(|want| want != clip.enabled) {
+                    continue;
+                }
+                if filter.from.is_some_and(|from| clip.end() <= from) {
+                    continue;
+                }
+                if filter.to.is_some_and(|to| clip.start >= to) {
+                    continue;
+                }
+                if let Some(needle) = &needle {
+                    if !clip.name.to_lowercase().contains(needle.as_str()) {
+                        continue;
+                    }
+                }
+                out.push(clip_summary(project, sequence, track, clip));
+            }
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -493,5 +603,109 @@ mod playing {
             pos(first) < pos(last),
             "painting order: the one in front is last"
         );
+    }
+}
+
+#[cfg(test)]
+mod bin_and_search {
+    use super::*;
+    use crate::testing::sample_edit;
+
+    #[test]
+    fn media_counts_the_clips_holding_it() {
+        let project = sample_edit();
+        let bin = media(&project, &[]);
+        assert_eq!(bin.len(), 1);
+        let asset = &bin[0];
+        // Two linked pairs, so four clips read the one asset. That count is why a
+        // refusal to remove it can be explained rather than just reported.
+        assert_eq!(asset.used_by_clips, 4);
+        assert!(asset.has_video && asset.has_audio);
+        assert_eq!(asset.width, Some(1920));
+        assert!(!asset.offline);
+    }
+
+    #[test]
+    fn offline_is_whatever_the_caller_says() {
+        let project = sample_edit();
+        let id = project.media[0].id;
+        assert!(
+            media(&project, &[id])[0].offline,
+            "the caller found it missing"
+        );
+    }
+
+    #[test]
+    fn an_empty_filter_finds_everything() {
+        let project = sample_edit();
+        assert_eq!(find(&project, &ClipFilter::default()).len(), 4);
+    }
+
+    #[test]
+    fn a_filter_narrows_by_track_and_by_time() {
+        let project = sample_edit();
+        let sequence = project.first_sequence();
+        let v1 = sequence.tracks[0].id;
+
+        let on_v1 = find(
+            &project,
+            &ClipFilter {
+                tracks: vec![v1],
+                ..Default::default()
+            },
+        );
+        assert_eq!(on_v1.len(), 2, "the picture half of each pair");
+
+        // The clips run 12..60 and 100..124, so a range ending at 60 catches only the
+        // first: touching is not overlapping, the same rule describe windows by.
+        let early = find(
+            &project,
+            &ClipFilter {
+                tracks: vec![v1],
+                from: Some(0),
+                to: Some(60),
+                ..Default::default()
+            },
+        );
+        assert_eq!(early.len(), 1);
+        assert_eq!(early[0].start, 12);
+    }
+
+    #[test]
+    fn a_filter_narrows_by_name_ignoring_case() {
+        let project = sample_edit();
+        let found = find(
+            &project,
+            &ClipFilter {
+                name_contains: Some("SHOT".into()),
+                ..Default::default()
+            },
+        );
+        assert_eq!(found.len(), 4, "clips are named after the media, shot.mov");
+        let none = find(
+            &project,
+            &ClipFilter {
+                name_contains: Some("absent".into()),
+                ..Default::default()
+            },
+        );
+        assert!(none.is_empty());
+    }
+
+    #[test]
+    fn conditions_combine_rather_than_widen() {
+        let project = sample_edit();
+        let v1 = project.first_sequence().tracks[0].id;
+        let found = find(
+            &project,
+            &ClipFilter {
+                tracks: vec![v1],
+                name_contains: Some("shot".into()),
+                from: Some(90),
+                ..Default::default()
+            },
+        );
+        assert_eq!(found.len(), 1, "on V1 AND named shot AND after frame 90");
+        assert_eq!(found[0].start, 100);
     }
 }
