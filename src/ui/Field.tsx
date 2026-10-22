@@ -2,6 +2,7 @@ import * as SelectPrimitive from "@radix-ui/react-select";
 import * as SliderPrimitive from "@radix-ui/react-slider";
 import { useEffect, useState, type ReactNode } from "react";
 import { Icon } from "./Icon";
+import { Row } from "./List";
 import { useOverlayContainer, useOverlayOpen } from "./overlay";
 import "./overlay.css";
 import "./field.css";
@@ -162,6 +163,58 @@ export function Checkbox({ checked, onChange, disabled, ariaLabel }: {
       aria-label={ariaLabel}
       onChange={(e) => onChange(e.target.checked)}
     />
+  );
+}
+
+export interface RadioOption {
+  value: string;
+  label: string;
+  /** One line saying what choosing this does. */
+  detail?: string;
+}
+
+/**
+ * Exclusive choices, all of them visible at once and each with room for a line of
+ * explanation. Use it where the choice deserves to be read before it is made; use
+ * Select where the options are a list of names and the panel has no room.
+ *
+ * The input is a real radio, so arrow keys move between the options and the group reads
+ * correctly, and `Row` supplies the hover and selected fills every other choosable
+ * thing in the app uses.
+ */
+export function RadioGroup({ value, options, onChange, name, ariaLabel }: {
+  value: string;
+  options: RadioOption[];
+  onChange: (value: string) => void;
+  /** Ties the inputs into one group, so only one can be chosen and arrows move within it. */
+  name: string;
+  ariaLabel: string;
+}) {
+  return (
+    <div className="ui-radio-group" role="radiogroup" aria-label={ariaLabel}>
+      {options.map((option) => (
+        <Row
+          key={option.value}
+          element="label"
+          className="ui-radio"
+          marker="outline"
+          selected={option.value === value}
+        >
+          <input
+            className="ui-radio-input"
+            type="radio"
+            name={name}
+            value={option.value}
+            checked={option.value === value}
+            onChange={() => onChange(option.value)}
+          />
+          <span className="ui-radio-text">
+            <span>{option.label}</span>
+            {option.detail && <span className="ui-radio-detail">{option.detail}</span>}
+          </span>
+        </Row>
+      ))}
+    </div>
   );
 }
 

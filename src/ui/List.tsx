@@ -1,4 +1,4 @@
-import type { CSSProperties, LiHTMLAttributes, ReactNode, Ref } from "react";
+import { createElement, type CSSProperties, type HTMLAttributes, type ReactNode, type Ref } from "react";
 import "./list.css";
 
 /**
@@ -43,29 +43,35 @@ export function List({ label, layout, className, style, children }: {
  * a media row and an export choice genuinely differ there. Give the row its own grid in
  * your stylesheet and leave the states here.
  *
- * Passing `selected` is what makes a row a choice: it takes the `option` role and says
- * whether it is the chosen one. A row without it is a plain line that still highlights
- * under the pointer.
+ * Passing `selected` is what makes a row a choice. A row without it is a plain line
+ * that still highlights under the pointer.
+ *
+ * `element` is here because a choice is not always a line in a list: a radio wraps its
+ * input in a label, and it should not have to restate these states to do that. Only a
+ * list item can carry the `option` role, so the fills key off `data-selected`, which
+ * every element can.
  */
-export function Row({ selected, marker = "edge", tone, className, children, ref, ...rest }: {
+export function Row({ element = "li", selected, marker = "edge", tone, className, children, ref, ...rest }: {
+  element?: "li" | "label" | "div";
   selected?: boolean;
   marker?: RowMarker;
   tone?: "danger";
   className?: string;
   children: ReactNode;
-  ref?: Ref<HTMLLIElement>;
-} & Omit<LiHTMLAttributes<HTMLLIElement>, "className" | "children" | "role" | "aria-selected">) {
-  return (
-    <li
-      {...rest}
-      ref={ref}
-      className={className ? `ui-row ${className}` : "ui-row"}
-      data-marker={marker}
-      data-tone={tone}
-      role={selected === undefined ? undefined : "option"}
-      aria-selected={selected}
-    >
-      {children}
-    </li>
+  ref?: Ref<HTMLElement>;
+} & Omit<HTMLAttributes<HTMLElement>, "className" | "children" | "role" | "aria-selected">) {
+  return createElement(
+    element,
+    {
+      ...rest,
+      ref,
+      className: className ? `ui-row ${className}` : "ui-row",
+      "data-marker": marker,
+      "data-tone": tone,
+      "data-selected": selected,
+      role: element === "li" && selected !== undefined ? "option" : undefined,
+      "aria-selected": element === "li" ? selected : undefined,
+    },
+    children,
   );
 }

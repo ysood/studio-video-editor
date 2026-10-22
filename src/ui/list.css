@@ -30,15 +30,15 @@
 }
 
 /* After the hover rule, so a selected row stays marked while the pointer is on it. */
-.ui-row[aria-selected="true"] {
+.ui-row[data-selected="true"] {
   background: var(--color-state-selected);
 }
 
-.ui-row[aria-selected="true"][data-marker="edge"] {
+.ui-row[data-selected="true"][data-marker="edge"] {
   border-left-color: var(--color-selection);
 }
 
-.ui-row[aria-selected="true"][data-marker="outline"] {
+.ui-row[data-selected="true"][data-marker="outline"] {
   outline-color: var(--color-selection);
 }
 

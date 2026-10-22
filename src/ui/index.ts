@@ -2,7 +2,18 @@
 // for anything these cover. Each primitive reads only theme variables.
 
 export { Button, IconButton, type ButtonVariant } from "./Button";
-export { Checkbox, Field, NumberInput, Select, Slider, TextInput, Value, type SelectOption } from "./Field";
+export {
+  Checkbox,
+  Field,
+  NumberInput,
+  RadioGroup,
+  Select,
+  Slider,
+  TextInput,
+  Value,
+  type RadioOption,
+  type SelectOption,
+} from "./Field";
 export { Dialog } from "./Dialog";
 export { Icon, iconNames, type IconName } from "./Icon";
 export { List, Row, type RowMarker } from "./List";

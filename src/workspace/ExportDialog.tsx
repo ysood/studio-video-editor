@@ -3,18 +3,18 @@ import { useState } from "react";
 import type { VideoCodec } from "../bindings/VideoCodec";
 import { ipc } from "../ipc";
 import { useEditor } from "../store";
-import { Actions, Button, Dialog } from "../ui";
+import { Actions, Button, Dialog, RadioGroup, type RadioOption } from "../ui";
 import "./export-dialog.css";
 import { useActiveSequence } from "../store";
 
 type Choice = "render-h264" | "render-prores" | "otio" | "fcp7" | "package";
 
-const CHOICES: { id: Choice; title: string; detail: string }[] = [
-  { id: "render-h264", title: "Video file, H.264", detail: "MP4 for review and delivery." },
-  { id: "render-prores", title: "Video file, ProRes 422 HQ", detail: "MOV intermediate for finishing." },
-  { id: "package", title: "Conform package", detail: "A folder with every used file, OTIO, XML and a manifest. Best for handing to a colorist." },
-  { id: "fcp7", title: "Timeline for Premiere or Resolve", detail: "FCP7 XML that points at your original files." },
-  { id: "otio", title: "OpenTimelineIO", detail: "Interchange for Resolve and pipeline tools." },
+const CHOICES: RadioOption[] = [
+  { value: "render-h264", label: "Video file, H.264", detail: "MP4 for review and delivery." },
+  { value: "render-prores", label: "Video file, ProRes 422 HQ", detail: "MOV intermediate for finishing." },
+  { value: "package", label: "Conform package", detail: "A folder with every used file, OTIO, XML and a manifest. Best for handing to a colorist." },
+  { value: "fcp7", label: "Timeline for Premiere or Resolve", detail: "FCP7 XML that points at your original files." },
+  { value: "otio", label: "OpenTimelineIO", detail: "Interchange for Resolve and pipeline tools." },
 ];
 
 /** Folder and file names cannot contain path separators or most punctuation. */
@@ -67,23 +67,13 @@ export function ExportDialog({ open: isOpen, onClose }: { open: boolean; onClose
 
   return (
     <Dialog open={isOpen} onClose={onClose} title="Export">
-      <div className="export-choices" role="radiogroup" aria-label="Export type">
-        {CHOICES.map((c) => (
-          <label key={c.id} className="export-choice" data-checked={choice === c.id}>
-            <input
-              type="radio"
-              name="export"
-              value={c.id}
-              checked={choice === c.id}
-              onChange={() => setChoice(c.id)}
-            />
-            <span>
-              <strong>{c.title}</strong>
-              <small>{c.detail}</small>
-            </span>
-          </label>
-        ))}
-      </div>
+      <RadioGroup
+        name="export"
+        ariaLabel="Export type"
+        value={choice}
+        options={CHOICES}
+        onChange={(value) => setChoice(value as Choice)}
+      />
       {job && (
         <p className="export-busy">
           A {job.kind === "render" ? "render" : "package"} is running ({Math.round(job.fraction * 100)}%).{" "}

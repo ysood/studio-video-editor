@@ -23,6 +23,7 @@ import {
   Tabs,
   NumberInput,
   ProgressBar,
+  RadioGroup,
   Section,
   Select,
   Slider,
@@ -64,6 +65,7 @@ export function Gallery() {
   const [checked, setChecked] = useState(true);
   const [slider, setSlider] = useState(0.4);
   const [segment, setSegment] = useState("grid");
+  const [radio, setRadio] = useState("h264");
   const [tab, setTab] = useState("inspector");
 
   return (
@@ -184,6 +186,16 @@ export function Gallery() {
             <Value numeric>00:00:01:00</Value>
           </Field>
           <Note>Frame rate is fixed once the timeline has clips.</Note>
+          <RadioGroup
+            name="gallery-radio"
+            ariaLabel="Delivery"
+            value={radio}
+            onChange={setRadio}
+            options={[
+              { value: "h264", label: "Video file, H.264", detail: "MP4 for review and delivery." },
+              { value: "prores", label: "Video file, ProRes 422 HQ", detail: "MOV intermediate for finishing." },
+            ]}
+          />
         </Section>
 
         <Section title="Menus and overlays">

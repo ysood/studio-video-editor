@@ -19,7 +19,8 @@ src/theme/
   fonts/            self-hosted font files (the app is offline; no font CDNs)
 
 src/ui/             primitives built only from tokens: Button, IconButton, Icon, Field,
-                    TextInput, NumberInput, Select, Checkbox, Slider, List, Row, Panel,
+                    TextInput, NumberInput, Select, Checkbox, RadioGroup, Slider, List,
+                    Row, Panel,
                     Well, PanelToolbar, PanelBody, Spacer, Gap, EmptyState, Section, Note,
                     Actions, ProgressBar, Dialog, Timecode
 src/panels/         compose primitives; their CSS is layout only
