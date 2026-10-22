@@ -206,6 +206,74 @@ pub fn describe(
     }
 }
 
+/// A clip that is playing, and where in its media it has reached.
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ActiveClip {
+    pub clip: ClipSummary,
+    /// How far into the media the frame on screen is, counted in sequence frames, which
+    /// is the unit `sourceStart` is already in.
+    #[ts(type = "number")]
+    pub source_frame: Frame,
+    pub source_timecode: String,
+}
+
+/// What is playing at one frame.
+#[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct Stack {
+    #[ts(type = "number")]
+    pub frame: Frame,
+    pub timecode: String,
+    /// In painting order, lowest track first, so the last entry is the one in front.
+    /// Every layer is listed rather than only the top one, because a clip may be scaled,
+    /// turned or faded and then what is under it shows through.
+    pub video: Vec<ActiveClip>,
+    pub audio: Vec<ActiveClip>,
+}
+
+/// What plays at `frame`.
+///
+/// This is the rule the renderer uses, in `export::render`: a disabled track or a
+/// disabled clip is not there, and within a track at most one clip can contain a frame,
+/// because the document forbids them from overlapping.
+///
+/// `src/playback/resolve.ts` is the same rule again, for the preview, and drops a clip
+/// whose media is not in the bin. This does not: it reports the clip with no media name.
+/// Validation makes that unreachable in a document anyone can get hold of, and if it
+/// ever were reached, saying a clip is there without its media is more use than saying
+/// nothing is there.
+pub fn clips_at(project: &Project, sequence: &Sequence, frame: Frame) -> Stack {
+    let rate = sequence.format.frame_rate;
+    let on = |kind: TrackKind| -> Vec<ActiveClip> {
+        sequence
+            .tracks
+            .iter()
+            .filter(|t| t.kind == kind && t.enabled)
+            .filter_map(|track| {
+                let clip = track
+                    .clips
+                    .iter()
+                    .find(|c| c.enabled && c.contains(frame))?;
+                let source_frame = clip.source.source_start() + frame - clip.start;
+                Some(ActiveClip {
+                    clip: clip_summary(project, sequence, track, clip),
+                    source_frame,
+                    source_timecode: timecode(source_frame, rate),
+                })
+            })
+            .collect()
+    };
+    Stack {
+        frame,
+        timecode: timecode(frame, rate),
+        video: on(TrackKind::Video),
+        audio: on(TrackKind::Audio),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -299,5 +367,131 @@ mod tests {
         let view = describe(&project, &sequence, None);
         let kinds: Vec<_> = view.tracks.iter().map(|t| t.kind).collect();
         assert_eq!(kinds, vec![TrackKind::Video, TrackKind::Audio]);
+    }
+}
+
+#[cfg(test)]
+mod playing {
+    use super::*;
+    use crate::edit::{apply, EditCommand};
+    use crate::testing::sample_edit;
+
+    fn sample() -> (Project, Sequence) {
+        let project = sample_edit();
+        let sequence = project.first_sequence().clone();
+        (project, sequence)
+    }
+
+    #[test]
+    fn nothing_plays_in_a_gap() {
+        let (project, sequence) = sample();
+        // The clips are 12..60 and 100..124, so 80 is between them.
+        let stack = clips_at(&project, &sequence, 80);
+        assert!(stack.video.is_empty() && stack.audio.is_empty());
+        assert_eq!(stack.timecode, "00:00:03:08");
+    }
+
+    #[test]
+    fn the_picture_and_its_sound_play_together() {
+        let (project, sequence) = sample();
+        let stack = clips_at(&project, &sequence, 24);
+        assert_eq!(stack.video.len(), 1);
+        assert_eq!(stack.audio.len(), 1);
+    }
+
+    #[test]
+    fn source_position_counts_from_where_the_clip_reads() {
+        let (project, sequence) = sample();
+        // The first clip starts at 12 and reads its media from 6, so twelve frames in
+        // at frame 24 the media is at 18.
+        let stack = clips_at(&project, &sequence, 24);
+        assert_eq!(stack.video[0].source_frame, 18);
+        assert_eq!(stack.video[0].source_timecode, "00:00:00:18");
+    }
+
+    #[test]
+    fn the_last_frame_of_a_clip_is_the_one_before_its_end() {
+        let (project, sequence) = sample();
+        assert_eq!(clips_at(&project, &sequence, 59).video.len(), 1, "inside");
+        assert!(
+            clips_at(&project, &sequence, 60).video.is_empty(),
+            "end is exclusive"
+        );
+    }
+
+    #[test]
+    fn a_disabled_clip_is_not_playing() {
+        let (project, sequence) = sample();
+        let clip = sequence.tracks[0].clips[0].id;
+        let project = apply(
+            &project,
+            &EditCommand::SetClipsEnabled {
+                clip_ids: vec![clip],
+                enabled: false,
+            },
+        )
+        .unwrap()
+        .0;
+        let sequence = project.first_sequence().clone();
+        let stack = clips_at(&project, &sequence, 24);
+        assert!(stack.video.is_empty(), "the picture was disabled");
+        assert!(stack.audio.is_empty(), "and its linked sound with it");
+    }
+
+    #[test]
+    fn a_disabled_track_is_not_playing() {
+        let (project, sequence) = sample();
+        let track = sequence.tracks[0].id;
+        let project = apply(
+            &project,
+            &EditCommand::SetTrackState {
+                track_id: track,
+                enabled: Some(false),
+                locked: None,
+            },
+        )
+        .unwrap()
+        .0;
+        let sequence = project.first_sequence().clone();
+        let stack = clips_at(&project, &sequence, 24);
+        assert!(stack.video.is_empty());
+        assert_eq!(stack.audio.len(), 1, "only the video track was turned off");
+    }
+
+    #[test]
+    fn video_comes_back_lowest_track_first() {
+        let (project, sequence) = sample();
+        let sequence_id = sequence.id;
+        let media_id = project.media[0].id;
+        // Put a second video clip over the first, on a new track above it.
+        let project = apply(
+            &project,
+            &EditCommand::InsertMedia {
+                sequence_id,
+                media_id,
+                start: 12,
+                source_start: 0,
+                duration: Some(48),
+                video_track: crate::edit::TrackChoice::New,
+                audio_track: crate::edit::TrackChoice::Skip,
+            },
+        )
+        .unwrap()
+        .0;
+        let sequence = project.first_sequence().clone();
+        let stack = clips_at(&project, &sequence, 24);
+        assert_eq!(
+            stack.video.len(),
+            2,
+            "both layers are reported, not just the top"
+        );
+        let tracks: Vec<_> = sequence.tracks.iter().map(|t| t.id).collect();
+        let first = stack.video[0].clip.track_id;
+        let last = stack.video[1].clip.track_id;
+        let pos = |id| tracks.iter().position(|t| *t == id).unwrap();
+        assert!(
+            pos(first) < pos(last),
+            "painting order: the one in front is last"
+        );
     }
 }
