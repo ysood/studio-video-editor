@@ -5,6 +5,20 @@
   stroke-width: var(--border-icon-stroke);
 }
 
+/* No look at all: for a control whose content is its own layout. */
+.ui-plain-button {
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: none;
+  text-align: start;
+  cursor: pointer;
+}
+
+.ui-plain-button:disabled {
+  cursor: default;
+}
+
 /* Shared by text and icon buttons: one height, one radius, one hover rule. */
 .ui-button,
 .ui-icon-button {

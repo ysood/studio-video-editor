@@ -19,8 +19,8 @@ src/theme/
   fonts/            self-hosted font files (the app is offline; no font CDNs)
 
 src/ui/             primitives built only from tokens: Button, IconButton, Icon, Field,
-                    TextInput, NumberInput, Select, Checkbox, RadioGroup, Slider, List,
-                    Row, Panel,
+                    PlainButton, TextInput, NumberInput, Select, Checkbox, RadioGroup,
+                    Slider, List, Row, Panel,
                     Well, PanelToolbar, PanelBody, Spacer, Gap, EmptyState, Section, Note,
                     Actions, ProgressBar, Dialog, Timecode
 src/panels/         compose primitives; their CSS is layout only
@@ -72,7 +72,10 @@ These keep every panel reading as one product. The gallery shows each rule.
 2. **Button hierarchy.** `solid` is the one primary action in a region (Export, Import
    media in an empty bin, a dialog's confirm). `quiet` is the default action. `ghost`
    is for low-emphasis actions; square icon buttons are ghost. Toggles that are on show
-   accent text on the accent wash, in both buttons and icon buttons.
+   accent text on the accent wash, in both buttons and icon buttons. A control whose
+   content is a block of layout rather than a label, such as a whole row that is one
+   target, is a `PlainButton`: it strips the browser's chrome and adds nothing, so no
+   screen has to write that reset again.
 3. **Disabled fades.** Disabled controls use `opacity.disabled` instead of a color, so
    they stay legible on red, black or grey.
 4. **Inputs.** `surface.input` fill, `border.subtle` outline, `border.strong` on hover,

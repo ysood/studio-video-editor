@@ -36,6 +36,27 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   );
 });
 
+/**
+ * A button with no look of its own: the browser's chrome stripped and the pointer set,
+ * and nothing else. It is for a control whose content is a block of layout rather than
+ * a label, such as a whole row that is one target, where Button's height and padding
+ * would be in the way. Anything that should read as a button is a Button.
+ */
+export const PlainButton = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HTMLButtonElement>>(
+  function PlainButton({ children, type = "button", className, ...rest }, ref) {
+    return (
+      <button
+        ref={ref}
+        type={type}
+        className={className ? `ui-plain-button ${className}` : "ui-plain-button"}
+        {...rest}
+      >
+        {children}
+      </button>
+    );
+  },
+);
+
 export interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> {
   icon: IconName;
   /** Accessible name, also shown as the tooltip. */

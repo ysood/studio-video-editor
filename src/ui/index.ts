@@ -1,7 +1,7 @@
 // Studio's UI primitives. Panels compose these; they never style raw elements themselves
 // for anything these cover. Each primitive reads only theme variables.
 
-export { Button, IconButton, type ButtonVariant } from "./Button";
+export { Button, IconButton, PlainButton, type ButtonVariant } from "./Button";
 export {
   Checkbox,
   Field,

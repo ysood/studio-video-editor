@@ -109,9 +109,7 @@
 .home-list {
   display: flex;
   flex-direction: column;
-  margin: 0;
   padding: 0;
-  list-style: none;
 }
 
 .home-row {
@@ -120,9 +118,10 @@
   border-radius: var(--radius-control);
 }
 
-.home-row:hover:not([data-missing="true"]),
-.home-row:focus-within {
-  background: var(--color-state-hover);
+/* A project whose file has gone is still listed, so you can see what became of it and
+   forget it, but it does not light up as something to open. */
+.home-row[data-missing="true"]:hover {
+  background: none;
 }
 
 /* Name and time on one line, path under the name: two rows and two columns, so the times
@@ -139,15 +138,6 @@
   row-gap: var(--space-hairline);
   min-width: 0; /* design-allow */
   padding: var(--space-6);
-  border: none;
-  border-radius: inherit;
-  background: none;
-  text-align: start;
-  cursor: pointer;
-}
-
-.home-open:disabled {
-  cursor: default;
 }
 
 /* The name is set in the wordmark face, at a size the editor never uses: this is the one
@@ -197,26 +187,12 @@
 }
 
 .home-forget {
-  display: grid;
-  place-items: center;
-  width: var(--size-control-small);
-  height: var(--size-control-small);
   margin-inline-end: var(--space-4);
-  border: none;
-  border-radius: var(--radius-control);
   opacity: 0;
-  background: none;
-  color: var(--color-text-tertiary);
-  cursor: pointer;
 }
 
 /* Hidden until the row is in play, so a list at rest is only projects. */
 .home-row:hover .home-forget,
 .home-forget:focus-visible {
   opacity: 1;
-}
-
-.home-forget:hover {
-  background: var(--color-state-hover);
-  color: var(--color-text-primary);
 }

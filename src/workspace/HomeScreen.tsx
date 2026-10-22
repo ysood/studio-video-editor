@@ -12,7 +12,7 @@ import type { Recent } from "../bindings/Recent";
 import { timeAgo } from "../format";
 import { ipc } from "../ipc";
 import { useEditor } from "../store";
-import { Button, Icon } from "../ui";
+import { Button, Icon, IconButton, List, PlainButton, Row } from "../ui";
 import "./home.css";
 
 /** The folder a path sits in, which is what tells two projects of the same name apart. */
@@ -76,11 +76,10 @@ export function HomeScreen({ onNew }: { onNew: () => void }) {
             <h2 className="home-section">
               <span>Recent projects</span>
             </h2>
-            <ul className="home-list">
+            <List className="home-list">
               {recents.map((recent) => (
-                <li key={recent.path} className="home-row" data-missing={!recent.exists}>
-                  <button
-                    type="button"
+                <Row key={recent.path} marker="none" className="home-row" data-missing={!recent.exists}>
+                  <PlainButton
                     className="home-open"
                     disabled={!recent.exists}
                     onClick={() => void openPath(recent.path)}
@@ -91,18 +90,17 @@ export function HomeScreen({ onNew }: { onNew: () => void }) {
                       <bdi>{recent.exists ? folderOf(recent.path) : "Moved or deleted"}</bdi>
                     </span>
                     <span className="home-when">{timeAgo(Number(recent.openedUnixMs))}</span>
-                  </button>
-                  <button
-                    type="button"
+                  </PlainButton>
+                  <IconButton
+                    icon="close"
+                    size="small"
                     className="home-forget"
-                    aria-label={`Remove ${recent.name} from the list`}
+                    label={`Remove ${recent.name} from the list`}
                     onClick={() => void forget(recent.path)}
-                  >
-                    <Icon name="close" />
-                  </button>
-                </li>
+                  />
+                </Row>
               ))}
-            </ul>
+            </List>
           </section>
         )}
       </div>
