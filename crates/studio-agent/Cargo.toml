@@ -1,0 +1,21 @@
+[package]
+name = "studio-agent"
+description = "Studio's document capability as a catalogue of tools, independent of transport"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+studio-core = { path = "../studio-core", features = ["schema"] }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+ts-rs.workspace = true
+schemars.workspace = true
+
+[dev-dependencies]
+studio-core = { path = "../studio-core", features = ["schema", "testing"] }
+
+[lints]
+workspace = true

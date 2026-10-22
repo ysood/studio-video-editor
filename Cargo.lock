@@ -3121,6 +3121,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
+name = "studio-agent"
+version = "0.1.0"
+dependencies = [
+ "schemars 1.2.3",
+ "serde",
+ "serde_json",
+ "studio-core",
+ "thiserror 2.0.21",
+ "ts-rs",
+]
+
+[[package]]
 name = "studio-app"
 version = "0.1.0"
 dependencies = [
