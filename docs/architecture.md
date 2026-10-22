@@ -1,12 +1,12 @@
 # Architecture
 
-Last verified: 2026-10-20
+Last verified: 2026-10-22
 
 ## Layers
 
 ```
 ┌────────────────────────────── React UI (src/) ──────────────────────────────┐
-│  Workspace (Dockview)  Media bin  Viewer  Timeline  Inspector + Transform    │
+│  Workspace (Dockview)  Media bin  Viewer  Timeline  Properties  Assistant    │
 │  store.ts: latest Snapshot + view state (selection, playhead, zoom)          │
 │  geometry.ts / resolve.ts / framing.ts: pure, tested mirrors of core rules   │
 └───────────────▲──────────────────────────────────────────────┬──────────────┘
@@ -14,12 +14,20 @@ Last verified: 2026-10-20
 ┌───────────────┴──────────── Tauri shell (src-tauri/) ─────────▼──────────────┐
 │  commands.rs: validate paths, call core, spawn ffprobe/ffmpeg, emit job events│
 │  state.rs: Session (Editor + save path), running job, cached tool paths       │
+│  agent.rs: the catalogue over IPC   chat/: sign-in, the model, the turn loop  │
+└───────────────▲──────────────────────────────────────────────┬──────────────┘
+                │                                                │
+┌───────────────┴─────────── studio-agent (crates/) ───────────▼──────────────┐
+│  tool.rs    what a tool is  schema.rs   per-command JSON Schema              │
+│  queries.rs reading         commands.rs the edits, as tools                  │
+│  delta.rs   what an edit did, including what nobody asked for                │
 └───────────────▲──────────────────────────────────────────────┬──────────────┘
                 │                                                │
 ┌───────────────┴──────────── studio-core (crates/) ───────────▼──────────────┐
 │  model.rs   schema          edit.rs     commands, overwrite, links           │
 │  validate.rs invariants     history.rs  undo/redo snapshots, dirty tracking  │
 │  persist.rs versioned JSON  probe.rs    ffprobe JSON to MediaAsset           │
+│  query.rs   reading         select.rs   naming things in text, not uuids     │
 │  export/    otio.rs  fcp7.rs  render.rs (FFmpeg plan)  package.rs (conform)  │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -65,6 +73,43 @@ enum exported to TypeScript. Every way of starting one ends in `runAction` in
   second bar inside the window. `STUDIO_NATIVE_MENU=1` forces the native menu for testing.
 - A shortcut can reach both the web view and the native menu, so a menu event arriving
   within 300 ms of the keyboard running the same action is ignored.
+
+## The assistant
+
+A panel where you talk to a model that can see the timeline and change it. It floats
+rather than docking, so it does not push the viewer off centre, and is opened from the
+top bar. `docs/agent-api.md` covers the catalogue it drives; this is the path.
+
+**Rust owns the credentials and the network. The webview never sees a token.** It sends a
+message and renders events. A bug in the panel cannot leak a credential it was never
+given, and the panel is the part most likely to have bugs.
+
+- **Signing in** (`chat/oauth.rs`, `chat/callback.rs`) is Sign in with ChatGPT: OAuth with
+  PKCE, registering this installation during the first sign-in, so there is no API key
+  and no client secret. Endpoints come from the provider's OpenID configuration and are
+  then required to be on the issuer's own origin; redirects are never followed, since a
+  redirect on a token request resends the body; the ID token is verified rather than read.
+  The browser comes back to a loopback listener on `127.0.0.1`, not `localhost`, which the
+  provider requires and which cannot be pointed elsewhere by a resolver.
+- **Credentials** (`chat/credentials.rs`) live beside `recents.json` at `0600`. A file
+  that will not parse is left alone rather than overwritten: it holds the only copy of a
+  refresh token, so a bug in reading it must not be a way to destroy it.
+- **A turn** (`chat/turn.rs`) is not one request. The model answers; its answer may be
+  "call this tool"; the tool runs through the same `agent::run` as any other caller; the
+  result goes back; it answers again. The conversation is therefore a list of items, not
+  messages, and everything the model produced goes back next turn, reasoning items
+  included.
+- **Approval.** A tool whose `destructive` annotation is set stops the turn. The panel
+  shows the arguments, not a summary of them, and the answer resumes it. The whole queue
+  of outstanding calls waits, because the provider will not take another turn until every
+  call it made has come back with something.
+- **Names.** Tools are `area.verb`; the provider accepts no dots. The map is built from
+  the catalogue and checked both ways, because the substitution cannot be reversed by
+  hand: an underscore in the result could have come from either side of the dot.
+
+What is open is sent as standing guidance, rebuilt every turn, so an answer is never
+given against a project that has since been closed or edited by hand. Nothing is stored
+on the provider's side (`store: false`) and nothing is written to disk here.
 
 ## Media, playback and render
 

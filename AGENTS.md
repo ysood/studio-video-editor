@@ -9,8 +9,8 @@ Studio is a desktop video editor built with Tauri 2 (Rust) and React. It edits m
 timelines, plays them back, renders them with FFmpeg, and hands timelines off to
 DaVinci Resolve and Premiere Pro through OpenTimelineIO and FCP7 XML. Generated (AI) and
 3D clip types are planned as additional `ClipSource` variants. Read
-`docs/architecture.md` before changing structure, and `docs/schema.md` before changing the
-project document.
+`docs/architecture.md` before changing structure, `docs/schema.md` before changing the
+project document, and `docs/agent-api.md` before changing anything an agent calls.
 
 ## Git identity and attribution (mandatory)
 
