@@ -7,7 +7,7 @@ import { chord } from "../keyboard";
 import { formatDuration, formatRate } from "../format";
 import { useEditor } from "../store";
 import { useTheme } from "../theme";
-import { ContextMenu, EmptyState, Icon, IconButton, Menu, type MenuEntry, Panel, PanelToolbar, Segmented, Slider, Spacer, TextInput, Well } from "../ui";
+import { ContextMenu, EmptyState, Icon, IconButton, List, Menu, type MenuEntry, Panel, PanelToolbar, Row, Segmented, Slider, Spacer, TextInput, Well } from "../ui";
 import { activeSequence } from "../sequences";
 import { smartBins, sortLabels, TIMELINES_BIN, type BinId, type SortKey } from "./bins";
 import { MediaTile } from "./MediaTile";
@@ -164,24 +164,22 @@ export function MediaBinPanel() {
           they exist before any footage does. */}
       <div className="bin-layout">
           <Well className="bin-folders">
-            <ul role="listbox" aria-label="Bins">
+            <List label="Bins">
               {bins.map((b) => (
-                <li
+                <Row
                   key={b.id}
-                  role="option"
-                  aria-selected={!showingTimelines && b.id === bin.id}
+                  selected={!showingTimelines && b.id === bin.id}
                   className="bin-folder"
-                  data-tone={b.id === "offline" ? "danger" : undefined}
+                  tone={b.id === "offline" ? "danger" : undefined}
                   onClick={() => setPrefs({ ...prefs, bin: b.id })}
                 >
                   <Icon name={b.icon} />
                   <span className="bin-folder-name">{b.name}</span>
                   <span className="bin-folder-count numeric">{b.media.length}</span>
-                </li>
+                </Row>
               ))}
-              <li
-                role="option"
-                aria-selected={showingTimelines}
+              <Row
+                selected={showingTimelines}
                 className="bin-folder"
                 onClick={() => setPrefs({ ...prefs, bin: TIMELINES_BIN })}
               >
@@ -195,8 +193,8 @@ export function MediaBinPanel() {
                     setNewSequence(true);
                   }}
                 />
-              </li>
-            </ul>
+              </Row>
+            </List>
           </Well>
 
           <div className="bin-content">
@@ -206,12 +204,11 @@ export function MediaBinPanel() {
               />
             ) : showingTimelines ? (
               <Well className="bin-list-well">
-                <ul className="bin-list" role="listbox" aria-label="Timelines">
+                <List label="Timelines">
                   {sequences.map((q) => (
                     <ContextMenu key={q.id} entries={sequenceMenu(q)}>
-                      <li
-                        role="option"
-                        aria-selected={q.id === openSequenceId}
+                      <Row
+                        selected={q.id === openSequenceId}
                         className="bin-row"
                         onClick={() => renaming !== q.id && setActiveSequence(q.id)}
                         onDoubleClick={() => setRenaming(q.id)}
@@ -241,18 +238,17 @@ export function MediaBinPanel() {
                         <span className="bin-duration numeric">
                           {formatDuration(sequenceMicros(q))}
                         </span>
-                      </li>
+                      </Row>
                     </ContextMenu>
                   ))}
-                </ul>
+                </List>
               </Well>
             ) : bin.media.length === 0 ? (
               <EmptyState>Nothing in {bin.name.toLowerCase()} yet.</EmptyState>
             ) : prefs.view === "grid" ? (
-              <ul
-                className="bin-grid"
-                role="listbox"
-                aria-label={bin.name}
+              <List
+                label={bin.name}
+                layout="grid"
                 style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${thumbnail}px, 1fr))` }}
               >
                 {bin.media.map((m) => (
@@ -267,15 +263,14 @@ export function MediaBinPanel() {
                     {...dragProps(m)}
                   />
                 ))}
-              </ul>
+              </List>
             ) : (
               <Well className="bin-list-well">
-                <ul className="bin-list" role="listbox" aria-label={bin.name}>
+                <List label={bin.name}>
                   {bin.media.map((m) => (
                     <ContextMenu key={m.id} entries={menuFor(m)}>
-                      <li
-                        role="option"
-                        aria-selected={m.id === selected}
+                      <Row
+                        selected={m.id === selected}
                         className="bin-row"
                         draggable
                         onClick={() => setSelected(m.id)}
@@ -292,10 +287,10 @@ export function MediaBinPanel() {
                         <span className="bin-duration numeric">
                           {offline.has(m.id) ? <em className="bin-offline">Offline</em> : formatDuration(m.durationUs)}
                         </span>
-                      </li>
+                      </Row>
                     </ContextMenu>
                   ))}
-                </ul>
+                </List>
               </Well>
             )}
           </div>

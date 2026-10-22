@@ -19,9 +19,9 @@ src/theme/
   fonts/            self-hosted font files (the app is offline; no font CDNs)
 
 src/ui/             primitives built only from tokens: Button, IconButton, Icon, Field,
-                    TextInput, NumberInput, Select, Checkbox, Slider, Panel, Well,
-                    PanelToolbar, PanelBody, Spacer, Gap, EmptyState, Section, Note, Actions,
-                    ProgressBar, Dialog, Timecode
+                    TextInput, NumberInput, Select, Checkbox, Slider, List, Row, Panel,
+                    Well, PanelToolbar, PanelBody, Spacer, Gap, EmptyState, Section, Note,
+                    Actions, ProgressBar, Dialog, Timecode
 src/panels/         compose primitives; their CSS is layout only
 src/timeline/draw.ts paints the canvas from the theme object
 ```
@@ -81,12 +81,18 @@ These keep every panel reading as one product. The gallery shows each rule.
    icon buttons with tooltips over text buttons in toolbars.
 6. **Wells.** A panel body that holds wells uses `PanelBody layout="wells"`: `space.3`
    inset and `space.3` between wells. Wells never set their own margins.
-7. **Overlays.** Menus, select lists, popovers and tooltips share one anatomy on the
+
+7. **Lists.** Rows go in a `List`, and a row that can be picked is a `Row`. `Row` owns
+   the hover fill, the selected fill and the selection marker (`edge` for a line in a
+   list, `outline` for a tile); the caller's own class owns the grid, the padding and
+   the radius, because a bin folder, a media row and an export choice differ there and
+   nowhere else. Never restate selection in a panel's stylesheet.
+8. **Overlays.** Menus, select lists, popovers and tooltips share one anatomy on the
    well surface: `radius.dialog`, `elevation.popover`, items `size.control` tall, a
    highlight fill instead of a focus ring, shortcuts in tertiary text on the right.
-8. **Icon buttons always explain themselves.** `IconButton` requires a label, shown as
+9. **Icon buttons always explain themselves.** `IconButton` requires a label, shown as
    a tooltip with the keyboard shortcut when there is one.
-9. **Interaction fills are translucent.** What a thing *is* comes from
+10. **Interaction fills are translucent.** What a thing *is* comes from
    `color.surface.*`: `raised` is the resting fill of anything lifted off the panel, a
    quiet button, a track header, a slider rail, the trough of a segmented control. What
    is *happening to it* comes from `color.state.*`: `hover`, and `selected` for the
@@ -97,7 +103,7 @@ These keep every panel reading as one product. The gallery shows each rule.
    `background-image` so the fill underneath survives. Selection also carries
    `color.selection` on a border or outline, never a different fill per panel.
 
-10. **Menus mirror the toolbar.** A context menu or overflow menu offers the same action
+11. **Menus mirror the toolbar.** A context menu or overflow menu offers the same action
    with the same label, icon and shortcut as its button, so `chord()` from
    `src/keyboard.ts` writes every shortcut. A right click selects what is under the
    pointer before the menu opens. Destructive items use `tone: "danger"` and sit last,

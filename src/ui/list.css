@@ -1,0 +1,47 @@
+.ui-list {
+  margin: 0;
+  padding: var(--space-2) 0;
+  list-style: none;
+}
+
+/* Tiles. The caller sets the track sizes, because only it knows how wide a tile is. */
+.ui-list[data-layout="grid"] {
+  display: grid;
+  gap: var(--space-3);
+  padding: 0;
+}
+
+/* A row carries the states and nothing else: its grid, padding and radius belong to
+   whatever kind of row it is. The leading stripe is always there so selecting a row
+   never changes its width. */
+.ui-row[data-marker="edge"] {
+  border-left: var(--border-focus-width) solid transparent;
+}
+
+.ui-row[data-marker="outline"] {
+  outline: var(--border-focus-width) solid transparent;
+  outline-offset: calc(-1 * var(--border-focus-width));
+  transition: outline-color var(--motion-quick) var(--motion-easing);
+}
+
+.ui-row:hover,
+.ui-row:focus-within {
+  background: var(--color-state-hover);
+}
+
+/* After the hover rule, so a selected row stays marked while the pointer is on it. */
+.ui-row[aria-selected="true"] {
+  background: var(--color-state-selected);
+}
+
+.ui-row[aria-selected="true"][data-marker="edge"] {
+  border-left-color: var(--color-selection);
+}
+
+.ui-row[aria-selected="true"][data-marker="outline"] {
+  outline-color: var(--color-selection);
+}
+
+.ui-row[data-tone="danger"] .ui-icon {
+  color: var(--color-status-danger);
+}

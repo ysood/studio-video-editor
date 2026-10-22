@@ -2,7 +2,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { useRef } from "react";
 import type { MediaAsset } from "../bindings/MediaAsset";
 import { formatDuration } from "../format";
-import { ContextMenu, Icon, type MenuEntry } from "../ui";
+import { ContextMenu, Icon, type MenuEntry, Row } from "../ui";
 
 /** Poster frame position, a little in so fades from black still show picture. */
 const POSTER_SECONDS = 0.5;
@@ -51,10 +51,10 @@ export function MediaTile({
 
   return (
     <ContextMenu entries={menu}>
-      <li
+      <Row
         className="bin-tile"
-        role="option"
-        aria-selected={selected}
+        marker="outline"
+        selected={selected}
         draggable
         title={media.path}
         onClick={onSelect}
@@ -87,7 +87,7 @@ export function MediaTile({
             {formatDuration(media.durationUs)}
           </span>
         </div>
-      </li>
+      </Row>
     </ContextMenu>
   );
 }
