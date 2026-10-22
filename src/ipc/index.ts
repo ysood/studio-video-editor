@@ -4,7 +4,9 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import type { AgentReply } from "../bindings/AgentReply";
 import type { CommandError } from "../bindings/CommandError";
+import type { DocumentChanged } from "../bindings/DocumentChanged";
 import type { EditCommand } from "../bindings/EditCommand";
 import type { EditResponse } from "../bindings/EditResponse";
 import type { ImportResponse } from "../bindings/ImportResponse";
@@ -16,6 +18,7 @@ import type { Recent } from "../bindings/Recent";
 import type { RenderSettings } from "../bindings/RenderSettings";
 import type { SequenceFormat } from "../bindings/SequenceFormat";
 import type { Snapshot } from "../bindings/Snapshot";
+import type { Tool } from "../bindings/Tool";
 import type { ToolsStatus } from "../bindings/ToolsStatus";
 import type { ViewerOverlay } from "../bindings/ViewerOverlay";
 import type { ViewerPointer } from "../bindings/ViewerPointer";
@@ -75,6 +78,20 @@ export const ipc = {
   viewerPause: () => invoke<void>("viewer_pause"),
   viewerSeek: (sequenceId: string, frame: number) =>
     invoke<void>("viewer_seek", { sequenceId, frame }),
+
+  /** What can be done from inside the app, as the catalogue describes it. */
+  agentListTools: () => invoke<Tool[]>("agent_list_tools"),
+  /**
+   * Do one of them. `expectedRevision` says which state the caller was looking at, so
+   * an edit aimed at a document that has since moved is refused rather than applied to
+   * the wrong one. Leave it out only when the document was read a moment ago.
+   */
+  agentCallTool: (name: string, args?: unknown, expectedRevision?: number) =>
+    invoke<AgentReply>("agent_call_tool", {
+      name,
+      arguments: args ?? null,
+      expectedRevision: expectedRevision ?? null,
+    }),
 };
 
 export const events = {
@@ -93,4 +110,10 @@ export const events = {
    */
   onViewerPointer: (handler: (pointer: ViewerPointer) => void): Promise<UnlistenFn> =>
     listen<ViewerPointer>("viewer://pointer", (e) => handler(e.payload)),
+  /**
+   * That the document moved, and who moved it. Carries no document: the reply to
+   * whoever asked already has the new state, and this goes to every webview.
+   */
+  onDocumentChanged: (handler: (change: DocumentChanged) => void): Promise<UnlistenFn> =>
+    listen<DocumentChanged>("document://changed", (e) => handler(e.payload)),
 };

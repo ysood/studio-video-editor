@@ -1,6 +1,7 @@
 //! Studio desktop shell. A thin adapter: commands validate input, call `studio-core`,
 //! spawn FFmpeg where needed, and return snapshots. No editing logic lives here.
 
+mod agent;
 mod commands;
 mod error;
 mod menu;
@@ -47,6 +48,8 @@ pub fn run() {
             commands::viewer_play,
             commands::viewer_pause,
             commands::viewer_seek,
+            agent::agent_list_tools,
+            agent::agent_call_tool,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Studio");

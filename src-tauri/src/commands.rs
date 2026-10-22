@@ -88,6 +88,38 @@ pub enum JobKind {
 
 pub const EVENT_PROGRESS: &str = "job://progress";
 pub const EVENT_FINISHED: &str = "job://finished";
+pub const EVENT_CHANGED: &str = "document://changed";
+
+/// Who moved the document.
+///
+/// The window needs this to decide what to do about it. Its own edit it already knows
+/// about; one made by something else is a reason to look again, and a reason to say so
+/// rather than have the timeline change under the person watching it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum Source {
+    /// The window, by clicking or by the menu.
+    App,
+    /// Something driving the document through the tool catalogue.
+    Agent,
+}
+
+/// That the document moved, and to where.
+///
+/// Deliberately without the document itself. Events go to every webview, the reply to
+/// whoever asked already carries the new state, and a document of any size on every
+/// edit would be a great deal of copying for something most listeners will ignore.
+#[derive(Debug, Clone, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct DocumentChanged {
+    #[ts(type = "number")]
+    pub revision: u64,
+    /// How the change reads in the undo history, when there is one.
+    pub label: Option<String>,
+    pub source: Source,
+}
 
 /// Paths from the UI must be absolute; relative paths would resolve against whatever the
 /// process working directory happens to be.
@@ -104,7 +136,7 @@ fn absolute(path: &str) -> CommandResult<PathBuf> {
 }
 
 /// Let the webview's media elements read exactly the files the project uses.
-fn allow_media(app: &AppHandle, project: &Project) {
+pub(crate) fn allow_media(app: &AppHandle, project: &Project) {
     let scope = app.asset_protocol_scope();
     for media in &project.media {
         // A missing file cannot be allowed yet; it shows as offline in the UI.
@@ -115,9 +147,29 @@ fn allow_media(app: &AppHandle, project: &Project) {
 /// Snapshot the session, release the lock, then bring the native menu up to date. The
 /// order matters: menu updates run on the main thread, which may be waiting for the lock.
 fn reply(app: &AppHandle, slot: MutexGuard<'_, Option<Session>>) -> CommandResult<Snapshot> {
+    reply_as(app, slot, Source::App)
+}
+
+/// As `reply`, saying who moved the document.
+///
+/// Every command that changes anything ends here, which is why the change event is
+/// emitted here too: one place, rather than one call per command and one forgotten.
+pub(crate) fn reply_as(
+    app: &AppHandle,
+    slot: MutexGuard<'_, Option<Session>>,
+    source: Source,
+) -> CommandResult<Snapshot> {
     let snapshot = slot.as_ref().ok_or_else(no_project)?.snapshot();
     drop(slot);
     menu::refresh(app, Some(&snapshot));
+    let _ = app.emit(
+        EVENT_CHANGED,
+        DocumentChanged {
+            revision: snapshot.history.revision,
+            label: snapshot.history.undo_label.clone(),
+            source,
+        },
+    );
     Ok(snapshot)
 }
 
@@ -313,7 +365,7 @@ pub async fn media_import(
     })
 }
 
-fn probe_file(ffprobe: &Path, path: &str) -> CommandResult<MediaAsset> {
+pub(crate) fn probe_file(ffprobe: &Path, path: &str) -> CommandResult<MediaAsset> {
     let path = absolute(path)?;
     if !path.is_file() {
         return Err(CommandError::new(ErrorCode::BadPath, "not a file"));
