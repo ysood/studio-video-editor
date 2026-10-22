@@ -7,7 +7,9 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { AgentReply } from "../bindings/AgentReply";
 import type { ChatDelta } from "../bindings/ChatDelta";
 import type { ChatError } from "../bindings/ChatError";
+import type { ChatToolRun } from "../bindings/ChatToolRun";
 import type { ChatStatus } from "../bindings/ChatStatus";
+import type { TurnEnd } from "../bindings/TurnEnd";
 import type { CommandError } from "../bindings/CommandError";
 import type { DocumentChanged } from "../bindings/DocumentChanged";
 import type { EditCommand } from "../bindings/EditCommand";
@@ -119,10 +121,13 @@ export const ipc = {
   chatSignIn: () => invoke<ChatStatus>("chat_sign_in"),
   chatSignOut: () => invoke<ChatStatus>("chat_sign_out"),
   /**
-   * Ask. Resolves with the whole answer; the same text also arrives piece by piece as
-   * `chat://delta` while this is still running.
+   * Ask. Resolves when the assistant has either answered or stopped to ask whether to
+   * go ahead with something. The answer's text also arrives piece by piece as
+   * `chat://delta`, and anything it does arrives as `chat://tool`, while this runs.
    */
-  chatSend: (message: string) => invoke<string>("chat_send", { message }),
+  chatSend: (message: string) => invoke<TurnEnd>("chat_send", { message }),
+  /** Say whether to go ahead. The turn carries on either way. */
+  chatApprove: (approved: boolean) => invoke<TurnEnd>("chat_approve", { approved }),
   chatReset: () => invoke<void>("chat_reset"),
 };
 
@@ -151,4 +156,7 @@ export const events = {
   /** More of an answer, while it is being written. */
   onChatDelta: (handler: (delta: ChatDelta) => void): Promise<UnlistenFn> =>
     listen<ChatDelta>("chat://delta", (e) => handler(e.payload)),
+  /** That the assistant did something, as it happens. */
+  onChatTool: (handler: (run: ChatToolRun) => void): Promise<UnlistenFn> =>
+    listen<ChatToolRun>("chat://tool", (e) => handler(e.payload)),
 };

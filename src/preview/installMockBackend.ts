@@ -34,14 +34,43 @@ function sampleRecents(now = Date.now()): Recent[] {
   ];
 }
 
+const THINKING_MS = 600;
+
 /**
  * A fixed reply, after a pause long enough to see the waiting state. It answers nothing:
  * the preview has no model, and a canned answer that pretended otherwise would be a
  * worse thing to leave in the window than an honest one.
+ *
+ * Asking for something to be taken away shows the approval card instead, because that
+ * is the one part of the panel that cannot be reached by typing an ordinary question
+ * and so would otherwise never be seen while it was being designed.
  */
-async function sampleAnswer(message: string): Promise<string> {
-  await new Promise((done) => setTimeout(done, 600));
-  return `Browser preview: there is no model here, so nothing can answer "${message}". In the desktop app this is where the reply appears.`;
+async function sampleTurn(message: string): Promise<unknown> {
+  await new Promise((done) => setTimeout(done, THINKING_MS));
+  if (/\b(delete|remove|cut|clear)\b/i.test(message)) {
+    return {
+      kind: "needsApproval",
+      tool: "timeline.delete_clips",
+      title: "Delete clips",
+      description:
+        "Remove clips from the timeline. What was there is gone unless the edit is undone.",
+      arguments: { sequence: "V1", clips: ["V1#2"] },
+    };
+  }
+  return {
+    kind: "answered",
+    text: `Browser preview: there is no model here, so nothing can answer "${message}". In the desktop app this is where the reply appears.`,
+  };
+}
+
+async function sampleDecision(approved: boolean): Promise<unknown> {
+  await new Promise((done) => setTimeout(done, THINKING_MS));
+  return {
+    kind: "answered",
+    text: approved
+      ? "Browser preview: in the desktop app the clip would be gone from the timeline by now."
+      : "Browser preview: nothing was changed.",
+  };
 }
 
 export function installMockBackend() {
@@ -61,7 +90,8 @@ export function installMockBackend() {
     // the rest of the app can. The sample account is as real as the sample project.
     chat_status: () => ({ signedIn: true, email: "you@example.com", canInfer: true }),
     chat_reset: () => null,
-    chat_send: (args) => sampleAnswer(String(args.message ?? "")),
+    chat_send: (args) => sampleTurn(String(args.message ?? "")),
+    chat_approve: (args) => sampleDecision(Boolean(args.approved)),
   };
 
   Object.assign(window, {

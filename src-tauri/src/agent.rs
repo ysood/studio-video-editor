@@ -94,7 +94,29 @@ pub fn agent_call_tool(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<AgentReply, ToolError> {
-    let arguments = arguments.unwrap_or(Value::Null);
+    run(
+        &name,
+        arguments.unwrap_or(Value::Null),
+        expected_revision,
+        &app,
+        &state,
+    )
+}
+
+/// Run one tool.
+///
+/// The command above is a thin wrapper, and the assistant calls this directly. One path
+/// on purpose: a tool the model runs has to go through the same validation, the same
+/// undo stack and the same change event as one a pane runs, or the window would end up
+/// showing a document that had moved without it.
+pub fn run(
+    name: &str,
+    arguments: Value,
+    expected_revision: Option<u64>,
+    app: &AppHandle,
+    state: &AppState,
+) -> Result<AgentReply, ToolError> {
+    let name = name.to_string();
     let tool = studio_agent::find(&name).ok_or_else(|| ToolError::unknown_tool(&name, 0))?;
 
     let mut slot = state.session();
@@ -132,7 +154,7 @@ pub fn agent_call_tool(
         let out = studio_agent::import(&mut session.editor, &host, &paths, expected_revision)?;
         // The webview can only read files it has been told about, and media brought in
         // this way has to be readable the same as media brought in by the dialog.
-        allow_media(&app, session.editor.project());
+        allow_media(app, session.editor.project());
         serde_json::to_value(out).unwrap_or(Value::Null)
     } else {
         let out = studio_agent::act(&mut session.editor, &name, arguments, expected_revision)?;
@@ -141,7 +163,7 @@ pub fn agent_call_tool(
 
     // The same path every other edit takes: snapshot, release the lock, then bring the
     // menu up to date and tell the window the document moved.
-    let snapshot = reply_as(&app, slot, Source::Agent)
+    let snapshot = reply_as(app, slot, Source::Agent)
         .map_err(|e| ToolError::new(ToolErrorCode::Host, e.message, 0))?;
     Ok(AgentReply {
         result,

@@ -99,10 +99,12 @@ pub struct Turn<'a> {
     /// Standing guidance, resent every turn. Not a message: it is not part of the
     /// conversation and should not be answered as though somebody said it.
     pub instructions: &'a str,
+    /// What the model may call, already in the provider's shape.
+    pub tools: &'a [Value],
 }
 
 pub fn request_body(turn: &Turn<'_>) -> Value {
-    json!({
+    let mut body = json!({
         "model": turn.model,
         "input": turn.input,
         "instructions": turn.instructions,
@@ -110,7 +112,13 @@ pub fn request_body(turn: &Turn<'_>) -> Value {
         // ends with it, which is also what makes it nobody else's to read.
         "store": false,
         "stream": true,
-    })
+    });
+    // Left out entirely rather than sent empty, so a turn with nothing to offer is not
+    // a turn that offers nothing: the two read differently to a model.
+    if !turn.tools.is_empty() {
+        body["tools"] = json!(turn.tools);
+    }
+    body
 }
 
 /// What one event in the stream means.
@@ -408,11 +416,32 @@ mod tests {
             model: "gpt-5.1",
             input: &input,
             instructions: "be useful",
+            tools: &[],
         });
         assert_eq!(body["store"], json!(false), "the conversation stays here");
         assert_eq!(body["stream"], json!(true));
         assert_eq!(body["instructions"], json!("be useful"));
         assert_eq!(body["input"], json!(input));
+    }
+
+    #[test]
+    fn a_turn_with_nothing_to_offer_says_nothing_about_tools() {
+        let body = request_body(&Turn {
+            model: "gpt-5.1",
+            input: &[],
+            instructions: "",
+            tools: &[],
+        });
+        assert!(body.get("tools").is_none());
+
+        let tools = vec![json!({ "type": "function", "name": "query_overview" })];
+        let body = request_body(&Turn {
+            model: "gpt-5.1",
+            input: &[],
+            instructions: "",
+            tools: &tools,
+        });
+        assert_eq!(body["tools"], json!(tools));
     }
 
     #[test]

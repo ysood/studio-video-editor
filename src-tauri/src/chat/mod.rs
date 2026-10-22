@@ -15,19 +15,17 @@ mod client;
 pub mod credentials;
 mod error;
 mod oauth;
+mod turn;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use std::time::Duration;
 
-use serde::Serialize;
-use serde_json::{json, Value};
-use tauri::{AppHandle, Emitter, Manager};
-use ts_rs::TS;
+use tauri::AppHandle;
 
-use crate::state::AppState;
 use credentials::{ChatStatus, Credentials};
 pub use error::{ChatError, ChatErrorCode, ChatResult};
+use turn::TurnEnd;
 
 /// Sign-in is through a person's own ChatGPT plan rather than an API key, so the scopes
 /// are the two halves of that: who you are, and permission to spend your plan.
@@ -286,138 +284,48 @@ impl Drop for SignIn {
     }
 }
 
-/// Emitted as `chat://delta` while an answer is being written.
-#[derive(Debug, Clone, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct ChatDelta {
-    pub text: String,
-}
-
-/// Standing guidance, sent with every turn rather than put in the conversation.
-///
-/// Not a message, because it is not something anybody said and should not be answered
-/// as though it were. Resent each turn because the API keeps nothing between them, which
-/// is the same reason the conversation itself is carried in full.
-const INSTRUCTIONS: &str = "\
-You are the assistant inside Studio, a desktop video editor. The person you are talking \
-to has a project open and can see its timeline, media and viewer.
-
-Be brief and concrete. Answer in plain sentences, not lists, unless a list is genuinely \
-the shape of the answer. Use timecodes the way an editor does.
-
-You are shown a summary of the open project below. It is a summary: it says how many \
-clips and tracks a sequence has, not what is on them. When you need detail you do not \
-have, say what you would need rather than guessing, and never state a specific clip, \
-time or name you were not told.
-
-You cannot change the project yet. If you are asked to make an edit, say plainly that \
-making edits is not switched on yet, and say what you would have done.";
-
-/// The guidance plus what is open right now.
-///
-/// Rebuilt every turn rather than once per conversation, so an answer is never given
-/// against a project that has since been closed, saved as something else, or edited by
-/// hand while the conversation was sitting idle.
-fn instructions(app: &AppHandle) -> String {
-    let state = app.state::<AppState>();
-    let mut slot = state.session();
-    let Some(session) = slot.as_mut() else {
-        return format!("{INSTRUCTIONS}\n\nNo project is open.");
-    };
-    match studio_agent::queries::overview(&session.editor) {
-        Ok(overview) => format!(
-            "{INSTRUCTIONS}\n\nThe open project:\n{}",
-            serde_json::to_string_pretty(&overview).unwrap_or_default()
-        ),
-        Err(_) => format!("{INSTRUCTIONS}\n\nNo project is open."),
-    }
-}
-
-/// The conversation, for as long as the app is running.
-///
-/// Items rather than messages, because a turn holds more than what was said: a reasoning
-/// model produces items it expects to see again, and a tool call and its result are part
-/// of the record too. Deliberately not written to disk: nothing here asked to be kept.
-static CONVERSATION: Mutex<Vec<Value>> = Mutex::new(Vec::new());
-
-/// The model to use, chosen once per run.
-///
-/// Not written down as a slug, because which models a plan offers changes and a slug in
-/// the source goes stale silently. The service lists them in its own order, and the
-/// first is its own answer to which one to use.
 static MODEL: Mutex<Option<String>> = Mutex::new(None);
-
 static ANSWERING: AtomicBool = AtomicBool::new(false);
 
-/// Say something, and get the answer.
+/// Say something, and let the assistant work until it has an answer or a question.
 ///
 /// The answer also arrives piece by piece as `chat://delta` while this is still running,
-/// so the panel can show it being written. What this returns is the same text, whole:
-/// the panel replaces what it has been showing, which is also how it recovers if it
-/// missed a piece.
+/// and anything the assistant does arrives as `chat://tool`, so the panel can show the
+/// work rather than only its result.
 #[tauri::command]
-pub async fn chat_send(app: AppHandle, message: String) -> ChatResult<String> {
+pub async fn chat_send(app: AppHandle, message: String) -> ChatResult<TurnEnd> {
     let message = message.trim().to_string();
     if message.is_empty() {
-        return Ok(String::new());
+        return Ok(TurnEnd::Answered {
+            text: String::new(),
+        });
     }
     let _guard = Answering::begin()?;
-
+    if turn::is_waiting() {
+        return Err(ChatError::new(
+            ChatErrorCode::Busy,
+            "The assistant is waiting to be told whether to go ahead.",
+        ));
+    }
     let token = access_token(&app).await?;
     let model = model(&token).await?;
+    turn::send(&app, &token, &model, &message).await
+}
 
-    // The question joins the conversation before the answer is asked for, so the model
-    // sees it in order. If the ask fails it comes back out: a question nobody answered
-    // would otherwise be asked again, silently, with the next one.
-    let asked = {
-        let mut conversation = CONVERSATION.lock().unwrap_or_else(|e| e.into_inner());
-        conversation.push(json!({ "role": "user", "content": message }));
-        conversation.clone()
-    };
-
-    let instructions = instructions(&app);
-    let answered = client::ask(
-        &token,
-        &client::Turn {
-            model: &model,
-            input: &asked,
-            instructions: &instructions,
-        },
-        |text| {
-            let _ = app.emit(
-                EVENT_DELTA,
-                ChatDelta {
-                    text: text.to_string(),
-                },
-            );
-        },
-    )
-    .await;
-
-    let mut conversation = CONVERSATION.lock().unwrap_or_else(|e| e.into_inner());
-    match answered {
-        Ok(response) => {
-            conversation.extend(client::output_items(&response));
-            Ok(client::output_text(&response))
-        }
-        Err(error) => {
-            conversation.pop();
-            Err(error)
-        }
-    }
+/// Tell the assistant whether to do the thing it asked about.
+#[tauri::command]
+pub async fn chat_approve(app: AppHandle, approved: bool) -> ChatResult<TurnEnd> {
+    let _guard = Answering::begin()?;
+    let token = access_token(&app).await?;
+    let model = model(&token).await?;
+    turn::resume(&app, &token, &model, approved).await
 }
 
 /// Start again, forgetting what was said.
 #[tauri::command]
 pub fn chat_reset() {
-    CONVERSATION
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .clear();
+    turn::forget();
 }
-
-pub const EVENT_DELTA: &str = "chat://delta";
 
 /// A token that will still be good when the request arrives.
 ///

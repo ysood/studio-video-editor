@@ -54,8 +54,10 @@ pub enum ChatErrorCode {
     SignedOut,
     /// The credentials could not be read or written.
     Storage,
-    /// A sign-in is already in progress.
+    /// A sign-in or an answer is already in progress.
     Busy,
+    /// Told to go ahead with something that is not waiting to be gone ahead with.
+    NotWaiting,
 }
 
 impl ChatError {

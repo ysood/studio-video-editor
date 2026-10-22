@@ -48,6 +48,69 @@
   }
 }
 
+/* What the assistant did, in one line each. Quieter than the words around them: they
+   are a record of work, and the answer is the thing being read. */
+.chat-did {
+  display: flex;
+  gap: var(--space-4);
+  align-items: baseline;
+  margin: 0;
+  color: var(--color-text-tertiary);
+  font: var(--type-caption);
+}
+
+.chat-did svg {
+  flex: none;
+  align-self: center;
+  color: var(--color-accent-base);
+}
+
+.chat-did[data-ok="false"] svg {
+  color: var(--color-status-warning);
+}
+
+/* The one moment where something is about to happen and has not yet. It is given a
+   frame of its own because it is a question, not a remark, and because the arguments
+   under it are the thing being agreed to. */
+.chat-asking {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-panel);
+  color: var(--color-text-primary);
+  font: var(--type-body);
+}
+
+.chat-asking strong {
+  font: var(--type-label);
+  letter-spacing: var(--type-label-tracking);
+}
+
+.chat-asking p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font: var(--type-caption);
+}
+
+/* Shown rather than summarised: a paraphrase of what is about to happen is exactly the
+   thing that could be wrong, and this is the last moment it can be caught. */
+.chat-asking pre {
+  overflow-x: auto;
+  margin: 0;
+  padding: var(--space-4);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-input);
+  color: var(--color-text-secondary);
+  font: var(--type-timecode);
+}
+
+.chat-asking-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
 /* The composer sits in the footer strip, so it carries no frame of its own: the strip
    is the frame, and a box inside a box is one edge too many. */
 .chat-draft {

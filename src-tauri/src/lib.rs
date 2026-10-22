@@ -55,6 +55,7 @@ pub fn run() {
             chat::chat_sign_in,
             chat::chat_sign_out,
             chat::chat_send,
+            chat::chat_approve,
             chat::chat_reset,
         ])
         .run(tauri::generate_context!())

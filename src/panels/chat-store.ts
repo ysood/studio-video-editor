@@ -1,20 +1,26 @@
-// The conversation as the panel sees it.
+// The conversation as the panel shows it.
 //
 // Rust holds the real one: what was said, in the order it happened, in the shape the
 // model is sent. This holds what to draw, which is not the same list. A turn the model
-// spent on reasoning is one item there and nothing here; a question that failed is
-// nothing there and a line to read here.
+// spent reasoning is an item there and nothing here; a tool it ran is one line here and
+// two items there; a question that failed is nothing there and a line to read here.
 
 import { create } from "zustand";
 import type { ChatStatus } from "../bindings/ChatStatus";
+import type { ChatToolRun } from "../bindings/ChatToolRun";
+import type { TurnEnd } from "../bindings/TurnEnd";
 import { ipc, isChatError } from "../ipc";
 
-export interface Message {
-  from: "you" | "studio";
-  text: string;
-}
+/** One line of the transcript. */
+export type Entry =
+  | { kind: "said"; from: "you" | "studio"; text: string }
+  /** Something the assistant did to the document. */
+  | { kind: "did"; tool: string; title: string; ok: boolean; detail: string | null }
+  /** Something it wants to do, waiting to be told whether to. */
+  | { kind: "asking"; tool: string; title: string; description: string; arguments: unknown }
+  /** How that question was answered, kept so the transcript still reads in order. */
+  | { kind: "answered"; title: string; approved: boolean };
 
-/** A failure worth showing, and whether doing the same thing again could work. */
 export interface Trouble {
   message: string;
   retryable: boolean;
@@ -36,7 +42,7 @@ function troubleOf(error: unknown): Trouble | null {
 interface ChatState {
   /** Null until the first answer about who is signed in. */
   status: ChatStatus | null;
-  messages: Message[];
+  entries: Entry[];
   /** The answer so far, while it is being written. Null when nothing is in flight. */
   streaming: string | null;
   /** True while a sign-in or sign-out is in progress. */
@@ -47,14 +53,17 @@ interface ChatState {
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
   send: (text: string) => Promise<void>;
+  decide: (approved: boolean) => Promise<void>;
   reset: () => Promise<void>;
   /** Called as `chat://delta` arrives. */
   append: (text: string) => void;
+  /** Called as `chat://tool` arrives. */
+  noteTool: (run: ChatToolRun) => void;
 }
 
 export const useChat = create<ChatState>((set, get) => ({
   status: null,
-  messages: [],
+  entries: [],
   streaming: null,
   busy: false,
   trouble: null,
@@ -84,9 +93,9 @@ export const useChat = create<ChatState>((set, get) => ({
     try {
       const status = await ipc.chatSignOut();
       // The conversation goes with the account. Leaving it on screen under a sign-in
-      // prompt would invite somebody else to read it.
+      // prompt would invite whoever signs in next to read it.
       await ipc.chatReset().catch(() => undefined);
-      set({ status, messages: [], streaming: null });
+      set({ status, entries: [], streaming: null });
     } catch (error) {
       set({ trouble: troubleOf(error) });
     } finally {
@@ -96,32 +105,83 @@ export const useChat = create<ChatState>((set, get) => ({
 
   send: async (text) => {
     const message = text.trim();
-    if (message === "" || get().streaming !== null) return;
+    if (message === "" || get().streaming !== null || get().entries.some(isAsking)) return;
     set((state) => ({
-      messages: [...state.messages, { from: "you", text: message }],
+      entries: [...state.entries, { kind: "said", from: "you", text: message }],
       // Empty rather than null: the panel reads this to know an answer is coming, and
       // shows the waiting state until the first piece of it arrives.
       streaming: "",
       trouble: null,
     }));
-    try {
-      const answer = await ipc.chatSend(message);
-      // The whole answer replaces what was streamed rather than being added to it, so a
-      // piece that arrived twice or not at all does not survive into the transcript.
-      set((state) => ({
-        messages: [...state.messages, { from: "studio", text: answer }],
-        streaming: null,
-      }));
-    } catch (error) {
-      set({ streaming: null, trouble: troubleOf(error) });
-    }
+    await settle(set, () => ipc.chatSend(message));
+  },
+
+  decide: async (approved) => {
+    const asking = get().entries.find(isAsking);
+    if (!asking) return;
+    set((state) => ({
+      // The question becomes the record of how it was answered, in the same place, so
+      // the transcript still reads in the order things happened.
+      entries: state.entries.map((entry) =>
+        entry === asking
+          ? { kind: "answered", title: asking.title, approved }
+          : entry,
+      ),
+      streaming: "",
+      trouble: null,
+    }));
+    await settle(set, () => ipc.chatApprove(approved));
   },
 
   reset: async () => {
     await ipc.chatReset().catch(() => undefined);
-    set({ messages: [], streaming: null, trouble: null });
+    set({ entries: [], streaming: null, trouble: null });
   },
 
   append: (text) =>
     set((state) => (state.streaming === null ? state : { streaming: state.streaming + text })),
+
+  noteTool: (run) =>
+    set((state) => ({
+      entries: [
+        ...state.entries,
+        { kind: "did", tool: run.tool, title: run.title, ok: run.ok, detail: run.detail },
+      ],
+    })),
 }));
+
+function isAsking(entry: Entry): entry is Extract<Entry, { kind: "asking" }> {
+  return entry.kind === "asking";
+}
+
+/** Wait for a turn to end, and put whatever it ended as into the transcript. */
+async function settle(
+  set: (fn: (state: ChatState) => Partial<ChatState>) => void,
+  run: () => Promise<TurnEnd>,
+) {
+  try {
+    const end = await run();
+    set((state) => ({
+      streaming: null,
+      entries:
+        end.kind === "answered"
+          ? // The whole answer replaces what was streamed rather than being added to
+            // it, so a piece that arrived twice, or not at all, does not survive.
+            end.text === ""
+            ? state.entries
+            : [...state.entries, { kind: "said", from: "studio", text: end.text }]
+          : [
+              ...state.entries,
+              {
+                kind: "asking",
+                tool: end.tool,
+                title: end.title,
+                description: end.description,
+                arguments: end.arguments,
+              },
+            ],
+    }));
+  } catch (error) {
+    set(() => ({ streaming: null, trouble: troubleOf(error) }));
+  }
+}
