@@ -1,23 +1,11 @@
 /* The bins are a row of pills in the toolbar now rather than a column beside the
-   media, so the media has the whole panel. The picker is allowed to shrink and scroll:
-   in a narrow panel it is better to slide the bins than to crush the view buttons.
-   They sit in the middle of the panel, which is why the new-timeline button is parked
-   at the edge rather than laid out beside them: a button that is only sometimes there
-   would otherwise shift the centre whenever it appeared. */
-.bin-picker {
-  min-width: 0;
-  margin-inline: auto;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
+   media, so the media has the whole panel. They are centred by the accent emphasis (see
+   tabs.css), which is why the new-timeline button is parked at the edge rather than laid
+   out beside them: a button that is only sometimes there would otherwise shift the
+   centre whenever it appeared. */
 .bin-new-timeline {
   position: absolute;
   right: var(--space-8);
-}
-
-.bin-picker::-webkit-scrollbar {
-  display: none;
 }
 
 /* Gallery */

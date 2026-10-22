@@ -167,7 +167,6 @@ export function MediaBinPanel() {
           setting you make once, the bin is the choice you keep making. */}
       <PanelToolbar>
         <Segmented
-          className="bin-picker"
           emphasis="accent"
           label="Bin"
           value={prefs.bin}

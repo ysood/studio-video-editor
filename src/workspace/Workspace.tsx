@@ -7,10 +7,9 @@ import {
 } from "dockview-react";
 import "dockview-react/dist/styles/dockview.css";
 import type { FunctionComponent } from "react";
-import { InspectorPanel } from "../panels/InspectorPanel";
 import { MediaBinPanel } from "../panels/MediaBinPanel";
 import { TimelinePanel } from "../panels/TimelinePanel";
-import { TransformPanel } from "../panels/TransformPanel";
+import { PropertiesPanel } from "../panels/PropertiesPanel";
 import { ViewerPanel } from "../panels/ViewerPanel";
 import { importMedia } from "../actions";
 import { chord } from "../keyboard";
@@ -23,8 +22,7 @@ import { activeSequence } from "../sequences";
 const components: Record<string, FunctionComponent<IDockviewPanelProps>> = {
   bin: MediaBinPanel,
   viewer: ViewerPanel,
-  inspector: InspectorPanel,
-  transform: TransformPanel,
+  inspector: PropertiesPanel,
   timeline: TimelinePanel,
 };
 
@@ -46,21 +44,15 @@ function defaultLayout(api: DockviewApi) {
     // media wants the room too, now that nothing stands to the left of it.
     initialWidth: 500,
   });
+  // The inspector and the transform are one panel with a pill between them, so there
+  // is nothing to add for the second: they answer different questions about the same
+  // selection and never wanted room of their own.
   api.addPanel({
     id: "inspector",
     component: "inspector",
     title: "Inspector",
     position: { referencePanel: "viewer", direction: "right" },
-    initialWidth: 300,
-  });
-  // No direction, so it joins the inspector's group as a second tab rather than taking
-  // room of its own. The two answer different questions about the same selection.
-  api.addPanel({
-    id: "transform",
-    component: "transform",
-    title: "Transform",
-    position: { referencePanel: "inspector" },
-    inactive: true,
+    initialWidth: 320,
   });
 }
 

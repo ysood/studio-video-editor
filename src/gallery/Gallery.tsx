@@ -225,8 +225,8 @@ export function Gallery() {
               value={segment}
               onChange={setSegment}
               options={[
-                { value: "grid", label: "Grid view", icon: "grid" },
-                { value: "list", label: "List view", icon: "list" },
+                { value: "grid", label: "Grid view", icon: "grid", iconOnly: true },
+                { value: "list", label: "List view", icon: "list", iconOnly: true },
               ]}
             />
             <Segmented
@@ -238,7 +238,28 @@ export function Gallery() {
                 { value: "list", label: "Insert" },
               ]}
             />
+            <Segmented
+              label="Edit mode with icons"
+              value={segment}
+              onChange={setSegment}
+              options={[
+                { value: "grid", label: "Overwrite", icon: "grid" },
+                { value: "list", label: "Insert", icon: "list" },
+              ]}
+            />
           </Actions>
+          {/* The accented form fills its chosen pill and centres itself, so it gets a
+              row of its own here the way it gets a toolbar of its own in a panel. */}
+          <Segmented
+            emphasis="accent"
+            label="Panel choice"
+            value={segment}
+            onChange={setSegment}
+            options={[
+              { value: "grid", label: "Inspector" },
+              { value: "list", label: "Transform" },
+            ]}
+          />
           <Tabs
             label="Inspector tabs"
             value={tab}

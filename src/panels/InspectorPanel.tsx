@@ -13,8 +13,6 @@ import {
   Field,
   Note,
   NumberInput,
-  Panel,
-  PanelBody,
   Section,
   Select,
   TextInput,
@@ -44,12 +42,12 @@ export const SIZES: { label: string; width: number; height: number }[] = [
   { label: "Portrait 1080×1350", width: 1080, height: 1350 },
 ];
 
-export function InspectorPanel() {
+export function InspectorBody() {
   const snapshot = useEditor((s) => s.snapshot);
   const selection = useEditor((s) => s.selection);
   const project = snapshot?.project;
   const sequence = useActiveSequence();
-  if (!project || !sequence) return <Panel />;
+  if (!project || !sequence) return null;
 
   const selected = selection
     .map((id) => findClip(sequence, id))
@@ -58,15 +56,13 @@ export function InspectorPanel() {
   const links = new Set(selected.map((s) => s.clip.link ?? s.clip.id));
 
   return (
-    <Panel>
-      <PanelBody layout="sheet">
-        {selected.length === 0 && <SequenceSettings project={project} sequence={sequence} />}
-        {selected.length > 0 && links.size === 1 && (
-          <ClipDetails project={project} sequence={sequence} entry={selected[0]!} />
-        )}
-        {links.size > 1 && <MultipleClips count={links.size} ids={selection} />}
-      </PanelBody>
-    </Panel>
+    <>
+      {selected.length === 0 && <SequenceSettings project={project} sequence={sequence} />}
+      {selected.length > 0 && links.size === 1 && (
+        <ClipDetails project={project} sequence={sequence} entry={selected[0]!} />
+      )}
+      {links.size > 1 && <MultipleClips count={links.size} ids={selection} />}
+    </>
   );
 }
 

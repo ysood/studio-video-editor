@@ -71,7 +71,21 @@
   color: var(--color-text-primary);
 }
 
-/* The panel's main choice: filled, the way a primary button is. */
+/* The panel's main choice: filled the way a primary button is, and centred in the
+   panel rather than ranged left, since it is the thing the panel is about. It may
+   shrink and scroll, because in a narrow panel sliding the choices beats crushing
+   whatever shares the toolbar with them. */
+.ui-segmented[data-emphasis="accent"] {
+  min-width: 0;
+  margin-inline: auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ui-segmented[data-emphasis="accent"]::-webkit-scrollbar {
+  display: none;
+}
+
 .ui-segmented[data-emphasis="accent"] .ui-segment[data-state="on"] {
   background: var(--color-accent-base);
   color: var(--color-text-on-accent);

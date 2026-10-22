@@ -14,8 +14,6 @@ import {
   Field,
   Note,
   NumberInput,
-  Panel,
-  PanelBody,
   Section,
   Slider,
 } from "../ui";
@@ -32,11 +30,11 @@ const fromPercent = (value: number) => milli(value / 100);
  * Only video clips have one. The audio half of a linked pair is left out rather than
  * shown disabled, because there is nothing about it to edit here.
  */
-export function TransformPanel() {
+export function TransformBody() {
   const snapshot = useEditor((s) => s.snapshot);
   const selection = useEditor((s) => s.selection);
   const sequence = useActiveSequence();
-  if (!snapshot?.project || !sequence) return <Panel />;
+  if (!snapshot?.project || !sequence) return null;
 
   const selected = selection
     .map((id) => findClip(sequence, id))
@@ -44,18 +42,16 @@ export function TransformPanel() {
   const video = selected.filter((e) => e.track.kind === "video");
 
   return (
-    <Panel>
-      <PanelBody layout="sheet">
-        {selected.length === 0 && <EmptyState>Select a clip to move, scale or fade its picture.</EmptyState>}
-        {selected.length > 0 && video.length === 0 && (
-          <Section title="Transform">
-            <Note>Sound has no picture to move.</Note>
-          </Section>
-        )}
-        {video.length === 1 && <ClipTransform entry={video[0]!} format={sequence.format} />}
-        {video.length > 1 && <ManyClips ids={video.map((e) => e.clip.id)} />}
-      </PanelBody>
-    </Panel>
+    <>
+      {selected.length === 0 && <EmptyState>Select a clip to move, scale or fade its picture.</EmptyState>}
+      {selected.length > 0 && video.length === 0 && (
+        <Section title="Transform">
+          <Note>Sound has no picture to move.</Note>
+        </Section>
+      )}
+      {video.length === 1 && <ClipTransform entry={video[0]!} format={sequence.format} />}
+      {video.length > 1 && <ManyClips ids={video.map((e) => e.clip.id)} />}
+    </>
   );
 }
 

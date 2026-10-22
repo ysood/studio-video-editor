@@ -2,7 +2,7 @@
 // importing Dockview.
 
 // Bump when panels are added or renamed so stale saved layouts are discarded.
-export const LAYOUT_KEY = "studio.layout.v4";
+export const LAYOUT_KEY = "studio.layout.v5";
 
 export function resetLayout() {
   try {

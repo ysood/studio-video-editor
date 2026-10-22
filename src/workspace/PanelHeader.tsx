@@ -12,6 +12,7 @@ import "./panel-header.css";
 /** Panels whose header should sit on a surface other than chrome. */
 const PANEL_SURFACES: Record<string, SurfaceName> = {
   bin: "stage",
+  inspector: "stage",
   timeline: "stage",
 };
 
@@ -21,7 +22,7 @@ const PANEL_SURFACES: Record<string, SurfaceName> = {
  * The cost is that such a panel cannot be dragged by a tab it does not have; the shared
  * actions, reset layout among them, stay reachable from any other panel's menu.
  */
-const HEADLESS = new Set(["bin"]);
+const HEADLESS = new Set(["bin", "inspector"]);
 
 /** Panel-specific entries shown above the shared ones in a panel's overflow menu. */
 export type PanelMenus = Record<string, () => MenuEntry[]>;
