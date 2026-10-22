@@ -37,6 +37,44 @@ Tiers inside a theme:
    is `timeline.*` (row and ruler height, header width, clip inset, band height, playhead
    and selection widths, ghost dash, alphas).
 
+## Colour
+
+Ink (dark) and Paper (light) are the pair the app is designed in. Ink is the default.
+Paper overrides `color`, `surfaces` and `elevation` and takes everything else from Ink,
+so the two cannot drift in type, density or timeline metrics. Graphite and Crimson stay
+as alternates.
+
+**The budget.** The whole palette is one neutral ramp plus five hues:
+
+| | Values | What it is |
+|---|---|---|
+| `stone` | 18 steps | the warm neutral ramp, hue ~35 at 6-20% saturation. Both themes read it from opposite ends |
+| `brass` | 5 | the one accent |
+| `cobalt`, `verdigris`, `clay` | 2 each | media: video, audio, stills |
+| `signal` | 2 | danger, one per scheme |
+
+That is about 30 raw values behind 34 semantic roles, which is the normal shape: most of
+an interface is neutral, and the hues are few enough to each mean one thing.
+
+**Colour is rationed.** This is the whole idea, and it is what the references the palette
+came from have in common more than any particular colour: the page is neutral and hue
+appears only where it carries meaning. Three jobs, and nothing else gets a hue:
+
+1. **Brass means time and the action that commits it.** The playhead, the timecode, the
+   one primary button in a region. Nothing else.
+2. **Cobalt, verdigris and clay mean media kind.** They appear on clips, bin swatches and
+   tiles, never on chrome.
+3. **Signal means danger.** Offline media, destructive menu items.
+
+Selection is deliberately *not* the accent: it is plain `stone` at the far end of the
+ramp, white on Ink and near-black on Paper. If selection were brass, "this is chosen" and
+"this is now" would be the same colour on the same timeline.
+
+**The chrome stays neutral.** A saturated surround changes what you think a picture is
+doing, so `viewer.surround` and the timeline stage are neutral in both themes, and Paper
+keeps a mid grey around the frame rather than going white. Crimson breaks this on purpose
+and is a look, not a grading environment.
+
 ## Surfaces
 
 A theme can color regions differently. Every element marked `data-surface="<name>"` gets
