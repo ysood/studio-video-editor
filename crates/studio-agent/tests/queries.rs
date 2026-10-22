@@ -90,8 +90,15 @@ fn an_area_can_be_turned_on_by_name() {
         ..Policy::new(Surface::External)
     };
     let offered = surface(&all_queries);
-    let queries = catalogue().iter().filter(|t| t.area == Area::Query).count();
-    assert_eq!(offered.len(), queries, "naming the area offered all of it");
+    // Every tool in the area, not only the area: whatever is offered by default is
+    // still offered. Naming an area widens the surface, it does not replace it.
+    for tool in catalogue().iter().filter(|t| t.area == Area::Query) {
+        assert!(
+            offered.iter().any(|o| o.name == tool.name),
+            "{} is in the area that was named but was not offered",
+            tool.name
+        );
+    }
 }
 
 #[test]

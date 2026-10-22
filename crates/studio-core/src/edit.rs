@@ -179,6 +179,33 @@ pub enum EditCommand {
 }
 
 impl EditCommand {
+    /// The name serde writes in the `type` tag, which is also how a caller names this
+    /// command. Kept beside `label` so both matches fail to compile when a variant is
+    /// added, rather than a new command quietly having no name to be called by.
+    pub fn variant(&self) -> &'static str {
+        match self {
+            EditCommand::RenameProject { .. } => "RenameProject",
+            EditCommand::SetSequenceFormat { .. } => "SetSequenceFormat",
+            EditCommand::AddSequence { .. } => "AddSequence",
+            EditCommand::RemoveSequence { .. } => "RemoveSequence",
+            EditCommand::RenameSequence { .. } => "RenameSequence",
+            EditCommand::ImportMedia { .. } => "ImportMedia",
+            EditCommand::RemoveMedia { .. } => "RemoveMedia",
+            EditCommand::AddTrack { .. } => "AddTrack",
+            EditCommand::RemoveTrack { .. } => "RemoveTrack",
+            EditCommand::SetTrackState { .. } => "SetTrackState",
+            EditCommand::InsertMedia { .. } => "InsertMedia",
+            EditCommand::MoveClip { .. } => "MoveClip",
+            EditCommand::TrimClip { .. } => "TrimClip",
+            EditCommand::SplitClips { .. } => "SplitClips",
+            EditCommand::DeleteClips { .. } => "DeleteClips",
+            EditCommand::SetClipsEnabled { .. } => "SetClipsEnabled",
+            EditCommand::RenameClip { .. } => "RenameClip",
+            EditCommand::SetClipsTransform { .. } => "SetClipsTransform",
+            EditCommand::UnlinkClips { .. } => "UnlinkClips",
+        }
+    }
+
     /// Short human label for undo history and logs.
     pub fn label(&self) -> &'static str {
         match self {
@@ -1980,5 +2007,23 @@ mod tests {
         assert!(json.contains("\"type\":\"TrimClip\""));
         assert!(json.contains("\"clipId\""));
         assert_eq!(serde_json::from_str::<EditCommand>(&json).unwrap(), cmd);
+    }
+}
+
+#[cfg(test)]
+mod naming {
+    use super::*;
+
+    #[test]
+    fn variant_is_the_tag_serde_writes() {
+        // If these drifted, a caller would name a command the deserializer does not
+        // answer to. Checked against serde itself rather than a list written twice.
+        let command = EditCommand::RenameProject { name: "x".into() };
+        let json = serde_json::to_value(&command).unwrap();
+        assert_eq!(json["type"], command.variant());
+
+        let command = EditCommand::UnlinkClips { clip_ids: vec![] };
+        let json = serde_json::to_value(&command).unwrap();
+        assert_eq!(json["type"], command.variant());
     }
 }

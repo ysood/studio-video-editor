@@ -22,6 +22,7 @@
 //! A refusal is an answer. The document turning an edit down is how a caller learns what
 //! it may do, so errors carry what to do instead and whether trying again could help.
 
+pub mod commands;
 pub mod error;
 pub mod queries;
 pub mod schema;
@@ -77,6 +78,7 @@ impl Policy {
 /// Every tool there is, in name order.
 pub fn catalogue() -> Vec<Tool> {
     let mut tools = queries();
+    tools.extend(commands::tools());
     tools.sort_by(|a, b| a.name.cmp(&b.name));
     tools
 }
@@ -201,6 +203,46 @@ pub fn ask(session: &dyn Session, name: &str, arguments: Value) -> Result<Value,
 /// than serde's own wording alone.
 fn parse<T: serde::de::DeserializeOwned>(value: Value, revision: u64) -> Result<T, ToolError> {
     serde_json::from_value(value).map_err(|e| ToolError::bad_arguments(e.to_string(), revision))
+}
+
+/// Do something that changes the document.
+///
+/// `expected_revision` is how a caller says what it was looking at. The document
+/// refuses rather than applying an edit aimed at a state it has moved on from, which is
+/// the difference between a caller that is wrong and a document that is.
+pub fn act(
+    session: &mut dyn Session,
+    name: &str,
+    arguments: Value,
+    expected_revision: Option<u64>,
+) -> Result<Outcome, ToolError> {
+    let revision = session.revision();
+    if let Some(expected) = expected_revision {
+        if expected != revision {
+            return Err(ToolError::stale(expected, revision));
+        }
+    }
+    let command = commands::to_command(session, name, arguments)?;
+    let label = command.label();
+    let report = session
+        .apply(&command)
+        .map_err(|e| ToolError::from_edit(e, revision))?;
+    Ok(Outcome {
+        label: label.to_string(),
+        revision: session.revision(),
+        report,
+    })
+}
+
+/// What an edit did.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Outcome {
+    /// How the edit reads in the undo history.
+    pub label: String,
+    /// Where the document is now, to be handed back on the next call.
+    pub revision: u64,
+    pub report: studio_core::edit::EditReport,
 }
 
 /// Every command the document has, and the schema for its arguments.
