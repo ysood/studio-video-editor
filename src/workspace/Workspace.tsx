@@ -31,12 +31,12 @@ const components: Record<string, FunctionComponent<IDockviewPanelProps>> = {
 const SIDE_PANEL = 400;
 
 /**
- * The timeline takes the bottom half of the workspace and the three panels above it
- * share the top. Half rather than a pixel count, because what the timeline needs is a
+ * The timeline takes the bottom of the workspace and the three panels above it share
+ * the top. A share rather than a pixel count, because what the timeline needs is a
  * share of whatever the window is: 360px was a third of a laptop and a quarter of a
  * desk display, and the tracks are what suffers either way.
  */
-const TIMELINE_SHARE = 0.5;
+const TIMELINE_SHARE = 0.4;
 
 /** Used only if the dock has not been measured yet, which it has by the time this runs. */
 const TIMELINE_FALLBACK = 360;
