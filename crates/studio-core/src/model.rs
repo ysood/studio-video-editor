@@ -10,6 +10,7 @@ use ts_rs::TS;
 pub const SCHEMA_VERSION: u32 = 3;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct Project {
@@ -132,6 +133,7 @@ impl Project {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 #[ts(export)]
 pub enum MediaKind {
@@ -144,6 +146,7 @@ pub enum MediaKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct MediaAsset {
@@ -181,6 +184,7 @@ impl MediaAsset {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct VideoInfo {
@@ -191,6 +195,7 @@ pub struct VideoInfo {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct AudioInfo {
@@ -200,6 +205,7 @@ pub struct AudioInfo {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct Fingerprint {
@@ -210,6 +216,7 @@ pub struct Fingerprint {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct Sequence {
@@ -248,6 +255,7 @@ impl Sequence {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SequenceFormat {
@@ -269,6 +277,7 @@ impl Default for SequenceFormat {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 #[ts(export)]
 pub enum TrackKind {
@@ -277,6 +286,7 @@ pub enum TrackKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct Track {
@@ -305,6 +315,7 @@ impl Track {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct Clip {
@@ -361,6 +372,7 @@ pub fn units(value: Milli) -> f64 {
 /// a centred clip stays centred when the sequence is resized, so no default has to be
 /// recomputed when the format changes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct Offset {
@@ -375,6 +387,7 @@ pub struct Offset {
 /// Its own type rather than an `Offset`: the unit is a factor, not a pixel, and one is
 /// the identity rather than zero.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct Scale {
@@ -390,6 +403,7 @@ pub struct Scale {
 /// behaviour. Order: scale, then rotate, both about `anchor`, then translate by
 /// `position`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct Transform {
@@ -466,6 +480,7 @@ impl Default for Transform {
 /// What a clip plays. Generated (AI) and 3D sources are planned as further variants; they
 /// will bake to media before export so interchange stays media-only.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(
     tag = "type",
     rename_all = "camelCase",

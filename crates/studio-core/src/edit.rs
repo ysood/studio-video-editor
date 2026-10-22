@@ -26,6 +26,7 @@ use ts_rs::TS;
 pub const DEFAULT_IMAGE_SECONDS: u32 = 5;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 #[ts(export)]
 pub enum ClipEdge {
@@ -41,6 +42,7 @@ pub enum ClipEdge {
 /// a drop onto a sequence whose only audio track is locked lays down the picture and
 /// loses the sound with nothing on screen to say so.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(tag = "type", content = "trackId", rename_all = "camelCase")]
 #[ts(export)]
 pub enum TrackChoice {
@@ -54,6 +56,7 @@ pub enum TrackChoice {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(tag = "type", rename_all_fields = "camelCase")]
 #[ts(export)]
 pub enum EditCommand {
@@ -204,6 +207,7 @@ impl EditCommand {
 
 /// What a successful command created, so the UI can select it.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct EditReport {
@@ -214,6 +218,7 @@ pub struct EditReport {
 }
 
 #[derive(Debug, Clone, PartialEq, Error, Serialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(
     tag = "code",
     rename_all = "camelCase",

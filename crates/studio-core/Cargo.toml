@@ -9,6 +9,10 @@ publish.workspace = true
 [features]
 # Exposes `testing` fixtures to other crates' tests.
 testing = []
+# JSON Schema for the document types, for anything presenting them as tools. Off by
+# default: the shell and the UI never need it, and `testing` is the precedent for
+# keeping a consumer-specific extra out of the normal build.
+schema = ["dep:schemars"]
 
 [dependencies]
 serde.workspace = true
@@ -16,6 +20,7 @@ serde_json.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
 ts-rs.workspace = true
+schemars = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile = "3"

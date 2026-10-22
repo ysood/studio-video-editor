@@ -26,6 +26,7 @@ pub const MAX_ROTATION: Milli = 360 * MILLI;
 pub const MAX_OFFSET: Milli = 4 * MAX_DIMENSION as Milli * MILLI;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error, Serialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(
     tag = "code",
     rename_all = "camelCase",

@@ -63,12 +63,14 @@ repository owner only:
 
 ## Checks
 
-Run the narrowest useful check while working, and all of these before committing:
+Run the narrowest useful check while working, and all of these before committing.
+`--all-features` is not optional: a test behind a feature compiles to nothing without it
+and passes by not existing.
 
 ```sh
 cargo fmt --all -- --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-features
 npm run typecheck
 npm run test
 npm run check:bindings

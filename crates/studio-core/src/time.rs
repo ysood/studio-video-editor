@@ -16,6 +16,7 @@ pub type Micros = i64;
 
 /// An exact frame rate such as 24/1 or 24000/1001.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[ts(export)]
 pub struct Rational {
     pub num: u32,

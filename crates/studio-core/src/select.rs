@@ -26,6 +26,7 @@ use thiserror::Error;
 use ts_rs::TS;
 
 #[derive(Debug, Clone, PartialEq, Eq, Error, Serialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(
     tag = "code",
     rename_all = "camelCase",

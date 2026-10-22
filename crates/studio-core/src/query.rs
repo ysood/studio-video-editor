@@ -23,6 +23,7 @@ use ts_rs::TS;
 
 /// One sequence, without its contents.
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SequenceSummary {
@@ -40,6 +41,7 @@ pub struct SequenceSummary {
 
 /// The project, and enough of each sequence to choose one.
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct ProjectOverview {
@@ -51,6 +53,7 @@ pub struct ProjectOverview {
 /// One clip, flattened: the things asked about a clip, without walking to its track and
 /// its media to find them.
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct ClipSummary {
@@ -82,6 +85,7 @@ pub struct ClipSummary {
 
 /// One track and what is on it.
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct TrackView {
@@ -96,6 +100,7 @@ pub struct TrackView {
 /// A sequence and its tracks, in the order the renderer reads them: video lowest first,
 /// so a later track is drawn over an earlier one.
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct TimelineView {
@@ -208,6 +213,7 @@ pub fn describe(
 
 /// A clip that is playing, and where in its media it has reached.
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct ActiveClip {
@@ -221,6 +227,7 @@ pub struct ActiveClip {
 
 /// What is playing at one frame.
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct Stack {
@@ -276,6 +283,7 @@ pub fn clips_at(project: &Project, sequence: &Sequence, frame: Frame) -> Stack {
 
 /// One asset in the bin, with the things asked about it.
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct MediaSummary {
@@ -300,6 +308,7 @@ pub struct MediaSummary {
 /// Which clips to find. Every field left out widens the search, so an empty filter
 /// returns the whole project.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase", default)]
 #[ts(export)]
 pub struct ClipFilter {

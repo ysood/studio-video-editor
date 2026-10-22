@@ -13,6 +13,11 @@ macro_rules! define_id {
         )]
         #[serde(transparent)]
         #[ts(export, type = "string")]
+        // A uuid is a string on the wire, and describing it as one keeps the schema
+        // readable: `format` says what kind of string without turning every id into a
+        // definition of its own.
+        #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+        #[cfg_attr(feature = "schema", schemars(with = "String", extend("format" = "uuid")))]
         pub struct $name(pub Uuid);
 
         impl $name {

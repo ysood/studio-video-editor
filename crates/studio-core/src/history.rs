@@ -30,6 +30,7 @@ pub struct Editor {
 
 /// What the UI needs to render the session.
 #[derive(Debug, Clone, PartialEq, Serialize, TS)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct HistoryState {
