@@ -19,7 +19,9 @@ export type Entry =
   /** Something it wants to do, waiting to be told whether to. */
   | { kind: "asking"; tool: string; title: string; description: string; arguments: unknown }
   /** How that question was answered, kept so the transcript still reads in order. */
-  | { kind: "answered"; title: string; approved: boolean };
+  | { kind: "answered"; title: string; approved: boolean }
+  /** Something the panel itself has to say. Never dressed up as the assistant. */
+  | { kind: "note"; text: string };
 
 export interface Trouble {
   message: string;
@@ -166,10 +168,15 @@ async function settle(
       entries:
         end.kind === "answered"
           ? // The whole answer replaces what was streamed rather than being added to
-            // it, so a piece that arrived twice, or not at all, does not survive.
-            end.text === ""
-            ? state.entries
-            : [...state.entries, { kind: "said", from: "studio", text: end.text }]
+            // it, so a piece that arrived twice, or not at all, does not survive. A
+            // turn that said nothing at all is reported rather than dropped: silence
+            // looks exactly like a panel that is broken, which is how this went unseen.
+            [
+              ...state.entries,
+              end.text === ""
+                ? { kind: "note", text: "The assistant finished without saying anything." }
+                : { kind: "said", from: "studio", text: end.text },
+            ]
           : [
               ...state.entries,
               {

@@ -126,6 +126,8 @@ pub fn request_body(turn: &Turn<'_>) -> Value {
 pub enum Step {
     /// More of the answer.
     Delta(String),
+    /// One finished output item: a message, a tool call, a model's reasoning.
+    Item(Value),
     /// The whole response object, once the model has finished.
     Completed(Value),
     Failed(ChatError),
@@ -140,6 +142,10 @@ pub fn interpret(event: &Value) -> Step {
         "response.output_text.delta" => match event.get("delta").and_then(Value::as_str) {
             Some(text) => Step::Delta(text.to_string()),
             None => Step::Ignored,
+        },
+        "response.output_item.done" => match event.get("item") {
+            Some(item) if item.is_object() => Step::Item(item.clone()),
+            _ => Step::Ignored,
         },
         "response.completed" => Step::Completed(
             event
@@ -259,6 +265,7 @@ pub async fn ask(
 
     let mut events = Events::new();
     let mut length = 0usize;
+    let mut items: Vec<Value> = Vec::new();
     loop {
         let chunk = response.chunk().await.map_err(|_| {
             ChatError::retryable(
@@ -279,7 +286,8 @@ pub async fn ask(
                     }
                     on_delta(&text);
                 }
-                Step::Completed(response) => return Ok(response),
+                Step::Item(item) => items.push(item),
+                Step::Completed(response) => return Ok(with_items(response, items)),
                 Step::Failed(error) => return Err(error),
                 Step::Ignored => {}
             }
@@ -292,6 +300,28 @@ pub async fn ask(
         ChatErrorCode::Network,
         "The answer ended before it was finished. You can try again.",
     ))
+}
+
+/// Put the items the stream reported into the finished response.
+///
+/// The completed event is documented to carry the whole output and, on the route a
+/// ChatGPT plan token takes, arrives with it empty. The items are only ever sent one at
+/// a time, as each finishes. Reading the completed event alone therefore gives a turn
+/// with no message in it and no tool calls in it, which is an answer that silently
+/// disappears and a tool that is never run.
+///
+/// Its own output still wins where there is any, since that is the authoritative form
+/// and another route may well populate it.
+pub fn with_items(response: Value, items: Vec<Value>) -> Value {
+    let mut response = response;
+    let already = response
+        .get("output")
+        .and_then(Value::as_array)
+        .is_some_and(|output| !output.is_empty());
+    if !already {
+        response["output"] = Value::Array(items);
+    }
+    response
 }
 
 /// The items the model produced, to be carried back into the next turn.
@@ -557,6 +587,60 @@ mod tests {
                 { "type": "refusal", "refusal": "no" },
             ]},
         ]})
+    }
+
+    /// Recorded from the real route a ChatGPT plan token takes. Trimmed to the events
+    /// that matter, otherwise untouched: the empty `output` on the completed event is
+    /// what the provider actually sends.
+    const RECORDED_TEXT: &str = "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"Hi\"}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"delta\":\"!\"}\n\nevent: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"item\":{\"id\":\"msg_0d2c272eff9df125016ad9eaad504887d09ef1e56b2e4c5d3a\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"Hi!\"}],\"phase\":\"final_answer\",\"role\":\"assistant\"}}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"output\":[],\"status\":\"completed\"}}\n\n";
+    const RECORDED_CALL: &str = "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"item\":{\"id\":\"fc_0cf6ff05aae4d34e016ad9eaedcce087d0b5f44d4e8a222299\",\"type\":\"function_call\",\"status\":\"completed\",\"arguments\":\"{}\",\"call_id\":\"call_fVnWWakVupKIujlYbEYGrDsj\",\"name\":\"query_overview\"}}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"output\":[],\"status\":\"completed\"}}\n\n";
+
+    /// Read a whole recorded stream the way `ask` does.
+    fn replay(recorded: &str) -> Value {
+        let mut events = Events::new();
+        let mut items = Vec::new();
+        let mut text = String::new();
+        for event in events.feed(recorded.as_bytes()) {
+            match interpret(&event) {
+                Step::Delta(piece) => text.push_str(&piece),
+                Step::Item(item) => items.push(item),
+                Step::Completed(response) => return with_items(response, items),
+                other => assert!(matches!(other, Step::Ignored), "{other:?}"),
+            }
+        }
+        panic!("the recording never completed");
+    }
+
+    #[test]
+    fn an_answer_survives_a_completed_event_that_carries_nothing() {
+        // The completed event is documented to hold the whole output and arrives empty
+        // on this route. Reading it alone loses the answer entirely, which is a reply
+        // that silently never appears.
+        let response = replay(RECORDED_TEXT);
+        assert_eq!(output_text(&response), "Hi!");
+        assert_eq!(output_items(&response).len(), 1);
+    }
+
+    #[test]
+    fn a_tool_call_survives_the_same_thing() {
+        // The same hole swallows tool calls, which is worse: the turn ends looking like
+        // an answer with nothing in it, and the tool is never run.
+        let response = replay(RECORDED_CALL);
+        let items = output_items(&response);
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0]["type"], json!("function_call"));
+        assert_eq!(items[0]["name"], json!("query_overview"));
+        assert!(items[0]["call_id"]
+            .as_str()
+            .is_some_and(|id| !id.is_empty()));
+    }
+
+    #[test]
+    fn a_route_that_fills_the_completed_event_is_believed_over_the_pieces() {
+        let whole = json!({ "output": [{ "type": "message", "content": [] }] });
+        let assembled = with_items(whole, vec![json!({ "type": "reasoning" })]);
+        assert_eq!(output_items(&assembled).len(), 1);
+        assert_eq!(output_items(&assembled)[0]["type"], json!("message"));
     }
 
     #[test]

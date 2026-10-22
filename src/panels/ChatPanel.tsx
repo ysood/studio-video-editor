@@ -168,6 +168,8 @@ function Line({ entry }: { entry: Entry }) {
           <span>{entry.approved ? entry.title : `${entry.title}: not approved`}</span>
         </p>
       );
+    case "note":
+      return <p className="chat-did">{entry.text}</p>;
     case "asking":
       return <Asking entry={entry} />;
   }
