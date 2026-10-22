@@ -38,6 +38,13 @@ pub struct HistoryState {
     pub undo_label: Option<String>,
     pub redo_label: Option<String>,
     pub dirty: bool,
+    /// Which state the document is in. See [`Editor::revision`].
+    ///
+    /// A number rather than a bigint on the TypeScript side: this is compared and sent
+    /// back across the boundary, and `JSON.stringify` refuses a bigint. One count per
+    /// edit will not reach the range where that conversion stops being exact.
+    #[ts(type = "number")]
+    pub revision: u64,
 }
 
 impl Editor {
@@ -62,6 +69,21 @@ impl Editor {
 
     pub fn project(&self) -> &Project {
         &self.project
+    }
+
+    /// Which state the document is in.
+    ///
+    /// A number is taken by each command that changes something, so a caller that holds
+    /// one can tell whether the document is still as it last saw it. That is what lets a
+    /// second writer, an agent or another window, refuse an edit aimed at a document
+    /// that has since moved rather than apply it to the wrong one.
+    ///
+    /// It identifies a state, not a point in time, and it does not only count upwards:
+    /// undo restores the number the state had before, which is deliberate and is the
+    /// same property `is_dirty` relies on to call the document clean again when you undo
+    /// back to what was saved. A command that changes nothing leaves it alone.
+    pub fn revision(&self) -> u64 {
+        self.revision
     }
 
     /// Apply a command. A command that changes nothing is not recorded in history.
@@ -128,6 +150,7 @@ impl Editor {
             undo_label: self.undo.last().map(|e| e.label.to_string()),
             redo_label: self.redo.last().map(|e| e.label.to_string()),
             dirty: self.is_dirty(),
+            revision: self.revision,
         }
     }
 }
@@ -153,6 +176,56 @@ mod tests {
         assert!(!editor.undo());
         assert!(editor.redo());
         assert_eq!(editor.project().name, "A");
+    }
+
+    /// The three properties a second writer leans on when it holds a revision and asks
+    /// whether the document is still where it left it.
+    #[test]
+    fn revision_identifies_the_state() {
+        let mut editor = Editor::opened(project_with(vec![]));
+        let start = editor.revision();
+
+        // A command that changes something moves it.
+        editor.apply(&rename("A")).unwrap();
+        let after_a = editor.revision();
+        assert_ne!(after_a, start);
+
+        // A command that changes nothing does not, so holding a revision across one is
+        // safe: renaming to the name it already has is not a reason to refuse an edit.
+        editor.apply(&rename("A")).unwrap();
+        assert_eq!(editor.revision(), after_a, "no-op left the revision alone");
+
+        // Undo goes back to the number that state had, rather than inventing a new one.
+        // Without this, undoing would look like a change to anyone holding `start`.
+        assert!(editor.undo());
+        assert_eq!(editor.revision(), start);
+        assert!(editor.redo());
+        assert_eq!(editor.revision(), after_a);
+    }
+
+    #[test]
+    fn each_change_gets_its_own_revision() {
+        let mut editor = Editor::opened(project_with(vec![]));
+        let mut seen = vec![editor.revision()];
+        for name in ["A", "B", "C"] {
+            editor.apply(&rename(name)).unwrap();
+            seen.push(editor.revision());
+        }
+        let mut unique = seen.clone();
+        unique.sort_unstable();
+        unique.dedup();
+        assert_eq!(
+            unique.len(),
+            seen.len(),
+            "a revision was handed out twice: {seen:?}"
+        );
+    }
+
+    #[test]
+    fn history_state_carries_the_revision() {
+        let mut editor = Editor::opened(project_with(vec![]));
+        editor.apply(&rename("A")).unwrap();
+        assert_eq!(editor.history_state().revision, editor.revision());
     }
 
     #[test]

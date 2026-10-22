@@ -135,7 +135,7 @@ export function sampleSnapshot(): Snapshot {
         tracks,
       }],
     },
-    history: { canUndo: false, canRedo: false, undoLabel: null, redoLabel: null, dirty: false },
+    history: { canUndo: false, canRedo: false, undoLabel: null, redoLabel: null, dirty: false, revision: 0 },
     path: null,
     offlineMedia: [],
   };

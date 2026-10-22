@@ -3,4 +3,12 @@
 /**
  * What the UI needs to render the session.
  */
-export type HistoryState = { canUndo: boolean, canRedo: boolean, undoLabel: string | null, redoLabel: string | null, dirty: boolean, };
+export type HistoryState = { canUndo: boolean, canRedo: boolean, undoLabel: string | null, redoLabel: string | null, dirty: boolean, 
+/**
+ * Which state the document is in. See [`Editor::revision`].
+ *
+ * A number rather than a bigint on the TypeScript side: this is compared and sent
+ * back across the boundary, and `JSON.stringify` refuses a bigint. One count per
+ * edit will not reach the range where that conversion stops being exact.
+ */
+revision: number, };
