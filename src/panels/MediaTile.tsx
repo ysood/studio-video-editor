@@ -1,7 +1,6 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useRef } from "react";
 import type { MediaAsset } from "../bindings/MediaAsset";
-import { formatDuration } from "../format";
 import { ContextMenu, Icon, type MenuEntry, Row } from "../ui";
 
 /** Poster frame position, a little in so fades from black still show picture. */
@@ -20,9 +19,14 @@ interface MediaTileProps {
 }
 
 /**
- * A gallery tile: picture on top, caption plate below. Video tiles scrub as the pointer
- * moves across them. Thumbnails come from the media itself for now; a cached thumbnail
- * service in Rust can replace this for large bins.
+ * A gallery tile: the picture and nothing else. Video tiles scrub as the pointer moves
+ * across them, with a line marking where in the clip the frame on show comes from.
+ *
+ * The name is the tile's `aria-label` rather than text under it, so dropping the caption
+ * costs the picture nothing and still leaves the tile something to be called.
+ *
+ * Thumbnails come from the media itself for now; a cached thumbnail service in Rust can
+ * replace this for large bins.
  */
 export function MediaTile({
   media,
@@ -43,6 +47,9 @@ export function MediaTile({
     const rect = event.currentTarget.getBoundingClientRect();
     const fraction = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
     video.currentTime = fraction * video.duration;
+    // Written straight to the element: this fires on every pointer move, and a render
+    // per move to place a one pixel line would be a poor trade.
+    event.currentTarget.style.setProperty("--scrub", String(fraction));
   };
 
   const resetScrub = () => {
@@ -56,6 +63,7 @@ export function MediaTile({
         marker="outline"
         selected={selected}
         draggable
+        aria-label={media.name}
         title={media.path}
         onClick={onSelect}
         onContextMenu={onSelect}
@@ -79,13 +87,7 @@ export function MediaTile({
             </span>
           )}
           {offline && <span className="bin-tile-badge">Offline</span>}
-        </div>
-        <div className="bin-tile-caption" data-surface="well">
-          <span className="bin-tile-name">{media.name}</span>
-          <span className="bin-tile-meta numeric">
-            <Icon name={media.kind} />
-            {formatDuration(media.durationUs)}
-          </span>
+          {!offline && media.kind === "video" && <span className="bin-tile-scrub" aria-hidden />}
         </div>
       </Row>
     </ContextMenu>

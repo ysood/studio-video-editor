@@ -68,7 +68,6 @@
   flex-direction: column;
   border: var(--border-width) solid var(--color-border-subtle);
   border-radius: var(--radius-panel);
-  background: var(--color-surface-raised);
   overflow: hidden;
 }
 
@@ -117,31 +116,22 @@
   font: var(--type-caption);
 }
 
-.bin-tile-caption {
-  display: grid;
-  gap: var(--space-2);
-  padding: var(--space-5) var(--space-6);
+/* Where the pointer is scrubbing, at the width the timeline's own playhead uses.
+   It shows only while the pointer is over the picture: a line left behind would read as
+   a mark on the clip rather than as a cursor. */
+.bin-tile-scrub {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--scrub, 0) * 100%);
+  width: var(--timeline-playhead-width);
+  background: var(--color-accent-base);
+  opacity: 0;
+  pointer-events: none;
 }
 
-.bin-tile-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font: var(--type-label);
-  font-weight: var(--type-heading-weight);
-}
-
-.bin-tile-meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--color-text-secondary);
-  font: var(--type-caption);
-}
-
-.bin-tile-meta .ui-icon {
-  width: var(--type-caption-size);
-  height: var(--type-caption-size);
+.bin-tile-picture:hover .bin-tile-scrub {
+  opacity: 1;
 }
 
 /* List. The rows run the full width of the pane, like the bins do. */

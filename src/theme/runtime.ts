@@ -66,6 +66,7 @@ export function toCssVars(theme: Theme): Record<string, string> {
   vars["--timeline-ruler-height"] = px(theme.timeline.rulerHeight);
   vars["--timeline-header-width"] = px(theme.timeline.headerWidth);
   vars["--timeline-header-stripe"] = px(theme.timeline.headerStripe);
+  vars["--timeline-playhead-width"] = px(theme.timeline.playheadWidth);
 
   return vars;
 }
