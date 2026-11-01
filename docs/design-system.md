@@ -61,7 +61,10 @@ playhead line against near black.
 
 Ink (dark) is unfinished. Paper overrides `color`, `surfaces` and `elevation` and takes
 everything else from Ink, so the pair cannot drift in type, density or timeline metrics.
-Graphite and Crimson stay as alternates.
+Kit (dark) also builds on Ink, swapping in the shared design kit's pure greys, indigo
+accent, Geist and Geist Mono and corners, so Studio can match the other products. Its
+values are in `kitGray` and `kitIndigo` in `primitives.ts`. Graphite and Crimson stay as
+alternates.
 
 **The budget.** The whole palette is one neutral ramp plus five hues:
 

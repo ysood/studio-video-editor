@@ -65,6 +65,26 @@ export const clay = { base: "#a04b35", edge: "#c8745c" } as const;
 
 export const signal = { onDark: "#e2544f", onLight: "#b23a30" } as const;
 
+/**
+ * Kit: the palette of the shared design kit (~/Developer/templates/design/core.css), so
+ * one theme can match the other products. Pure greys, with indigo as the one brand hue.
+ * Written in hex rather than the kit's oklch because the timeline canvas paints these too.
+ */
+export const kitGray = {
+  400: "#858585", // secondary text
+  500: "#757575", // tertiary text
+  700: "#212121", // borders, hover fills
+  800: "#181818", // cards, raised fills
+  900: "#111111", // panels
+  950: "#090909", // the window
+} as const;
+
+export const kitIndigo = { base: "#615fff", light: "#7c86ff" } as const;
+export const kitRed = "#fb2c36";
+
+export const geistSans = '"Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+export const geistMono = '"Geist Mono", ui-monospace, "SF Mono", Menlo, monospace';
+
 export const systemSans =
   '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif';
 export const systemMono = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
