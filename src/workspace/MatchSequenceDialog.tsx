@@ -7,7 +7,7 @@ import type { SequenceFormat } from "../bindings/SequenceFormat";
 import { placeMedia } from "../edits";
 import { formatRate } from "../format";
 import { useActiveSequence, useEditor } from "../store";
-import { Actions, Button, Dialog, Note } from "../ui";
+import { Actions, Button, Dialog } from "../ui";
 
 function describe(format: SequenceFormat): string {
   return `${format.width}×${format.height} at ${formatRate(format.frameRate)} fps`;
@@ -50,9 +50,6 @@ export function MatchSequenceDialog() {
             Matching the sequence to the clip keeps every source frame. Leaving it conforms the
             footage, which drops or repeats frames during playback and on export.
           </p>
-          <Note>
-            The frame rate is fixed once the timeline has clips, so it cannot be changed after this.
-          </Note>
           <Actions align="end">
             <Button variant="ghost" onClick={() => void place(false)}>
               Keep sequence

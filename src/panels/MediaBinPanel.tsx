@@ -231,7 +231,7 @@ export function MediaBinPanel() {
           setting you make once, the bin is the choice you keep making. */}
       <PanelToolbar>
         <Segmented
-          emphasis="accent"
+          align="center"
           label="Bin"
           value={prefs.bin}
           onChange={(id) => setPrefs({ ...prefs, bin: id as BinId })}

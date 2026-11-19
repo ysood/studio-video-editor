@@ -192,7 +192,6 @@ export function Gallery() {
           <Field label="Source in">
             <Value numeric>00:00:01:00</Value>
           </Field>
-          <Note>Frame rate is fixed once the timeline has clips.</Note>
           <RadioGroup
             name="gallery-radio"
             ariaLabel="Delivery"
@@ -258,7 +257,7 @@ export function Gallery() {
           {/* The accented form fills its chosen pill and centres itself, so it gets a
               row of its own here the way it gets a toolbar of its own in a panel. */}
           <Segmented
-            emphasis="accent"
+            align="center"
             label="Panel choice"
             value={segment}
             onChange={setSegment}

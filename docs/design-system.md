@@ -156,20 +156,26 @@ and on the stage, and a hairline never has to be re-picked per surface.
 
 ## Depth
 
-The workspace is flat and black. The window and every panel in it are one surface
-(`neutral[950]`), and a panel is told from its neighbour by a hairline, which is how
-Premiere and Resolve divide a workspace. Panels used to be grey cards on a black ground
-with a gutter and a radius: that spent a surface step on saying "this is a panel", left
-the window mostly grey, and rounded a corner against every edge of the window.
+The workspace is flat and nearly black. The window and every panel in it are one surface
+(`neutral[925]`, `#101010`), and a panel is told from its neighbour by a hairline, which
+is how Premiere and Resolve divide a workspace.
+
+That surface sits a few points above black on purpose, and it is the whole of how depth
+works: with the ground at 925, true black is free to mean "sunk".
 
 | Surface | What is on it |
 |---|---|
-| panel | the window, the bars, every panel body |
-| raised (`neutral[900]`) | things that are actually lifted: a quiet button, an input, a track header, a menu |
-| stage (`neutral[1000]`) | picture and time: the viewer's frame and the timeline canvas |
+| panel (`neutral[925]`) | the window, the bars, every panel body |
+| field (`neutral[1000]`) | anything cut into the surface: an input, a search box, a switcher's trough, the timeline's stage, the viewer's frame |
+| raised (`neutral[900]`) | the few things that are lifted: a quiet button, the chosen segment, a track header, a menu |
 
-Grey means raised. If a region is grey and is not a control, an input or an overlay, it
-is wrong.
+Black means sunk and grey means raised. A grey region that is not a control or an overlay
+is wrong, and so is a field drawn as a grey box standing on the panel. A field's value is
+secondary text at rest and primary once the field has focus, so a panel of fields has a
+quiet state and the one you are in stands out.
+
+Hairlines are white at 6% and 10%. In a window that is nothing but panels the rules add
+up, and at shadcn's own 10% and 15% the grid of lines was the loudest thing on screen.
 
 ## Panel anatomy
 
@@ -287,13 +293,16 @@ These keep every panel reading as one product. The gallery shows each rule.
     background image so the resting fill underneath survives; `bg-hover` would replace it
     and show the panel through. Selection also carries `color.selection` on a border or
     outline, never a different fill per panel.
-11. **Two views of one panel is a tab strip**, not a control in a toolbar. `Tabs` with
-    `fill` sits flush at the panel's top edge and gives the chosen view the rest of the
-    height. A segmented control alone in the middle of an otherwise empty bar reads as a
-    cutout in the panel rather than as a way to change what the panel is showing, which
-    is what the properties panel used to do. A `Segmented` is for a choice that sits
-    among other controls in a toolbar, and it ranges left with them.
-12. **Menus mirror the toolbar.** A context menu or overflow menu offers the same action
+11. **A panel switches views with one control, in one place.** A centred `Segmented`
+    (`align="center"`) in the panel's header bar. The bin choosing a bin and the
+    properties panel choosing Inspector or Transform are the same question, so they are
+    the same control; a filled pill on one side of the window and underlined text on the
+    other is two design languages for one idea.
+12. **No hints.** A panel does not explain itself in a line of small text under a
+    control. If a control needs a sentence to be understood, the control is wrong; if it
+    is disabled, its disabled state says so. Text in a panel is a label, a value or an
+    empty state.
+13. **Menus mirror the toolbar.** A context menu or overflow menu offers the same action
     with the same label, icon and shortcut as its button, so `chord()` from
     `src/keyboard.ts` writes every shortcut. A right click selects what is under the
     pointer before the menu opens. Destructive items use `tone: "danger"` and sit last,

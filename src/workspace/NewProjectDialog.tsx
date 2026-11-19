@@ -66,9 +66,7 @@ export function NewProjectDialog({ open: isOpen, onClose }: { open: boolean; onC
           {folder ?? "Choose a folder…"}
         </Button>
       </Field>
-      <Note>
-        {folder ? `Saved as ${file}.studio in that folder.` : "The project file is written when you create it."}
-      </Note>
+      {folder && <Note>Saved as {file}.studio in that folder.</Note>}
       <Actions align="end">
         <Button variant="ghost" onClick={onClose}>
           Cancel

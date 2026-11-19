@@ -1,6 +1,5 @@
 import { useState } from "react";
 import type { Clip } from "../bindings/Clip";
-import type { SequenceFormat } from "../bindings/SequenceFormat";
 import type { Track } from "../bindings/Track";
 import { setTransform, type TransformPatch } from "../edits";
 import { useActiveSequence, useEditor } from "../store";
@@ -49,13 +48,13 @@ export function TransformBody() {
           <Note>Sound has no picture to move.</Note>
         </Section>
       )}
-      {video.length === 1 && <ClipTransform entry={video[0]!} format={sequence.format} />}
+      {video.length === 1 && <ClipTransform entry={video[0]!} />}
       {video.length > 1 && <ManyClips ids={video.map((e) => e.clip.id)} />}
     </>
   );
 }
 
-function ClipTransform({ entry, format }: { entry: { clip: Clip; track: Track }; format: SequenceFormat }) {
+function ClipTransform({ entry }: { entry: { clip: Clip; track: Track } }) {
   const edit = useEditor((s) => s.edit);
   const { clip, track } = entry;
   const t = clip.transform;
@@ -137,10 +136,6 @@ function ClipTransform({ entry, format }: { entry: { clip: Clip; track: Track };
             />
           </div>
         </Field>
-        <Note>
-          Pixels from the centre of the {format.width}×{format.height} frame. Position places
-          the anchor, and rotation turns about it.
-        </Note>
       </Section>
       <Section title="Opacity">
         <Field label="Opacity %">

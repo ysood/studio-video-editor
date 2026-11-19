@@ -13,45 +13,22 @@ export interface TabSpec {
   content: ReactNode;
 }
 
-/**
- * Text tabs with arrow-key navigation; the selected tab's content renders below.
- *
- * `fill` makes the strip the panel's own chrome: it sits flush at the top edge taking
- * the card inset at the sides, and the chosen tab's content takes the rest of the
- * height and scrolls. Use it for a panel that is two views of one thing, rather than a
- * toolbar holding a control that switches them. A pill floating in the middle of an
- * otherwise empty band does not read as "these are the two views of this panel"; it
- * reads as a cutout nobody can explain.
- */
-export function Tabs({ value, onChange, tabs, label, fill }: {
+/** Text tabs with arrow-key navigation; the selected tab's content renders below. */
+export function Tabs({ value, onChange, tabs, label }: {
   value: string;
   onChange: (value: string) => void;
   tabs: TabSpec[];
   label: string;
-  fill?: boolean;
 }) {
   return (
-    <TabsPrimitive.Root
-      className={cn(fill && "flex min-h-0 flex-1 flex-col")}
-      value={value}
-      onValueChange={onChange}
-    >
-      <TabsPrimitive.List
-        // Filled, the strip is the panel's header bar: the same height and inset as a
-        // toolbar, so a panel with tabs and a panel with a toolbar line up.
-        className={cn("flex gap-5 border-b border-edge", fill && "h-toolbar flex-none gap-7 px-6")}
-        aria-label={label}
-      >
+    <TabsPrimitive.Root value={value} onValueChange={onChange}>
+      <TabsPrimitive.List className="flex gap-5 border-b border-edge" aria-label={label}>
         {tabs.map((t) => (
           <TabsPrimitive.Trigger
             key={t.value}
             value={t.value}
             className={cn(
-              "cursor-default border-0 bg-transparent p-0 text-label text-fg-muted outline-none",
-              // In a header bar the tab is as tall as the bar and overlaps its rule by a
-              // hairline, so the underline of the chosen tab replaces the rule under it
-              // rather than floating above it.
-              fill ? "-mb-hairline h-toolbar" : "h-control",
+              "h-control cursor-default border-0 bg-transparent p-0 text-label text-fg-muted outline-none",
               // The underline is always there, transparent, so choosing a tab never
               // shifts the label by the width of the line.
               "border-b-(length:--border-focus-width) border-b-transparent",
@@ -65,13 +42,7 @@ export function Tabs({ value, onChange, tabs, label, fill }: {
         ))}
       </TabsPrimitive.List>
       {tabs.map((t) => (
-        <TabsPrimitive.Content
-          key={t.value}
-          value={t.value}
-          // A filled tab owns the rest of the panel, and its content brings its own
-          // inset, so there is no padding to add here.
-          className={cn(fill ? "min-h-0 flex-1 overflow-hidden" : "pt-4")}
-        >
+        <TabsPrimitive.Content key={t.value} value={t.value} className="pt-4">
           {t.content}
         </TabsPrimitive.Content>
       ))}
@@ -79,44 +50,35 @@ export function Tabs({ value, onChange, tabs, label, fill }: {
   );
 }
 
-const segmentedVariants = cva("inline-flex h-control rounded-button bg-raised p-hairline", {
+/**
+ * The trough is a field: sunk to black with a hairline, like an input, and the chosen
+ * segment is the one raised thing in it. That reads as "one of these is in", which a
+ * row of buttons on a grey slab does not.
+ */
+const segmentedVariants = cva("inline-flex h-control rounded-button border border-edge bg-field p-hairline", {
   variants: {
-    emphasis: {
-      quiet: "",
-      // Ranged left with everything else in the toolbar. It used to be centred, on the
-      // grounds that it is the thing the panel is about, and that was a mistake: a
-      // control alone in the middle of a wide empty bar reads as decoration rather than
-      // as the panel's main choice. It may still shrink and scroll, because in a narrow
-      // panel sliding the choices beats crushing whatever shares the toolbar with them.
-      accent: "min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+    align: {
+      start: "",
+      // A panel's view switcher sits in the middle of its header bar. It may shrink and
+      // scroll, because in a narrow panel sliding the choices beats crushing whatever
+      // shares the bar with them.
+      center: "mx-auto min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
     },
   },
-  defaultVariants: { emphasis: "quiet" },
+  defaultVariants: { align: "start" },
 });
 
-const segmentVariants = cva(
-  cn(
-    controlBase,
-    // The height is the container's, less its inset, so a segment stretches to it rather
-    // than restating a calc; an icon-only one is then square by aspect ratio.
-    "rounded-button bg-transparent px-5 text-label text-fg-muted hover:text-fg",
-    // An explicit width, not `aspect-square`. WebKit resolves an aspect ratio against a
-    // stretched flex height as zero width, so in the desktop app every icon-only
-    // segment after the first collapsed to nothing and the control showed one icon.
-    // Chromium does not, which is why the browser preview never showed it.
-    "data-[icon-only]:w-control data-[icon-only]:px-0",
-  ),
-  {
-    variants: {
-      emphasis: {
-        // Lifts: the selected fill layers over the raised track.
-        quiet: "data-[state=on]:state-selected data-[state=on]:text-fg",
-        // Filled the way a primary button is.
-        accent: "data-[state=on]:bg-accent data-[state=on]:text-fg-on-accent",
-      },
-    },
-    defaultVariants: { emphasis: "quiet" },
-  },
+const segment = cn(
+  controlBase,
+  // The height is the trough's, less its inset, so a segment stretches to it rather
+  // than restating a calc.
+  "rounded-control bg-transparent px-5 text-label text-fg-muted hover:text-fg",
+  // An explicit width, not `aspect-square`. WebKit resolves an aspect ratio against a
+  // stretched flex height as zero width, so in the desktop app every icon-only segment
+  // after the first collapsed to nothing and the control showed one icon. Chromium does
+  // not, which is why the browser preview never showed it.
+  "data-[icon-only]:w-control data-[icon-only]:px-0",
+  "data-[state=on]:bg-raised data-[state=on]:text-fg",
 );
 
 export interface SegmentOption {
@@ -131,24 +93,26 @@ export interface SegmentOption {
  * A segmented control: pick exactly one of a few options. An option may carry an icon,
  * a label, or both; `iconOnly` drops the text and moves the label into a tooltip, which
  * is what a dense toolbar wants.
+ *
+ * This is the one way a panel switches between its views. The bin choosing a bin and
+ * the properties panel choosing between Inspector and Transform are the same question,
+ * so they are the same control in the same place: centred in the header bar. They were
+ * a filled pill on one side of the window and underlined text on the other, which is
+ * two design languages for one idea.
  */
-export function Segmented({ value, options, onChange, label, emphasis = "quiet", className }: {
+export function Segmented({ value, options, onChange, label, align, className }: {
   value: string;
   options: SegmentOption[];
   onChange: (value: string) => void;
   label: string;
   className?: string;
-  /**
-   * "accent" fills the chosen segment, for the control that is a panel's main choice.
-   * "quiet" lifts it instead, for a secondary one such as a view toggle. Two accented
-   * groups in one toolbar would both claim to be the main thing.
-   */
-  emphasis?: "quiet" | "accent";
+  /** "center" for a panel's view switcher; "start" for a choice among other controls. */
+  align?: "start" | "center";
 }) {
   return (
     <ToggleGroupPrimitive.Root
       type="single"
-      className={cn(segmentedVariants({ emphasis }), className)}
+      className={cn(segmentedVariants({ align }), className)}
       value={value}
       aria-label={label}
       onValueChange={(next) => next && onChange(next)}
@@ -158,7 +122,7 @@ export function Segmented({ value, options, onChange, label, emphasis = "quiet",
           <ToggleGroupPrimitive.Item
             key={o.value}
             value={o.value}
-            className={segmentVariants({ emphasis })}
+            className={segment}
             data-icon-only={o.iconOnly ? "" : undefined}
             aria-label={o.label}
           >

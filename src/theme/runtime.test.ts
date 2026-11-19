@@ -31,7 +31,7 @@ describe("toCssVars", () => {
 
 describe("canvasFont", () => {
   it("builds a canvas font shorthand from a type role", () => {
-    expect(canvasFont(themes[0]!, "canvas")).toMatch(/^400 11px /);
+    expect(canvasFont(themes[0]!, "canvas")).toMatch(/^400 10px /);
   });
 });
 

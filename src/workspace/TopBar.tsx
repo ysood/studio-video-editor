@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { runAction } from "../actions";
-import { formatRate } from "../format";
 import { chord } from "../keyboard";
 import { useActiveSequence, useEditor } from "../store";
 import { toggleChat } from "./layout";
@@ -15,7 +14,6 @@ export function TopBar() {
   // the field, so there is no dialog to say what is being renamed.
   const [renaming, setRenaming] = useState(false);
   const history = snapshot?.history;
-  const format = sequence?.format;
   const hasClips =
     sequence !== null && sequence.tracks.some((t) => t.clips.length > 0);
 
@@ -38,8 +36,12 @@ export function TopBar() {
 
   return (
     <header className="topbar" data-surface="chrome">
-      {/* On macOS these live in the system menu bar instead. */}
-      {!nativeMenu && <Menu trigger={<Button variant="ghost">File</Button>} entries={fileMenu} />}
+      {/* Three cells, so the name is centred on the window and not on whatever happens
+          to be left over between the two sides. On macOS the file commands live in the
+          system menu bar, and the leading cell is empty. */}
+      <div className="topbar-side">
+        {!nativeMenu && <Menu trigger={<IconButton icon="file" label="File" />} entries={fileMenu} />}
+      </div>
       <div className="topbar-title">
         {renaming && snapshot ? (
           <TextInput
@@ -59,13 +61,9 @@ export function TopBar() {
           </strong>
         )}
         {history?.dirty && <span className="dirty-dot" title="Unsaved changes" />}
-        {format && (
-          <span className="numeric">
-            {format.width}×{format.height}, {formatRate(format.frameRate)} fps
-          </span>
-        )}
       </div>
-      <div className="topbar-group">
+      <div className="topbar-side" data-end>
+        <div className="topbar-group">
         <IconButton
           icon="undo"
           label={history?.undoLabel ? `Undo ${history.undoLabel}` : "Undo"}
@@ -79,12 +77,13 @@ export function TopBar() {
           shortcut={chord("Z", { shift: true })}
           disabled={!history?.canRedo}
           onClick={() => runAction("redo")}
-        />
+          />
+        </div>
+        <IconButton icon="chat" label="Assistant" onClick={toggleChat} />
+        <Button variant="solid" icon="export" onClick={() => runAction("export")} disabled={!hasClips}>
+          Export
+        </Button>
       </div>
-      <IconButton icon="chat" label="Assistant" onClick={toggleChat} />
-      <Button variant="solid" icon="export" onClick={() => runAction("export")} disabled={!hasClips}>
-        Export
-      </Button>
     </header>
   );
 }

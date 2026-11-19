@@ -11,23 +11,36 @@
   min-height: 0;
 }
 
-/* Top bar */
+/* Top bar: the project's name in the middle of the window and nothing beside it. The
+   sequence's size and rate used to sit against the name, which made one string of two
+   unrelated facts; they are in the inspector, where they can also be changed. */
 .topbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  gap: var(--space-4);
-  /* The panel inset, so the top bar's first and last things sit over the panels'. */
+  gap: var(--space-6);
+  /* The panel inset, so the bar's last control sits over the panels' last. */
   padding: 0 var(--space-6);
   border-bottom: var(--border-width) solid var(--color-border-subtle);
   background: var(--color-surface-panel);
 }
 
-.topbar-title {
+.topbar-side {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-4);
   min-width: 0;
-  margin-right: auto;
+}
+
+.topbar-side[data-end] {
+  justify-content: flex-end;
+}
+
+.topbar-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
 }
 
 .topbar-title strong {
@@ -57,16 +70,6 @@
   background: none;
   font: var(--type-title);
   letter-spacing: var(--type-title-tracking);
-}
-
-/* The format reads as one line beside the name, whatever the name is doing. */
-.topbar-title span {
-  white-space: nowrap;
-}
-
-.topbar-title span {
-  color: var(--color-text-secondary);
-  font: var(--type-label);
 }
 
 .dirty-dot {

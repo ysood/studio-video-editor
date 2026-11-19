@@ -11,7 +11,6 @@ import {
   Button,
   Checkbox,
   Field,
-  Note,
   NumberInput,
   Section,
   Select,
@@ -231,7 +230,6 @@ function SequenceSettings({ project, sequence }: { project: Project; sequence: S
             }}
           />
         </Field>
-        {hasClips && <Note>Frame rate is fixed once the timeline has clips.</Note>}
         <Field label="Sample rate">
           <Select
             value={String(format.sampleRate)}

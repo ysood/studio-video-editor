@@ -38,18 +38,21 @@ export const studioTheme: Theme = {
   scheme: "dark",
 
   color: {
-    // Flat, and black. The window and every panel in it are one surface, and a panel is
-    // told from its neighbour by a hairline, which is how Premiere and Resolve divide a
-    // workspace. Panels used to be grey cards floating on a black ground: that spent a
-    // whole surface step on saying "this is a panel", left the window mostly grey, and
-    // put a rounded corner against every edge of the window for no reason. Grey is now
-    // reserved for things that are actually raised: a control, an input, a menu.
+    // Flat, and nearly black. The window and every panel in it are one surface, told
+    // apart by hairlines, as in Premiere and Resolve.
+    //
+    // That surface sits a few points above black on purpose, and it is the whole of how
+    // depth works here: with the ground at 925, true black is free to mean "sunk". A
+    // field, a search box, a switcher's trough and the timeline's stage are all black
+    // cut into the surface, rather than grey boxes standing on it. Grey then only ever
+    // means raised (a quiet button, the chosen segment, a menu), and there is very
+    // little of it.
     surface: {
-      base: neutral[950], // shadcn `background`
-      gutter: neutral[950],
-      panel: neutral[950],
-      raised: neutral[900], // shadcn `card`: a quiet button, a track header, a trough
-      input: neutral[900],
+      base: neutral[925],
+      gutter: neutral[925],
+      panel: neutral[925],
+      raised: neutral[900],
+      input: neutral[1000],
       overlay: neutral[900],
       locked: neutral[900],
     },
@@ -62,12 +65,14 @@ export const studioTheme: Theme = {
       selected: "rgba(255, 255, 255, 0.10)",
     },
 
-    // shadcn's own dark `border` and `input`: white at 10% and 15%. Alphas rather than
+    // White at 6% and 10%, a step under shadcn's own 10 and 15: in a window that is
+    // nothing but panels the rules add up, and at shadcn's weight the grid of lines was
+    // the loudest thing on screen. Alphas rather than
     // greys, so one value is correct on the panel, inside a well and on the stage, and
     // a hairline never has to be re-picked per surface.
     border: {
-      strong: "rgba(255, 255, 255, 0.15)",
-      subtle: "rgba(255, 255, 255, 0.10)",
+      strong: "rgba(255, 255, 255, 0.10)",
+      subtle: "rgba(255, 255, 255, 0.06)",
     },
 
     text: {
@@ -107,7 +112,7 @@ export const studioTheme: Theme = {
 
     // Neutral around the picture and black behind it. Nothing else may sit here.
     viewer: {
-      surround: neutral[950],
+      surround: neutral[925],
       matte: neutral[1000],
     },
 
@@ -125,7 +130,7 @@ export const studioTheme: Theme = {
   // input likewise. Inside an overlay, raised goes up one more and an input sinks back
   // to black.
   surfaces: {
-    well: { surface: { panel: neutral[900], raised: neutral[800], input: neutral[950] } },
+    well: { surface: { panel: neutral[900], raised: neutral[800], input: neutral[1000] } },
     stage: { surface: { base: neutral[1000], panel: neutral[950] } },
   },
 
@@ -162,7 +167,9 @@ export const studioTheme: Theme = {
     title: { family: "display", size: 13, weight: 500, lineHeight: 1.3, tracking: 0 },
     timecode: { family: "numeric", size: 12, weight: 500, lineHeight: 1.2, tracking: 0 },
     timecodeDisplay: { family: "numeric", size: 20, weight: 500, lineHeight: 1.1, tracking: -0.02 },
-    canvas: { family: "ui", size: 11, weight: 400, lineHeight: 1, tracking: 0 },
+    // Ruler labels and clip names. A step under caption: on the canvas they are marks
+    // on an instrument, read at a glance against a tick, not text to be read.
+    canvas: { family: "ui", size: 10, weight: 400, lineHeight: 1, tracking: 0 },
     overline: { family: "ui", size: 10, weight: 500, lineHeight: 1.2, tracking: 0.14 },
     projectName: { family: "wordmark", size: 14, weight: 500, lineHeight: 1.2, tracking: -0.005 },
     wordmark: { family: "wordmark", size: 60, weight: 500, lineHeight: 1, tracking: -0.03 },
