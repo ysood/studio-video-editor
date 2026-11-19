@@ -97,7 +97,7 @@ export interface ColorRoles {
     heading: string; // section headings inside panels
   };
   accent: {
-    base: string; // time and action: playhead, timecode, primary button, focus
+    base: string; // the one primary action in a region, the focus ring, a toggle that is on
     hover: string;
     wash: string; // translucent accent for drop targets
   };
@@ -109,13 +109,25 @@ export interface ColorRoles {
   };
   /** Outline of selected clips and bin items. */
   selection: string;
+  /**
+   * The playhead, and nothing else. It is a role of its own rather than the accent
+   * because the accent is neutral: with a white primary there would be no colour left
+   * saying "this is now", and that is the one thing on a timeline that has to be found
+   * without looking for it.
+   */
+  playhead: string;
+  /**
+   * Media kind. `base` fills a clip, a bin swatch or a tile; `band` is the same hue
+   * taken down hard and carries the clip's name, because white type needs a dark ground
+   * at 11px and a vivid fill does not give it one.
+   */
   media: {
     video: string;
-    videoEdge: string;
+    videoBand: string;
     audio: string;
-    audioEdge: string;
+    audioBand: string;
     image: string;
-    imageEdge: string;
+    imageBand: string;
   };
   status: {
     danger: string;

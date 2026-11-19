@@ -27,11 +27,11 @@ export const COLOR_TOKENS = [
   // Text
   "fg", "fg-muted", "fg-faint", "fg-heading", "fg-on-accent", "fg-on-media",
   // Accent, and the things that are their own meaning
-  "accent", "accent-hover", "accent-wash", "selection", "danger", "scrim",
+  "accent", "accent-hover", "accent-wash", "selection", "playhead", "danger", "scrim",
   // Media kind
-  "media-video", "media-video-edge",
-  "media-audio", "media-audio-edge",
-  "media-image", "media-image-edge",
+  "media-video", "media-video-band",
+  "media-audio", "media-audio-band",
+  "media-image", "media-image-band",
   // shadcn/ui's own names, pointed at the roles above so a pasted component lands
   // wearing this product's clothes
   "background", "foreground", "card", "card-foreground", "popover", "popover-foreground",

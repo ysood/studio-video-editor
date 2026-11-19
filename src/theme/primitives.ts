@@ -4,70 +4,80 @@ import geistMonoVariable from "./fonts/GeistMono-Variable.woff2";
 import geistVariable from "./fonts/Geist-Variable.woff2";
 
 /**
- * Ash: the one neutral ramp, and the whole of Studio's chrome.
+ * Neutral: the one grey ramp, and the whole of Studio's chrome.
  *
- * It is a near-neutral grey carrying about 8% of blue (hue 220). A dead grey reads as
- * unfinished and a warm grey reads as paper, and neither is what a room full of people
- * grading a picture wants behind it; a trace of blue reads as an instrument. The
- * saturation stays low enough that it never shifts a judgement about what is on screen.
+ * These are shadcn/ui's stock dark surfaces, which are Tailwind's `neutral` scale, and
+ * the important thing about them is that their chroma is exactly zero. An earlier ramp
+ * here carried about 8% of blue on the theory that a trace of hue reads as an
+ * instrument. It does not. At these lightnesses a tinted grey reads as a grey that has
+ * gone wrong, the whole window looks lifted toward blue, and on a tool whose job is
+ * judging colour that is the one mistake worth never making. Pure neutral it is.
  *
- * The steps are even in lightness rather than in hex, which is what makes a surface
- * ladder look deliberate: panel to raised is the same visual distance as window to
- * panel, so no two surfaces look like a mistake and none look like the same one twice.
+ * The named steps map onto shadcn's semantic tokens:
+ *
+ *   950  background        the window
+ *   900  card              a panel
+ *   800  secondary, muted  anything raised, and popovers
+ *   500  ring              tertiary text
+ *   400  muted-foreground  secondary text
+ *   200  primary           the accent, which in a shadcn dark theme is near white
+ *   50   foreground        primary text
  */
-export const ash = {
-  50: "#f1f3f6", // primary text; not white, which buzzes on near black
-  100: "#dfe3e9",
-  200: "#c3c9d3",
-  300: "#a1a9b6",
-  400: "#949cab", // secondary text
-  500: "#6b7382", // tertiary text
-  600: "#4b525e",
-  700: "#2e333c",
-  750: "#262a32",
-  800: "#1e2128", // raised
-  850: "#181b21", // overlay, locked, wells lifted
-  900: "#13161b", // panel
-  950: "#0d0f13", // the window
-  975: "#08090b", // the gutter between cards, and the stage
-  1000: "#000000", // behind the picture, and nowhere else
+export const neutral = {
+  50: "#fafafa",
+  100: "#f5f5f5",
+  200: "#e5e5e5",
+  300: "#d4d4d4",
+  400: "#a1a1a1",
+  500: "#737373",
+  600: "#525252",
+  700: "#404040",
+  800: "#262626",
+  900: "#171717",
+  950: "#0a0a0a",
+  1000: "#000000",
 } as const;
 
 /**
- * Amber: the one accent, and it means one thing, time and the action that commits it.
- *
- * It is the only hue in the product that is not media. That is deliberate: a playhead
- * has to be found instantly against a timeline of blue, green and violet clips, and
- * amber is the one direction none of them occupy. It is also why the accent is not the
- * blue every editor reaches for first: the video clips already own blue.
+ * The accent is white, because in a shadcn dark theme the primary action is a near-white
+ * fill with dark text on it, and because a video editor should not be sprinkled with a
+ * brand hue. Colour in this product belongs to the clips.
  */
-export const amber = {
-  base: "#f0a23c",
-  bright: "#ffbc67", // hover
-  ink: "#1b1204", // text on an amber fill
+export const accentWhite = {
+  base: neutral[200],
+  bright: neutral[50], // hover
+  ink: neutral[900], // text on a white fill
 } as const;
 
 /**
- * Media hues. These are the only saturated fills in Studio, and the only place a
- * person is meant to read meaning from colour.
+ * Red does two jobs, and they never share a surface.
  *
- * The assignment follows Premiere and Resolve rather than taste: video is a blue
- * violet (Premiere's Iris), audio is a teal green (Caribbean, and Resolve's audio
- * green), stills are a violet magenta (Lavender). Editors arriving from either
- * application already know what a green bar is.
- *
- * Each kind is a pair: `base` fills the clip and `edge` draws its rim and name band,
- * one step lighter and more saturated so a clip has an edge without a second colour.
- * The three bases sit at the same lightness, so no track type shouts louder than
- * another, and far enough apart in hue to stay separable for the most common colour
- * vision deficiencies.
+ * `now` is the playhead. With the accent neutral, time needs a colour of its own, and a
+ * red position indicator is what Resolve uses: against blue, green and violet clips it
+ * is the one hue that cannot be mistaken for any of them, and a hairline has to be found
+ * instantly. `danger` is the softer red for text and icons, taken from shadcn's own dark
+ * `destructive`, because an alarm set in type wants less saturation than a one pixel line.
  */
-export const iris = { base: "#3c5ccc", edge: "#7b93f2" } as const;
-export const caribbean = { base: "#1a8f74", edge: "#4fc3a4" } as const;
-export const lavender = { base: "#9b4fc4", edge: "#c98ae6" } as const;
+export const red = { now: "#ff4538", danger: "#ff6467" } as const;
 
-/** Danger: offline media, destructive menu items. Nothing else. */
-export const signal = "#f26d64";
+/**
+ * Media hues. These are the only saturated fills in Studio, and the only place a person
+ * is meant to read meaning from colour, so they are the one thing allowed to be vivid.
+ *
+ * The assignment follows Premiere and Resolve rather than taste: video is blue
+ * (Premiere's Iris), audio is green (Caribbean, and Resolve's audio green), stills are
+ * violet (Lavender). An editor arriving from either already knows what a green bar is.
+ *
+ * Each kind is a pair. `base` fills the clip and is as saturated as it can be. `band` is
+ * the same hue taken down hard, and it is the strip along the top of the clip that
+ * carries the name. That is why the band darkens rather than lightens, which is the
+ * opposite of what it used to do: white type on a vivid fill sits at about 3:1, which is
+ * not enough at 11px, and the same type on the band clears 7:1. Premiere draws its clip
+ * names on a darker header for the same reason.
+ */
+export const mediaBlue = { base: "#2f6bff", band: "#1b3da8" } as const;
+export const mediaGreen = { base: "#0fa97f", band: "#075f48" } as const;
+export const mediaViolet = { base: "#a855f7", band: "#5f2b91" } as const;
 
 export const geistSans = '"Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 export const geistMono = '"Geist Mono", ui-monospace, "SF Mono", Menlo, monospace';

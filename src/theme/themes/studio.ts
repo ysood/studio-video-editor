@@ -5,20 +5,31 @@
 // you think the picture is doing. Premiere, Resolve and Avid all arrive at the same
 // answer, and so does this.
 //
-// The whole idea of the palette is that colour is rationed. The chrome is one neutral
-// ramp and nothing else; hue appears in exactly three places:
+// The chrome is shadcn/ui's stock dark surfaces at chroma zero, so there is no hue
+// anywhere in the frame. Colour appears in exactly three places:
 //
-//   1. Amber means time and the action that commits it: the playhead, the timecode,
-//      the one primary button in a region. Nothing else.
-//   2. Blue, green and violet mean media kind, on clips, bin swatches and tiles.
-//      These are the only saturated fills in the product.
-//   3. Signal means danger: offline media, destructive menu items.
+//   1. The clips. Blue, green and violet mean media kind, and they are vivid because
+//      they are the only thing in the product a person reads meaning from colour.
+//   2. The playhead, which is red, because time has to be found without looking for it
+//      and red is the one hue none of the clips occupy.
+//   3. Danger: offline media, destructive menu items.
 //
-// Selection is deliberately none of them. It is plain white, because if selection were
-// the accent then "this is chosen" and "this is now" would be the same colour on the
-// same timeline.
+// The primary action is white, as it is in any shadcn dark theme. Selection is white
+// too, and that is not a collision: "this is now" is red, so the only two whites in
+// play are "this is chosen" and "this is the action", which never appear on the same
+// element.
 
-import { amber, ash, caribbean, geistFaces, geistMono, geistSans, iris, lavender, signal } from "../primitives";
+import {
+  accentWhite,
+  geistFaces,
+  geistMono,
+  geistSans,
+  mediaBlue,
+  mediaGreen,
+  mediaViolet,
+  neutral,
+  red,
+} from "../primitives";
 import type { Theme } from "../types";
 
 export const studioTheme: Theme = {
@@ -28,87 +39,85 @@ export const studioTheme: Theme = {
 
   color: {
     surface: {
-      base: ash[950],
-      // The gutter is darker than the window, not lighter: a card reads as a card
-      // because you can see a shadow of ground around it, and here the ground is a gap.
-      gutter: ash[975],
-      panel: ash[900],
-      raised: ash[800],
-      input: ash[950],
-      // Overlays are the one surface that rises. A menu has to read as lifted off
-      // whatever it covers, and a step that only just clears the panel reads as a
-      // rendering artefact rather than as a thing floating over it.
-      overlay: ash[800],
-      locked: ash[850],
+      base: neutral[950], // shadcn `background`
+      gutter: neutral[950],
+      panel: neutral[900], // shadcn `card`
+      raised: neutral[800], // shadcn `secondary` and `muted`
+      input: neutral[950], // sunk below the card it sits on
+      // shadcn gives popovers the card colour and separates them with a border alone.
+      // Here panels are already cards, so an overlay at the card colour would not read
+      // as lifted off the thing it covers. It takes the step above instead.
+      overlay: neutral[800],
+      locked: neutral[800],
     },
 
     // What is happening to a thing, rather than what the thing is. Translucent, so one
     // pair of values is right over a bare row and over a raised button alike and the
     // theme never has to keep two ladders of opaque greys in step.
     state: {
-      hover: "rgba(255, 255, 255, 0.055)",
+      hover: "rgba(255, 255, 255, 0.06)",
       selected: "rgba(255, 255, 255, 0.10)",
     },
 
-    // Borders are the text they separate, faded, which is why they are alphas and not
-    // greys: one value is correct on the panel, inside a well and on the stage, and a
-    // hairline never has to be re-picked per surface.
+    // shadcn's own dark `border` and `input`: white at 10% and 15%. Alphas rather than
+    // greys, so one value is correct on the panel, inside a well and on the stage, and
+    // a hairline never has to be re-picked per surface.
     border: {
-      strong: "rgba(255, 255, 255, 0.13)",
-      subtle: "rgba(255, 255, 255, 0.07)",
+      strong: "rgba(255, 255, 255, 0.15)",
+      subtle: "rgba(255, 255, 255, 0.10)",
     },
 
     text: {
-      primary: ash[50],
-      secondary: ash[400],
-      tertiary: ash[500],
-      onAccent: amber.ink,
+      primary: neutral[50], // shadcn `foreground`
+      secondary: neutral[400], // shadcn `muted-foreground`
+      tertiary: neutral[500],
+      onAccent: accentWhite.ink,
       onMedia: "rgba(255, 255, 255, 0.95)",
-      heading: ash[400],
+      heading: neutral[400],
     },
 
     accent: {
-      base: amber.base,
-      hover: amber.bright,
-      wash: "rgba(240, 162, 60, 0.14)",
+      base: accentWhite.base,
+      hover: accentWhite.bright,
+      wash: "rgba(255, 255, 255, 0.12)",
     },
 
     // Lit from inside: the core sits above the ground and the edge below it, so the
     // letters look pressed into the page rather than printed on it.
-    wordmark: { core: ash[800], edge: ash[1000] },
+    wordmark: { core: neutral[800], edge: neutral[1000] },
 
-    // Not the accent. See the note at the top of the file.
     selection: "#ffffff",
+    playhead: red.now,
 
     media: {
-      video: iris.base,
-      videoEdge: iris.edge,
-      audio: caribbean.base,
-      audioEdge: caribbean.edge,
-      image: lavender.base,
-      imageEdge: lavender.edge,
+      video: mediaBlue.base,
+      videoBand: mediaBlue.band,
+      audio: mediaGreen.base,
+      audioBand: mediaGreen.band,
+      image: mediaViolet.base,
+      imageBand: mediaViolet.band,
     },
 
-    status: { danger: signal },
+    status: { danger: red.danger },
 
     // Neutral around the picture and black behind it. Nothing else may sit here.
     viewer: {
-      surround: ash[975],
-      matte: ash[1000],
+      surround: neutral[950],
+      matte: neutral[1000],
     },
 
     scrim: "rgba(0, 0, 0, 0.68)",
     shadow: "rgba(0, 0, 0, 0.6)",
   },
 
-  // Wells sink below the panel they sit in; the stage sinks further still, so an empty
-  // track reads as part of the timeline rather than as the gap around it. Everything
-  // else is told apart by the same hairline, not by a third fill.
+  // Wells sink below the panel they sit in; the stage sinks furthest, so an empty track
+  // reads as part of the timeline rather than as the gap around it. Everything else is
+  // told apart by the same hairline, not by a third fill.
   surfaces: {
-    chrome: { surface: { panel: ash[950] } },
-    well: { surface: { panel: ash[950], raised: ash[850], input: ash[975] } },
+    chrome: { surface: { panel: neutral[950] } },
+    well: { surface: { panel: neutral[950], raised: neutral[800], input: neutral[1000] } },
     stage: {
-      surface: { base: ash[1000], panel: ash[975], raised: ash[850], locked: ash[800] },
+      surface: { base: neutral[1000], panel: neutral[950], raised: neutral[800], locked: neutral[900] },
     },
   },
 
@@ -125,12 +134,12 @@ export const studioTheme: Theme = {
    * Three rules, and no fourth:
    *
    * 1. Two weights, 400 and 500. Nothing heavier exists. Weight tells a label from its
-   *    value; it is not for emphasis. Everything that was at 600 is what made the app
-   *    look patchy, because six regions each picked their own idea of important.
+   *    value; it is not for emphasis. Six regions each picking their own idea of
+   *    important is most of why an interface stops reading as one product.
    * 2. Tracking goes negative as size goes up, about -0.02em from 15px, and stays at
    *    zero below it. A face spaced for 12px falls apart set at 20.
-   * 3. Three line heights: 1 for display, ~1.3 for anything dense, 1.5 for prose meant
-   *    to be read in sentences.
+   * 3. Three line heights: 1 for display, about 1.3 for anything dense, 1.5 for prose
+   *    meant to be read in sentences.
    *
    * The one exception is `overline`, small capitals, which need air between them.
    */
@@ -158,7 +167,10 @@ export const studioTheme: Theme = {
   // to tile.
   radius: { control: 6, button: 6, panel: 8, dialog: 10, clip: 4, round: 9999 },
 
-  border: { width: 1, focusWidth: 2, iconStroke: 1.5 },
+  // 1.25 on a 16 unit grid, which comes out a shade under a pixel and a quarter at the
+  // size icons are actually drawn. At 1.5 the set read as heavy next to Geist, which is
+  // the comparison that matters: an icon is a word in the same sentence as its label.
+  border: { width: 1, focusWidth: 2, iconStroke: 1.25 },
 
   size: {
     controlSmall: 24,
@@ -225,6 +237,8 @@ export const studioTheme: Theme = {
     tickLength: 8,
     tickMinSpacing: 96,
     tickLabelInset: 5,
-    alpha: { disabled: 0.4, lifted: 0.25, band: 0.35 },
+    // The band is opaque now: it is a darker shade of the clip's own hue rather than a
+    // wash over it, because that is what makes the name legible on a vivid fill.
+    alpha: { disabled: 0.4, lifted: 0.25, band: 1 },
   },
 };

@@ -118,13 +118,13 @@ export function draw(ctx: CanvasRenderingContext2D, scene: Scene) {
   const px = Math.round(frameToX(scene.playhead, view)) + m.playheadWidth / 2;
   if (px >= 0 && px <= width) {
     const half = m.playheadHead;
-    ctx.strokeStyle = c.accent.base;
+    ctx.strokeStyle = c.playhead;
     ctx.lineWidth = m.playheadWidth;
     ctx.beginPath();
     ctx.moveTo(px, 0);
     ctx.lineTo(px, height);
     ctx.stroke();
-    ctx.fillStyle = c.accent.base;
+    ctx.fillStyle = c.playhead;
     ctx.beginPath();
     ctx.moveTo(px - half, 0);
     ctx.lineTo(px + half, 0);
@@ -154,7 +154,7 @@ function drawClip(
     : (scene.project.media.find((media) => media.id === clip.source.mediaId)?.kind ?? row.track.kind);
   const isAudioTrack = row.track.kind === "audio";
   const fill = isAudioTrack ? c.media.audio : kind === "image" ? c.media.image : c.media.video;
-  const edge = isAudioTrack ? c.media.audioEdge : kind === "image" ? c.media.imageEdge : c.media.videoEdge;
+  const band = isAudioTrack ? c.media.audioBand : kind === "image" ? c.media.imageBand : c.media.videoBand;
   const y = row.y + m.clipInset;
   const h = row.height - 2 * m.clipInset;
   // Air between butted clips keeps every cut visible.
@@ -169,8 +169,9 @@ function drawClip(
   roundRect(ctx, x0, y, w, h, theme.radius.clip);
   ctx.fill();
 
-  // A lighter band along the top separates adjacent clips and carries the name.
-  ctx.fillStyle = edge;
+  // A darker band along the top carries the name. Darker and not lighter: white type at
+  // this size needs a ground it can hold against, and a vivid fill does not give it one.
+  ctx.fillStyle = band;
   ctx.globalAlpha = baseAlpha * m.alpha.band;
   roundRect(ctx, x0, y, w, m.clipBand, theme.radius.clip);
   ctx.fill();

@@ -62,16 +62,17 @@
   --color-accent-wash: var(--color-accent-wash);
 
   --color-selection: var(--color-selection);
+  --color-playhead: var(--color-playhead);
   --color-danger: var(--color-status-danger);
   --color-scrim: var(--color-scrim);
 
   /* Media kind. These are the only saturated fills in the product. */
   --color-media-video: var(--color-media-video);
-  --color-media-video-edge: var(--color-media-video-edge);
+  --color-media-video-band: var(--color-media-video-band);
   --color-media-audio: var(--color-media-audio);
-  --color-media-audio-edge: var(--color-media-audio-edge);
+  --color-media-audio-band: var(--color-media-audio-band);
   --color-media-image: var(--color-media-image);
-  --color-media-image-edge: var(--color-media-image-edge);
+  --color-media-image-band: var(--color-media-image-band);
 
   /* ------------------------------------------------- shadcn's own token names --
      A component pasted from shadcn/ui reaches for `bg-background`, `text-muted-
