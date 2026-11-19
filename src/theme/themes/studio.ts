@@ -87,7 +87,9 @@ export const studioTheme: Theme = {
 
     // Lit from inside: the core sits above the ground and the edge below it, so the
     // letters look pressed into the page rather than printed on it.
-    wordmark: { core: neutral[800], edge: neutral[1000] },
+    // Both ends stay above the ground. With the edge at black on a near-black window
+    // the outer half of every letter was simply not there.
+    wordmark: { core: neutral[700], edge: neutral[900] },
 
     selection: "#ffffff",
     playhead: red.now,
@@ -116,7 +118,14 @@ export const studioTheme: Theme = {
   // Only the stage differs: the timeline canvas and the viewer's frame sit on true
   // black, so an empty track reads as part of the timeline and the picture has nothing
   // behind it. Chrome, panels and wells are deliberately the same surface.
+  //
+  // `well` is the surface overlays carry: dialogs, menus, popovers. They are themselves
+  // raised, so everything inside one has to step again or it vanishes: a quiet button
+  // at the raised grey on a dialog at the raised grey is a button with no fill, and an
+  // input likewise. Inside an overlay, raised goes up one more and an input sinks back
+  // to black.
   surfaces: {
+    well: { surface: { panel: neutral[900], raised: neutral[800], input: neutral[950] } },
     stage: { surface: { base: neutral[1000], panel: neutral[950] } },
   },
 

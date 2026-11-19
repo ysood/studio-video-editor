@@ -149,3 +149,15 @@
 .app .dv-groupview {
   overflow: hidden;
 }
+
+/* A floating group is an overlay, not a panel in the grid, and it has to say so: it sits
+   over other panels of exactly its own colour, so without an edge and a shadow it has no
+   visible boundary at all. It takes the overlay's strong hairline, corner and elevation.
+   The corner is right here and wrong on a docked panel for the same reason: this one
+   touches nothing. */
+.app .dv-resize-container {
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-dialog);
+  box-shadow: var(--elevation-dialog);
+  overflow: hidden;
+}

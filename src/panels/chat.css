@@ -2,7 +2,8 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
-  padding: var(--space-8);
+  /* The panel inset, as in every other panel. */
+  padding: var(--space-6);
 }
 
 /* What was said, in two voices. The assistant's answer is the panel's own text, running
@@ -62,11 +63,11 @@
 .chat-did svg {
   flex: none;
   align-self: center;
-  color: var(--color-accent-base);
+  color: var(--color-text-secondary);
 }
 
 .chat-did[data-ok="false"] svg {
-  color: var(--color-status-warning);
+  color: var(--color-status-danger);
 }
 
 /* The one moment where something is about to happen and has not yet. It is given a
@@ -141,12 +142,12 @@
   gap: var(--space-4);
   align-items: flex-start;
   margin: 0;
-  padding: 0 var(--space-8) var(--space-5);
+  padding: 0 var(--space-6) var(--space-5);
   color: var(--color-text-secondary);
   font: var(--type-caption);
 }
 
 .chat-trouble svg {
   flex: none;
-  color: var(--color-status-warning);
+  color: var(--color-status-danger);
 }
