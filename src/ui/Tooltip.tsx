@@ -2,7 +2,8 @@ import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import type { ReactElement, ReactNode } from "react";
 import { useTheme } from "../theme";
 import { useOverlayContainer } from "./overlay";
-import "./overlay.css";
+import { cn } from "../lib/cn";
+import { overlayPanel, overlayShortcut } from "./overlayStyles";
 
 /** Mount once near the root; sets the shared hover delay from the theme. */
 export function TooltipProvider({ children }: { children: ReactNode }) {
@@ -21,9 +22,9 @@ export function Tooltip({ label, shortcut, children }: { label: string; shortcut
     <TooltipPrimitive.Root>
       <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
       <TooltipPrimitive.Portal container={container}>
-        <TooltipPrimitive.Content className="ui-overlay ui-tooltip" data-surface="well" sideOffset={6}>
+        <TooltipPrimitive.Content className={cn(overlayPanel, "flex items-center px-4 py-2 text-caption")} data-surface="well" sideOffset={6}>
           {label}
-          {shortcut && <span className="ui-menu-shortcut numeric">{shortcut}</span>}
+          {shortcut && <span className={cn(overlayShortcut, "ps-4")}>{shortcut}</span>}
         </TooltipPrimitive.Content>
       </TooltipPrimitive.Portal>
     </TooltipPrimitive.Root>

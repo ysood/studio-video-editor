@@ -62,11 +62,11 @@ export function HomeScreen({ onNew }: { onNew: () => void }) {
         </header>
 
         <div className="home-actions">
-          <Button variant="solid" onClick={onNew}>
+          <Button variant="solid" size="large" onClick={onNew}>
             New project
             <Icon name="arrowRight" />
           </Button>
-          <Button variant="quiet" onClick={() => void openProject()}>
+          <Button variant="quiet" size="large" onClick={() => void openProject()}>
             Open project…
           </Button>
         </div>

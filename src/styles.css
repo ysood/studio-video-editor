@@ -45,7 +45,7 @@
   cursor: text;
 }
 
-.topbar-title .ui-input {
+.topbar-title input {
   flex: none;
   width: auto;
   max-width: 100%; /* design-allow */

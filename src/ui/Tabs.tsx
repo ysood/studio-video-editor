@@ -1,9 +1,11 @@
 import * as TabsPrimitive from "@radix-ui/react-tabs";
 import * as ToggleGroupPrimitive from "@radix-ui/react-toggle-group";
+import { cva } from "class-variance-authority";
 import type { ReactNode } from "react";
+import { cn } from "../lib/cn";
+import { controlBase } from "./Button";
 import { Icon, type IconName } from "./Icon";
 import { Tooltip } from "./Tooltip";
-import "./tabs.css";
 
 export interface TabSpec {
   value: string;
@@ -19,22 +21,68 @@ export function Tabs({ value, onChange, tabs, label }: {
   label: string;
 }) {
   return (
-    <TabsPrimitive.Root className="ui-tabs" value={value} onValueChange={onChange}>
-      <TabsPrimitive.List className="ui-tab-list" aria-label={label}>
+    <TabsPrimitive.Root value={value} onValueChange={onChange}>
+      <TabsPrimitive.List className="flex gap-5 border-b border-edge" aria-label={label}>
         {tabs.map((t) => (
-          <TabsPrimitive.Trigger key={t.value} value={t.value} className="ui-tab">
+          <TabsPrimitive.Trigger
+            key={t.value}
+            value={t.value}
+            className={cn(
+              "h-control cursor-default border-0 bg-transparent p-0 text-label text-fg-muted outline-none",
+              // The underline is always there, transparent, so choosing a tab never
+              // shifts the label by the width of the line.
+              "border-b-(length:--border-focus-width) border-b-transparent",
+              "transition-colors duration-quick ease-standard hover:text-fg",
+              "focus-visible:focus-ring",
+              "data-[state=active]:border-b-accent data-[state=active]:text-fg",
+            )}
+          >
             {t.label}
           </TabsPrimitive.Trigger>
         ))}
       </TabsPrimitive.List>
       {tabs.map((t) => (
-        <TabsPrimitive.Content key={t.value} value={t.value} className="ui-tab-content">
+        <TabsPrimitive.Content key={t.value} value={t.value} className="pt-4">
           {t.content}
         </TabsPrimitive.Content>
       ))}
     </TabsPrimitive.Root>
   );
 }
+
+const segmentedVariants = cva("inline-flex h-control rounded-button bg-raised p-hairline", {
+  variants: {
+    emphasis: {
+      quiet: "",
+      // Centred in the panel rather than ranged left, since it is the thing the panel
+      // is about. It may shrink and scroll, because in a narrow panel sliding the
+      // choices beats crushing whatever shares the toolbar with them.
+      accent: "mx-auto min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+    },
+  },
+  defaultVariants: { emphasis: "quiet" },
+});
+
+const segmentVariants = cva(
+  cn(
+    controlBase,
+    // The height is the container's, less its inset, so a segment stretches to it rather
+    // than restating a calc; an icon-only one is then square by aspect ratio.
+    "rounded-button bg-transparent px-5 text-label text-fg-muted hover:text-fg",
+    "data-[icon-only]:aspect-square data-[icon-only]:px-0",
+  ),
+  {
+    variants: {
+      emphasis: {
+        // Lifts: the selected fill layers over the raised track.
+        quiet: "data-[state=on]:state-selected data-[state=on]:text-fg",
+        // Filled the way a primary button is.
+        accent: "data-[state=on]:bg-accent data-[state=on]:text-fg-on-accent",
+      },
+    },
+    defaultVariants: { emphasis: "quiet" },
+  },
+);
 
 export interface SegmentOption {
   value: string;
@@ -65,8 +113,7 @@ export function Segmented({ value, options, onChange, label, emphasis = "quiet",
   return (
     <ToggleGroupPrimitive.Root
       type="single"
-      className={className ? `ui-segmented ${className}` : "ui-segmented"}
-      data-emphasis={emphasis}
+      className={cn(segmentedVariants({ emphasis }), className)}
       value={value}
       aria-label={label}
       onValueChange={(next) => next && onChange(next)}
@@ -76,7 +123,7 @@ export function Segmented({ value, options, onChange, label, emphasis = "quiet",
           <ToggleGroupPrimitive.Item
             key={o.value}
             value={o.value}
-            className="ui-segment"
+            className={segmentVariants({ emphasis })}
             data-icon-only={o.iconOnly ? "" : undefined}
             aria-label={o.label}
           >

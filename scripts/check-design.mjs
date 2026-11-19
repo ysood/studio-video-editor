@@ -9,16 +9,63 @@ const root = new URL("..", import.meta.url).pathname;
 const src = join(root, "src");
 const skip = [join(src, "theme"), join(src, "bindings")];
 
-// Tailwind's spacing scale is Studio's: steps 1 to 12, plus the named component sizes
-// mapped in src/theme/tailwind.css. A utility that asks for anything else resolves to
-// nothing and fails silently in the browser, so it is named here instead.
+// The Tailwind vocabulary. `src/theme/vocabulary.ts` lists the names that exist and
+// `src/theme/tailwind.css` says what each one means; neither is allowed to drift from
+// the other, because a name in one and not the other fails silently. A utility naming a
+// token the theme does not define simply compiles to nothing, and a token tailwind-merge
+// has not been told about gets merged away.
+const vocabulary = readFileSync(join(src, "theme", "vocabulary.ts"), "utf8");
+const tailwindCss = readFileSync(join(src, "theme", "tailwind.css"), "utf8");
+
+/** The names in one exported list of `vocabulary.ts`. */
+function declaredNames(constName) {
+  const body = vocabulary.split(`export const ${constName} = [`)[1]?.split("] as const")[0] ?? "";
+  return new Set([...body.matchAll(/"([^"]+)"/g)].map((m) => m[1]));
+}
+
+/** The names `tailwind.css` maps in one namespace, ignoring Tailwind's `--x--y` modifiers. */
+function mappedNames(namespace) {
+  const theme = tailwindCss.split("@theme inline {")[1]?.split("\n}")[0] ?? "";
+  const re = new RegExp(`^\\s*--${namespace}-([a-z0-9-]+):`, "gm");
+  return new Set([...theme.matchAll(re)].map((m) => m[1]).filter((n) => !n.includes("--")));
+}
+
+const NAMESPACES = [
+  ["COLOR_TOKENS", "color"],
+  ["TEXT_ROLES", "text"],
+  ["SPACING_TOKENS", "spacing"],
+  ["RADIUS_TOKENS", "radius"],
+  ["FONT_TOKENS", "font"],
+  ["SHADOW_TOKENS", "shadow"],
+];
+
+const vocabularyProblems = [];
+for (const [constName, namespace] of NAMESPACES) {
+  const declared = declaredNames(constName);
+  const mapped = mappedNames(namespace);
+  for (const name of declared) {
+    if (!mapped.has(name)) {
+      vocabularyProblems.push(
+        `vocabulary.ts lists ${constName} "${name}", which tailwind.css does not map to a token`,
+      );
+    }
+  }
+  for (const name of mapped) {
+    if (!declared.has(name)) {
+      vocabularyProblems.push(
+        `tailwind.css maps --${namespace}-${name}, which vocabulary.ts does not list in ${constName}`,
+      );
+    }
+  }
+}
+
+// Spacing utilities resolve against that same list. One naming a step the theme does not
+// define compiles to no class at all, so it fails silently in the browser rather than
+// loudly here.
 const SPACING_UTILITIES =
   "p|px|py|pt|pr|pb|pl|ps|pe|m|mx|my|mt|mr|mb|ml|ms|me|gap|gap-x|gap-y|space-x|space-y|w|h|size|min-w|min-h|max-w|max-h|inset|top|right|bottom|left|translate-x|translate-y|basis|indent|scroll-m|scroll-p";
 const SPACING_SCALE = new Set([
-  "hairline", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12",
-  "control", "control-small", "control-large", "icon", "toolbar", "topbar", "statusbar",
-  "tabbar", "panel-footer", "play-button", "swatch", "dot", "slider-track", "slider-thumb",
-  "field-label", "field-number", "menu-min-width", "dialog-width",
+  ...declaredNames("SPACING_TOKENS"),
   // Not spacing: Tailwind's own keywords, which take no theme value.
   "auto", "full", "px", "min", "max", "fit", "screen", "dvh", "dvw", "lvh", "lvw", "svh", "svw", "0",
 ]);
@@ -32,9 +79,11 @@ const rules = [
   { name: "line-height literal", pattern: /(?<![\w-])line-height\s*:(?!\s*(?:var\(|inherit))/, in: ["css"] },
   { name: "canvas font string", pattern: /\.font\s*=\s*[`"']/, in: ["ts", "tsx"] },
   // A Tailwind arbitrary value is a hardcoded design value wearing a class name.
+  // An arbitrary *variant* is not: `data-[state=open]:` selects, it does not style,
+  // so a trailing colon exempts the match.
   {
     name: "Tailwind arbitrary value",
-    pattern: /(?<![\w-])(?:[a-z][a-z0-9]*-)+\[[^\]]+\]/,
+    pattern: /(?<![\w-])(?:[a-z][a-z0-9]*-)+\[[^\]]+\](?!:)/,
     in: ["ts", "tsx", "css"],
   },
 ];
@@ -58,7 +107,7 @@ function walk(dir) {
   });
 }
 
-const problems = [];
+const problems = [...vocabularyProblems];
 for (const file of walk(src)) {
   const ext = file.split(".").pop();
   if (!["css", "ts", "tsx"].includes(ext) || file.endsWith(".test.ts") || file.endsWith(".d.ts")) continue;

@@ -60,7 +60,7 @@
   color: var(--color-text-on-media);
 }
 
-.bin-tile-glyph .ui-icon {
+.bin-tile-glyph svg {
   width: calc(var(--size-icon) * 2);
   height: calc(var(--size-icon) * 2);
 }
@@ -136,7 +136,7 @@
 }
 
 /* Renaming in place: the field takes the name cell rather than widening the row. */
-.bin-name .ui-input {
+.bin-name input {
   width: 100%;
   min-width: 0;
 }

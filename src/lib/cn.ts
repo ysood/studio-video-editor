@@ -1,5 +1,40 @@
 import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
+import { extendTailwindMerge } from "tailwind-merge";
+import {
+  COLOR_TOKENS,
+  FONT_TOKENS,
+  RADIUS_TOKENS,
+  SHADOW_TOKENS,
+  SPACING_TOKENS,
+  TEXT_ROLES,
+} from "../theme/vocabulary";
+
+/**
+ * tailwind-merge, taught Studio's vocabulary.
+ *
+ * It has to be told. Out of the box it recognises Tailwind's stock scale, so it reads
+ * `text-body` and `text-fg-muted` as two classes of the same kind and keeps only the
+ * last one, which quietly deletes the colour from every control that sets a type role
+ * and a colour together. Nothing fails: the source still lists both classes, and the
+ * browser simply never gets the colour. Handing it the real token names is what makes
+ * `cn("text-fg-muted", "text-body")` keep both and `cn("text-fg-muted", "text-fg")`
+ * keep the second.
+ *
+ * `src/theme/vocabulary.ts` is the list, and `npm run check:design` holds it to what
+ * `src/theme/tailwind.css` actually defines.
+ */
+const twMerge = extendTailwindMerge({
+  override: {
+    theme: {
+      color: [...COLOR_TOKENS],
+      text: [...TEXT_ROLES],
+      spacing: [...SPACING_TOKENS],
+      radius: [...RADIUS_TOKENS],
+      font: [...FONT_TOKENS],
+      shadow: [...SHADOW_TOKENS],
+    },
+  },
+});
 
 /**
  * Join class names, letting a later one win over an earlier one that sets the same

@@ -3,69 +3,77 @@
   src/theme/runtime.ts writes onto :root as CSS variables before the first render.
   Nothing in src/ outside src/theme may hardcode a color, size or font: `npm run
   check:design` enforces it.
+
+  All of it sits in the `base` cascade layer, which `src/theme/tailwind.css` orders
+  before `utilities`. That is not tidiness: unlayered rules beat layered ones whatever
+  their specificity, so an unlayered `button { color: inherit }` here would quietly
+  outrank every `text-*` utility in the app and no component could colour a button at
+  all. A document reset has to lose to the components built on top of it.
 */
 
-* {
-  box-sizing: border-box;
-}
-
-html,
-body,
-#root {
-  height: 100%;
-  margin: 0;
-}
-
-body {
-  background: var(--color-surface-base);
-  color: var(--color-text-primary);
-  font: var(--type-body);
-  letter-spacing: var(--type-body-tracking);
-  -webkit-font-smoothing: antialiased;
-  accent-color: var(--color-accent-base);
-  -webkit-user-select: none;
-  user-select: none;
-  overflow: hidden;
-}
-
-button,
-input,
-select {
-  font: inherit;
-  color: inherit;
-  letter-spacing: inherit;
-}
-
-h1,
-h2,
-h3,
-p {
-  margin: 0;
-}
-
-:focus-visible {
-  outline: var(--border-focus-width) solid var(--color-accent-base);
-  outline-offset: var(--border-width);
-  /* An outline paints with its own element, so the next sibling's background would
-     cover the part that sits in the gap between them. Lift the focused element. */
-  position: relative;
-  z-index: var(--z-raised);
-}
-
-/* A surface redefines the color variables; re-resolve text color against them. */
-[data-surface] {
-  color: var(--color-text-primary);
-}
-
-/* Numbers that must not jitter as they change: timecode, durations, sizes. */
-.numeric {
-  font-family: var(--font-numeric);
-  font-variant-numeric: var(--font-numeric-variant);
-}
-
-@media (prefers-reduced-motion: reduce) {
+@layer base {
   * {
-    transition-duration: 0ms !important;
-    animation-duration: 0ms !important;
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    background: var(--color-surface-base);
+    color: var(--color-text-primary);
+    font: var(--type-body);
+    letter-spacing: var(--type-body-tracking);
+    -webkit-font-smoothing: antialiased;
+    accent-color: var(--color-accent-base);
+    -webkit-user-select: none;
+    user-select: none;
+    overflow: hidden;
+  }
+
+  button,
+  input,
+  select {
+    font: inherit;
+    color: inherit;
+    letter-spacing: inherit;
+  }
+
+  h1,
+  h2,
+  h3,
+  p {
+    margin: 0;
+  }
+
+  :focus-visible {
+    outline: var(--border-focus-width) solid var(--color-accent-base);
+    outline-offset: var(--border-width);
+    /* An outline paints with its own element, so the next sibling's background would
+       cover the part that sits in the gap between them. Lift the focused element. */
+    position: relative;
+    z-index: var(--z-raised);
+  }
+
+  /* A surface redefines the color variables; re-resolve text color against them. */
+  [data-surface] {
+    color: var(--color-text-primary);
+  }
+
+  /* Numbers that must not jitter as they change: timecode, durations, sizes. */
+  .numeric {
+    font-family: var(--font-numeric);
+    font-variant-numeric: var(--font-numeric-variant);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      transition-duration: 0ms !important;
+      animation-duration: 0ms !important;
+    }
   }
 }

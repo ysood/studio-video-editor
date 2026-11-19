@@ -24,7 +24,7 @@
   letter-spacing: var(--type-title-tracking);
 }
 
-.gallery-header .ui-input {
+.gallery-header button {
   width: auto;
 }
 
@@ -40,7 +40,7 @@
   background: var(--color-surface-panel);
 }
 
-.gallery-grid > .ui-section {
+.gallery-grid > section {
   border-right: var(--border-width) solid var(--color-border-subtle);
 }
 

@@ -14,10 +14,3 @@
   align-items: center;
   gap: var(--space-3);
 }
-
-/* The primitive keeps a minimum width so a toolbar slider always has a usable track.
-   Here the grid column already decides the width, so the floor only makes it overflow
-   onto the number beside it. */
-.transform-opacity .ui-slider {
-  min-width: 0;
-}

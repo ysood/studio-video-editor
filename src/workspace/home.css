@@ -68,15 +68,6 @@
   gap: var(--space-6);
 }
 
-/* The editor's controls are sized for density, which is not what this screen is for:
-   next to a wordmark they read as an afterthought. Larger here, and only here. */
-.home-actions .ui-button {
-  gap: var(--space-6);
-  height: var(--size-control-large);
-  padding-inline: var(--space-8);
-  font: var(--type-heading);
-}
-
 .home-recents {
   display: flex;
   flex-direction: column;

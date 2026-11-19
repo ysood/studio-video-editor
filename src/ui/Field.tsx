@@ -1,17 +1,33 @@
+import * as CheckboxPrimitive from "@radix-ui/react-checkbox";
+import * as RadioGroupPrimitive from "@radix-ui/react-radio-group";
 import * as SelectPrimitive from "@radix-ui/react-select";
 import * as SliderPrimitive from "@radix-ui/react-slider";
 import { useEffect, useState, type ReactNode } from "react";
+import { cn } from "../lib/cn";
+import { controlBase } from "./Button";
 import { Icon } from "./Icon";
 import { Row } from "./List";
 import { useOverlayContainer, useOverlayOpen } from "./overlay";
-import "./overlay.css";
-import "./field.css";
+import { overlayItem, overlayMenuPanel } from "./overlayStyles";
+
+/**
+ * The one input look, shared by text fields and by anything that has to sit beside one
+ * and read as its equal, such as a select trigger. A sunk fill, a hairline that firms
+ * up under the pointer, and the product's single focus ring.
+ */
+export const inputBase = cn(
+  controlBase,
+  "h-control w-full justify-between rounded-control border border-edge bg-field px-4",
+  "text-label text-fg",
+  "hover:border-edge-strong",
+  "disabled:opacity-disabled data-[disabled]:opacity-disabled",
+);
 
 /** A labelled row: label on the left, control on the right. */
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="ui-field">
-      <span className="ui-field-label">{label}</span>
+    <label className="grid-field grid min-h-control items-center gap-4 text-label">
+      <span className="truncate text-fg-muted">{label}</span>
       {children}
     </label>
   );
@@ -30,7 +46,11 @@ export function Value({ children, numeric, truncate = "end", title }: {
   // right order while the element still clips from the left.
   const content = truncate === "start" ? <bdi>{children}</bdi> : children;
   return (
-    <span className={numeric ? "ui-value numeric" : "ui-value"} data-truncate={truncate} title={title}>
+    <span
+      className={cn("truncate", numeric && "numeric", truncate === "start" && "text-left")}
+      dir={truncate === "start" ? "rtl" : undefined}
+      title={title}
+    >
       {content}
     </span>
   );
@@ -50,16 +70,17 @@ interface CommitProps {
  * it takes the caret on mount and selects what is there, so typing replaces the old name.
  * `onDone` then says the input is finished with, whether it committed or reverted.
  */
-export function TextInput({ value, onCommit, disabled, ariaLabel, numeric, focused, onDone }: CommitProps & {
+export function TextInput({ value, onCommit, disabled, ariaLabel, numeric, focused, onDone, className }: CommitProps & {
   numeric?: boolean;
   focused?: boolean;
   onDone?: () => void;
+  className?: string;
 }) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
   return (
     <input
-      className={numeric ? "ui-input numeric" : "ui-input"}
+      className={cn(inputBase, "cursor-text select-text", numeric && "numeric", className)}
       type={numeric ? "number" : "text"}
       value={draft}
       disabled={disabled}
@@ -119,24 +140,24 @@ export function Select({ value, options, onChange, disabled, ariaLabel }: {
   const [open, setOpen] = useOverlayOpen();
   return (
     <SelectPrimitive.Root value={value} onValueChange={onChange} disabled={disabled} open={open} onOpenChange={setOpen}>
-      <SelectPrimitive.Trigger className="ui-input ui-select-trigger" aria-label={ariaLabel}>
+      <SelectPrimitive.Trigger className={cn(inputBase, "gap-4")} aria-label={ariaLabel}>
         <SelectPrimitive.Value />
         <SelectPrimitive.Icon asChild>
-          <Icon name="chevronDown" />
+          <Icon name="chevronDown" className="text-fg-muted" />
         </SelectPrimitive.Icon>
       </SelectPrimitive.Trigger>
       <SelectPrimitive.Portal container={container}>
         <SelectPrimitive.Content
-          className="ui-overlay ui-select-content"
+          className={cn(overlayMenuPanel, "w-(--radix-select-trigger-width)")}
           data-surface="well"
           position="popper"
           sideOffset={4}
         >
           <SelectPrimitive.Viewport>
             {options.map((o) => (
-              <SelectPrimitive.Item key={o.value} value={o.value} className="ui-menu-item ui-select-item">
+              <SelectPrimitive.Item key={o.value} value={o.value} className={overlayItem}>
                 <SelectPrimitive.ItemText>{o.label}</SelectPrimitive.ItemText>
-                <SelectPrimitive.ItemIndicator>
+                <SelectPrimitive.ItemIndicator className="ms-auto ps-6">
                   <Icon name="check" />
                 </SelectPrimitive.ItemIndicator>
               </SelectPrimitive.Item>
@@ -148,6 +169,11 @@ export function Select({ value, options, onChange, disabled, ariaLabel }: {
   );
 }
 
+/**
+ * A real box with a drawn check, not the browser's widget tinted with `accent-color`.
+ * The native control cannot take the product's radius, border or focus ring, which is
+ * most of why it used to read as something pasted in from another application.
+ */
 export function Checkbox({ checked, onChange, disabled, ariaLabel }: {
   checked: boolean;
   onChange: (checked: boolean) => void;
@@ -155,14 +181,22 @@ export function Checkbox({ checked, onChange, disabled, ariaLabel }: {
   ariaLabel?: string;
 }) {
   return (
-    <input
-      className="ui-checkbox"
-      type="checkbox"
+    <CheckboxPrimitive.Root
+      className={cn(
+        controlBase,
+        "size-icon justify-self-start rounded-control border border-edge-strong bg-field",
+        "data-[state=checked]:border-accent data-[state=checked]:bg-accent data-[state=checked]:text-fg-on-accent",
+        "[&_svg]:size-6",
+      )}
       checked={checked}
       disabled={disabled}
       aria-label={ariaLabel}
-      onChange={(e) => onChange(e.target.checked)}
-    />
+      onCheckedChange={(next) => onChange(next === true)}
+    >
+      <CheckboxPrimitive.Indicator asChild>
+        <Icon name="check" />
+      </CheckboxPrimitive.Indicator>
+    </CheckboxPrimitive.Root>
   );
 }
 
@@ -178,9 +212,8 @@ export interface RadioOption {
  * explanation. Use it where the choice deserves to be read before it is made; use
  * Select where the options are a list of names and the panel has no room.
  *
- * The input is a real radio, so arrow keys move between the options and the group reads
- * correctly, and `Row` supplies the hover and selected fills every other choosable
- * thing in the app uses.
+ * `Row` supplies the hover and selected fills that every other choosable thing in the
+ * app uses, so a chosen export preset and a chosen clip are marked the same way.
  */
 export function RadioGroup({ value, options, onChange, name, ariaLabel }: {
   value: string;
@@ -191,30 +224,42 @@ export function RadioGroup({ value, options, onChange, name, ariaLabel }: {
   ariaLabel: string;
 }) {
   return (
-    <div className="ui-radio-group" role="radiogroup" aria-label={ariaLabel}>
+    <RadioGroupPrimitive.Root
+      className="grid gap-2"
+      value={value}
+      name={name}
+      aria-label={ariaLabel}
+      onValueChange={onChange}
+    >
       {options.map((option) => (
-        <Row
-          key={option.value}
-          element="label"
-          className="ui-radio"
-          marker="outline"
-          selected={option.value === value}
-        >
-          <input
-            className="ui-radio-input"
-            type="radio"
-            name={name}
-            value={option.value}
-            checked={option.value === value}
-            onChange={() => onChange(option.value)}
-          />
-          <span className="ui-radio-text">
-            <span>{option.label}</span>
-            {option.detail && <span className="ui-radio-detail">{option.detail}</span>}
-          </span>
-        </Row>
+        // The whole card is the target, so the Item *is* the row rather than a dot
+        // inside it: clicking the explanation chooses the option, as it must.
+        <RadioGroupPrimitive.Item key={option.value} value={option.value} asChild>
+          <Row
+            element="div"
+            className={cn(controlBase, "grid-lead grid gap-5 rounded-control p-5 text-start")}
+            marker="outline"
+            selected={option.value === value}
+          >
+            <span
+              className={cn(
+                // The dot sits on the first line of the label rather than centred
+                // against a block that may be one line or two.
+                "mt-1 grid size-icon place-items-center self-start rounded-round",
+                "border border-edge-strong bg-field",
+                option.value === value && "border-accent",
+              )}
+            >
+              <RadioGroupPrimitive.Indicator className="size-dot rounded-round bg-accent" />
+            </span>
+            <span className="grid gap-1">
+              <span>{option.label}</span>
+              {option.detail && <span className="text-label text-fg-muted">{option.detail}</span>}
+            </span>
+          </Row>
+        </RadioGroupPrimitive.Item>
       ))}
-    </div>
+    </RadioGroupPrimitive.Root>
   );
 }
 
@@ -229,17 +274,27 @@ export function Slider({ value, min, max, step, onChange, ariaLabel, className }
 }) {
   return (
     <SliderPrimitive.Root
-      className={className ? `ui-slider ${className}` : "ui-slider"}
+      className={cn("relative flex h-control w-full touch-none items-center select-none", className)}
       min={min}
       max={max}
       step={step}
       value={[value]}
       onValueChange={(values) => values[0] !== undefined && onChange(values[0])}
     >
-      <SliderPrimitive.Track className="ui-slider-track">
-        <SliderPrimitive.Range className="ui-slider-range" />
+      <SliderPrimitive.Track className="relative h-slider-track w-full grow overflow-hidden rounded-round bg-raised">
+        {/* The travelled part is the accent, because a slider is a value being set and
+            the accent is the colour of committing one. */}
+        <SliderPrimitive.Range className="absolute h-full bg-accent" />
       </SliderPrimitive.Track>
-      <SliderPrimitive.Thumb className="ui-slider-thumb" aria-label={ariaLabel} />
+      <SliderPrimitive.Thumb
+        className={cn(
+          controlBase,
+          // White, not the accent: the travelled range already carries the accent, and a
+          // handle has to be found against the rail rather than agree with it.
+          "block size-slider-thumb rounded-round bg-fg shadow-popover",
+        )}
+        aria-label={ariaLabel}
+      />
     </SliderPrimitive.Root>
   );
 }

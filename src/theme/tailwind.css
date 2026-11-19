@@ -138,6 +138,8 @@
   --spacing-field-number: var(--size-field-number);
   --spacing-menu-min-width: var(--size-menu-min-width);
   --spacing-dialog-width: var(--size-dialog-width);
+  --spacing-progress-width: var(--size-progress-width);
+  --spacing-progress-height: var(--size-progress-height);
 
   /* ---------------------------------------------------------------- radius --*/
   --radius-control: var(--radius-control);
@@ -198,6 +200,76 @@
   --ease-standard: var(--motion-easing);
   --shadow-popover: var(--elevation-popover);
   --shadow-dialog: var(--elevation-dialog);
+
+  --opacity-disabled: var(--opacity-disabled);
+}
+
+/*
+  Interaction fills layer; they do not replace.
+
+  What a thing *is* comes from a surface colour, and what is *happening to it* comes
+  from `color.state.*`, which is translucent. `hover:bg-hover` would swap a quiet
+  button's resting fill for a 5% white and show the panel through it, so the state
+  fills go on as a background image instead: the fill underneath survives, and one
+  value is right over a bare row and over a raised button alike. That is what stops
+  resting and hover from drifting into two separate ladders of opaque greys.
+*/
+@utility state-hover {
+  background-image: linear-gradient(var(--color-state-hover), var(--color-state-hover));
+}
+
+@utility state-selected {
+  background-image: linear-gradient(var(--color-state-selected), var(--color-state-selected));
+}
+
+/* Line icons take their weight from the theme, so the whole set re-weights at once. */
+@utility icon-stroke {
+  stroke-width: var(--border-icon-stroke);
+}
+
+/*
+  Stacking. The scale is `src/theme/layers.ts` rather than a theme, because how things
+  stack is a fact about the interface and not a look; a theme that could reorder it
+  would only be a way to break it.
+*/
+@utility z-raised {
+  z-index: var(--z-raised);
+}
+
+@utility z-sticky {
+  z-index: var(--z-sticky);
+}
+
+@utility z-overlay {
+  z-index: var(--z-overlay);
+}
+
+/*
+  Two grid templates the product uses over and over: a labelled field row, and anything
+  with a fixed-size thing in front of a flexible one (a radio and its text, an icon and
+  its label). Named here so a panel does not have to spell a template out and so the
+  label column stays one decision.
+*/
+@utility grid-field {
+  grid-template-columns: var(--size-field-label) minmax(0, 1fr);
+}
+
+@utility grid-lead {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+/*
+  The reading measure: how long a line of prose may get before the eye loses the start of
+  the next one. It is in characters rather than pixels because that is what the limit
+  actually is, which is also why it cannot be a `size` token: those are all pixels.
+*/
+@utility measure {
+  max-width: 34ch;
+}
+
+/* For a control that must take the corner of whatever it is placed inside. */
+@utility rounded-inherit {
+  border-radius: inherit;
 }
 
 /*

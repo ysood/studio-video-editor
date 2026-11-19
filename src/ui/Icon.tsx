@@ -2,6 +2,7 @@
 // Restyling icons (stroke weight, swapping the set) happens here and in the theme only.
 
 import type { SVGProps } from "react";
+import { cn } from "../lib/cn";
 
 const paths = {
   play: <path d="M5 3.5v9l7-4.5z" fill="currentColor" stroke="none" />,
@@ -120,10 +121,10 @@ export type IconName = keyof typeof paths;
 
 export const iconNames = Object.keys(paths) as IconName[];
 
-export function Icon({ name, ...rest }: { name: IconName } & SVGProps<SVGSVGElement>) {
+export function Icon({ name, className, ...rest }: { name: IconName } & SVGProps<SVGSVGElement>) {
   return (
     <svg
-      className="ui-icon"
+      className={cn("size-icon icon-stroke shrink-0", className)}
       viewBox="0 0 16 16"
       fill="none"
       stroke="currentColor"

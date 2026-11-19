@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import { DEFAULT_FORMAT } from "../actions";
 import { ipc } from "../ipc";
 import { useEditor } from "../store";
-import { Actions, Button, Dialog, Field, TextInput } from "../ui";
+import { Actions, Button, Dialog, Field, Note, TextInput } from "../ui";
 import "./home.css";
 
 /** Folder and file names cannot contain path separators or most punctuation. */
@@ -66,9 +66,9 @@ export function NewProjectDialog({ open: isOpen, onClose }: { open: boolean; onC
           {folder ?? "Choose a folder…"}
         </Button>
       </Field>
-      <p className="ui-note">
+      <Note>
         {folder ? `Saved as ${file}.studio in that folder.` : "The project file is written when you create it."}
-      </p>
+      </Note>
       <Actions align="end">
         <Button variant="ghost" onClick={onClose}>
           Cancel

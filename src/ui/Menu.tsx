@@ -6,8 +6,9 @@ import * as ContextMenuPrimitive from "@radix-ui/react-context-menu";
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import type { ReactNode } from "react";
 import { Icon, type IconName } from "./Icon";
+import { cn } from "../lib/cn";
 import { useOverlayContainer, useOverlayOpen } from "./overlay";
-import "./overlay.css";
+import { overlayItem, overlayItemDanger, overlayMenuPanel, overlaySeparator, overlayShortcut } from "./overlayStyles";
 
 export type MenuEntry =
   | {
@@ -28,24 +29,26 @@ function Entries({ entries, parts }: { entries: MenuEntry[]; parts: Parts }) {
   return (
     <>
       {entries.map((entry, index) => {
-        if (entry.type === "separator") return <parts.Separator key={index} className="ui-menu-separator" />;
+        if (entry.type === "separator") return <parts.Separator key={index} className={overlaySeparator} />;
         if (entry.type === "label")
           return (
-            <parts.Label key={index} className="ui-menu-label">
+            <parts.Label key={index} className="px-4 py-2 text-caption text-fg-faint">
               {entry.label}
             </parts.Label>
           );
         return (
           <parts.Item
             key={index}
-            className="ui-menu-item"
-            data-tone={entry.tone}
+            className={cn(overlayItem, entry.tone === "danger" && overlayItemDanger)}
             disabled={entry.disabled}
             onSelect={entry.onSelect}
           >
-            <span className="ui-menu-icon">{entry.icon && <Icon name={entry.icon} />}</span>
-            <span className="ui-menu-text">{entry.label}</span>
-            {entry.shortcut && <span className="ui-menu-shortcut numeric">{entry.shortcut}</span>}
+            {/* The slot is always drawn so labels line up whether or not a row has an icon. */}
+            <span className={cn("grid size-icon place-items-center", entry.tone === "danger" ? "text-danger" : "text-fg-muted")}>
+              {entry.icon && <Icon name={entry.icon} />}
+            </span>
+            <span className="min-w-0 truncate">{entry.label}</span>
+            {entry.shortcut && <span className={overlayShortcut}>{entry.shortcut}</span>}
           </parts.Item>
         );
       })}
@@ -65,7 +68,7 @@ export function Menu({ trigger, entries, align = "start" }: {
     <DropdownMenuPrimitive.Root open={open} onOpenChange={setOpen}>
       <DropdownMenuPrimitive.Trigger asChild>{trigger}</DropdownMenuPrimitive.Trigger>
       <DropdownMenuPrimitive.Portal container={container}>
-        <DropdownMenuPrimitive.Content className="ui-overlay ui-menu" data-surface="well" align={align} sideOffset={4}>
+        <DropdownMenuPrimitive.Content className={overlayMenuPanel} data-surface="well" align={align} sideOffset={4}>
           <Entries entries={entries} parts={DropdownMenuPrimitive} />
         </DropdownMenuPrimitive.Content>
       </DropdownMenuPrimitive.Portal>
@@ -83,7 +86,7 @@ export function ContextMenu({ children, entries }: { children: ReactNode; entrie
     <ContextMenuPrimitive.Root onOpenChange={setOpen}>
       <ContextMenuPrimitive.Trigger asChild>{children}</ContextMenuPrimitive.Trigger>
       <ContextMenuPrimitive.Portal container={container}>
-        <ContextMenuPrimitive.Content className="ui-overlay ui-menu" data-surface="well">
+        <ContextMenuPrimitive.Content className={overlayMenuPanel} data-surface="well">
           <Entries entries={entries} parts={ContextMenuPrimitive} />
         </ContextMenuPrimitive.Content>
       </ContextMenuPrimitive.Portal>

@@ -1,5 +1,5 @@
 import { createElement, type CSSProperties, type HTMLAttributes, type ReactNode, type Ref } from "react";
-import "./list.css";
+import { cn } from "../lib/cn";
 
 /**
  * Where a row says it is selected. "edge" is a stripe down the leading edge, which is
@@ -24,7 +24,9 @@ export function List({ label, layout, className, style, children }: {
 }) {
   return (
     <ul
-      className={className ? `ui-list ${className}` : "ui-list"}
+      // No bullets, no browser indent. Tiles take the caller's track sizes, because only
+      // the caller knows how wide a tile is.
+      className={cn("m-0 list-none px-0 py-2", layout === "grid" && "grid gap-4", className)}
       data-layout={layout}
       role={label ? "listbox" : undefined}
       aria-label={label}
@@ -34,6 +36,30 @@ export function List({ label, layout, className, style, children }: {
     </ul>
   );
 }
+
+/**
+ * What a row owns: the states, and nothing about its layout. Its grid, padding and
+ * radius belong to whatever kind of row it is.
+ *
+ * The fills are `state-*` rather than `bg-*`, so they layer over whatever resting fill
+ * the row has instead of replacing it. Selected is listed after hover in the CSS the
+ * variants compile to, so a selected row stays marked while the pointer is on it.
+ *
+ * Selection is read from `data-selected` and the marker from `data-marker`, not from
+ * props, because the row may be a Radix `asChild` target that only passes attributes on.
+ */
+const rowStates = cn(
+  "hover:state-hover focus-within:state-hover data-[selected=true]:state-selected",
+  // The leading stripe is always there, transparent, so selecting a row never changes
+  // its width.
+  "data-[marker=edge]:border-l-(length:--border-focus-width) data-[marker=edge]:border-l-transparent",
+  "data-[marker=edge]:data-[selected=true]:border-l-selection",
+  "data-[marker=outline]:outline-solid data-[marker=outline]:outline-(length:--border-focus-width)",
+  "data-[marker=outline]:outline-transparent data-[marker=outline]:-outline-offset-(--border-focus-width)",
+  "data-[marker=outline]:transition-colors data-[marker=outline]:duration-quick",
+  "data-[marker=outline]:ease-standard data-[marker=outline]:data-[selected=true]:outline-selection",
+  "data-[tone=danger]:[&_svg]:text-danger",
+);
 
 /**
  * A selectable line in a list.
@@ -65,7 +91,7 @@ export function Row({ element = "li", selected, marker = "edge", tone, className
     {
       ...rest,
       ref,
-      className: className ? `ui-row ${className}` : "ui-row",
+      className: cn(rowStates, className),
       "data-marker": marker,
       "data-tone": tone,
       "data-selected": selected,
