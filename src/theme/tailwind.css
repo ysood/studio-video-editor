@@ -71,6 +71,7 @@
   --color-media-video-band: var(--color-media-video-band);
   --color-media-audio: var(--color-media-audio);
   --color-media-audio-band: var(--color-media-audio-band);
+  --color-media-audio-wave: var(--color-media-audio-wave);
   --color-media-image: var(--color-media-image);
   --color-media-image-band: var(--color-media-image-band);
 

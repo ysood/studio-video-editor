@@ -2,6 +2,7 @@
 // the active theme, on one page. Open it with #gallery. It is the workbench for theme
 // exploration: change a theme file and every decision updates here at once.
 
+import { sampleWaveforms } from "../preview/samplePeaks";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { sampleSnapshot } from "../preview/sampleProject";
 import { applyTheme, surfaceColors, themes, useTheme, useThemeRevision, type Theme, type TypeRoleName } from "../theme";
@@ -336,6 +337,7 @@ function TimelineSample() {
       selection: new Set(sequence.tracks.flatMap((t) => t.clips.filter((c) => c.link === selected.link).map((c) => c.id))),
       offline: new Set(),
       lifted: new Set(),
+      peaks: sampleWaveforms(project),
       ghosts: [],
     });
   }, [theme, revision, project, rows, height, selected]);

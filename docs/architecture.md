@@ -14,6 +14,7 @@ Last verified: 2026-10-22
 ┌───────────────┴──────────── Tauri shell (src-tauri/) ─────────▼──────────────┐
 │  commands.rs: validate paths, call core, spawn ffprobe/ffmpeg, emit job events│
 │  state.rs: Session (Editor + save path), running job, cached tool paths       │
+│  peaks.rs: audio peaks, decoded once per file and cached outside the project  │
 │  agent.rs: the catalogue over IPC   chat/: sign-in, the model, the turn loop  │
 └───────────────▲──────────────────────────────────────────────┬──────────────┘
                 │                                                │
@@ -126,6 +127,12 @@ on the provider's side (`store: false`) and nothing is written to disk here.
 - **Playback (elsewhere, and browser preview):** one muted `<video>` per visual clip
   through the asset protocol, re-seeked only beyond 120 ms of drift, with the playhead
   advanced from wall time because there is no player to follow.
+- **Audio peaks:** `peaks.rs` decodes one mono stream with FFmpeg and keeps the loudest
+  sample in each of 200 buckets a second, which the timeline draws inside its audio
+  clips. Derived data, not document data: it is cached in the app cache directory under
+  a key made from the file's path and the fingerprint taken at import, so a file replaced
+  on disk misses and is decoded again without anything having to invalidate it. The
+  window reads them once per asset and holds them for as long as it is open.
 - **Render:** `export::render::plan` builds an FFmpeg argument vector (black canvas plus
   silent bed, one seeked input per clip, fit, transform, offset, overlay in track order,
   delayed and mixed audio). The shell spawns it, streams `-progress` to `job://progress`,
@@ -176,7 +183,10 @@ copies used media next to both files plus a provenance manifest.
   reported frame skips one between updates. Raise `OBSERVE_HZ` if that shows.
 - Still images are skipped by the macOS preview; only clips with a decodable video or
   audio track reach the composition.
-- No speed changes, ripple edits, transitions, markers, keyframes or audio levels.
+- No speed changes, ripple edits, transitions, markers, keyframes or audio levels. The
+  timeline draws a waveform but nothing can yet change the gain it is drawing.
+- Peaks are not an agent tool: nothing in the catalogue reads them, so an assistant
+  cannot yet reason about where a clip is loud or silent.
 - A flip is not a negative scale: scale stays positive because FFmpeg's `scale` filter
   needs positive dimensions. A flip will be its own effect.
 - FCP7 XML writes `in` and `out` at the sequence rate; mixed-rate footage may need conform.

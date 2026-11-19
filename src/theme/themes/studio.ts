@@ -104,6 +104,10 @@ export const studioTheme: Theme = {
       videoBand: mediaBlue.band,
       audio: mediaGreen.base,
       audioBand: mediaGreen.band,
+      // The band's tone, not a fourth green: the waveform wants the same "this hue taken
+      // down hard" treatment the name band gets, and one dark tone per hue is what keeps
+      // a clip reading as one object.
+      audioWave: mediaGreen.band,
       image: mediaViolet.base,
       imageBand: mediaViolet.band,
     },
@@ -249,6 +253,7 @@ export const studioTheme: Theme = {
     clipGap: 1,
     clipBand: 16,
     clipLabelInset: 6,
+    waveInset: 3,
     offlineStripe: 2,
     playheadWidth: 1,
     playheadHead: 5,

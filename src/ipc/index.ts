@@ -21,6 +21,7 @@ import type { InterchangeFormat } from "../bindings/InterchangeFormat";
 import type { JobFinished } from "../bindings/JobFinished";
 import type { JobProgress } from "../bindings/JobProgress";
 import type { MenuAction } from "../bindings/MenuAction";
+import type { Peaks } from "../bindings/Peaks";
 import type { Recent } from "../bindings/Recent";
 import type { RenderSettings } from "../bindings/RenderSettings";
 import type { SequenceFormat } from "../bindings/SequenceFormat";
@@ -72,6 +73,11 @@ export const ipc = {
   undo: () => invoke<Snapshot>("undo"),
   redo: () => invoke<Snapshot>("redo"),
   importMedia: (paths: string[]) => invoke<ImportResponse>("media_import", { paths }),
+  /**
+   * The shape of one asset's sound, decoded on the first ask and cached on disk after
+   * that. Null when the media has no audio, which is an answer and not a failure.
+   */
+  mediaPeaks: (mediaId: string) => invoke<Peaks | null>("media_peaks", { mediaId }),
   // Each export names the sequence it is for: the top bar passes the one on screen,
   // and the bin will pass the one that was right-clicked.
   exportInterchange: (sequenceId: string, format: InterchangeFormat, path: string) =>

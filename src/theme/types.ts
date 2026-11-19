@@ -126,6 +126,8 @@ export interface ColorRoles {
     videoBand: string;
     audio: string;
     audioBand: string;
+    /** The waveform drawn inside an audio clip. */
+    audioWave: string;
     image: string;
     imageBand: string;
   };
@@ -266,6 +268,8 @@ export interface Theme {
     clipGap: number; // air between butted clips
     clipBand: number; // height of the lighter name band
     clipLabelInset: number;
+    /** Air above and below the waveform, so a loud clip does not fill its body edge to edge. */
+    waveInset: number;
     offlineStripe: number;
     playheadWidth: number;
     playheadHead: number; // half-width of the playhead marker

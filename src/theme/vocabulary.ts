@@ -30,7 +30,7 @@ export const COLOR_TOKENS = [
   "accent", "accent-hover", "accent-wash", "selection", "playhead", "danger", "scrim",
   // Media kind
   "media-video", "media-video-band",
-  "media-audio", "media-audio-band",
+  "media-audio", "media-audio-band", "media-audio-wave",
   "media-image", "media-image-band",
   // shadcn/ui's own names, pointed at the roles above so a pasted component lands
   // wearing this product's clothes

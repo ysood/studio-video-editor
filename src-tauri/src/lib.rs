@@ -6,6 +6,7 @@ mod chat;
 mod commands;
 mod error;
 mod menu;
+mod peaks;
 mod recents;
 mod state;
 mod tools;
@@ -37,6 +38,7 @@ pub fn run() {
             commands::undo,
             commands::redo,
             commands::media_import,
+            peaks::media_peaks,
             commands::export_interchange,
             commands::export_package,
             commands::render_start,

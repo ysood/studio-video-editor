@@ -10,6 +10,7 @@ import { timecode } from "../format";
 import { canvasFont, type ColorRoles, type Theme } from "../theme";
 import { IDENTITY } from "../transform";
 import { clipEnd, frameToX, pendingRows, tickStep, type Row, type View } from "./geometry";
+import { columnLevel, type Waveform } from "./peaks";
 import type { Sequence } from "../bindings/Sequence";
 
 /** A clip drawn somewhere other than where the document has it (drag preview). */
@@ -37,6 +38,8 @@ export interface Scene {
   offline: Set<string>;
   /** Clips hidden because a ghost stands in for them. */
   lifted: Set<ClipId>;
+  /** One entry per asset with sound; null for an asset that has none. */
+  peaks: Map<string, Waveform | null>;
   ghosts: Ghost[];
 }
 
@@ -170,6 +173,8 @@ function drawClip(
   roundRect(ctx, x0, y, w, h, theme.radius.clip);
   ctx.fill();
 
+  if (isAudioTrack && !opts.ghost) drawWaveform(ctx, scene, clip, x0, w, y, h);
+
   // A darker band along the top carries the name. Darker and not lighter: white type at
   // this size needs a ground it can hold against, and a vivid fill does not give it one.
   ctx.fillStyle = band;
@@ -205,6 +210,50 @@ function drawClip(
     roundRect(ctx, x0 + stroke / 2, y + stroke / 2, w - stroke, h - stroke, theme.radius.clip);
     ctx.stroke();
   }
+  ctx.restore();
+}
+
+/**
+ * The clip's sound, as one vertical line per pixel column, mirrored about the centre of
+ * the body below the name band. `columnLevel` decides what each column shows.
+ */
+function drawWaveform(
+  ctx: CanvasRenderingContext2D,
+  scene: Scene,
+  clip: Clip,
+  x0: number,
+  w: number,
+  y: number,
+  h: number,
+) {
+  const wave = scene.peaks.get(clip.source.mediaId);
+  if (!wave || wave.levels.length === 0) return;
+  const m = scene.theme.timeline;
+  const body = h - m.clipBand;
+  const half = body / 2 - m.waveInset;
+  if (half <= 0) return;
+
+  const rate = scene.sequence.format.frameRate;
+  const fps = rate.num / rate.den;
+  const middle = y + m.clipBand + body / 2;
+  // Only the columns on screen: a clip can be far wider than the canvas.
+  const from = Math.max(0, Math.floor(x0));
+  const to = Math.min(scene.width, Math.ceil(x0 + w));
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x0, y + m.clipBand, w, body);
+  ctx.clip();
+  ctx.fillStyle = scene.colors.media.audioWave;
+  ctx.beginPath();
+  for (let x = from; x < to; x += 1) {
+    const loudest = columnLevel(wave, clip.source.sourceStart, x - x0, scene.view.zoom, fps);
+    // A hairline through silence, so the clip reads as sound that happens to be quiet
+    // rather than as a clip whose waveform failed to load.
+    const reach = Math.max((loudest / 255) * half, 0.5);
+    ctx.rect(x, middle - reach, 1, reach * 2);
+  }
+  ctx.fill();
   ctx.restore();
 }
 

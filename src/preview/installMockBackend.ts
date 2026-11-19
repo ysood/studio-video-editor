@@ -4,6 +4,7 @@
 // Edits are refused with a clear message; view state (selection, playhead, zoom,
 // playback, layout, themes) works normally.
 
+import { samplePeaks } from "./samplePeaks";
 import type { CommandError } from "../bindings/CommandError";
 import type { Recent } from "../bindings/Recent";
 import type { ToolsStatus } from "../bindings/ToolsStatus";
@@ -126,6 +127,7 @@ export function installMockBackend() {
 
   const handlers: Record<string, (args: Record<string, unknown>) => unknown> = {
     session_snapshot: () => (previewingHome() ? null : snapshot),
+    media_peaks: (args) => samplePeaks(snapshot.project, String(args.mediaId ?? "")),
     tools_status: () => tools,
     undo: () => snapshot,
     redo: () => snapshot,

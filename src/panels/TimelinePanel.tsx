@@ -13,6 +13,7 @@ import { chord, useShortcut } from "../keyboard";
 import { useEditor, ZOOM_MAX, ZOOM_MIN, useActiveSequence } from "../store";
 import { surfaceColors, useTheme, useThemeRevision } from "../theme";
 import { draw, type Ghost } from "../timeline/draw";
+import { usePeaks } from "../timeline/peaks";
 import {
   clipEnd,
   contentHeight,
@@ -78,6 +79,9 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
   const metrics = theme.timeline;
   const project = snapshot?.project ?? null;
   const sequence = useActiveSequence();
+  // Decoded off the main thread by the shell and cached there; `peaksRevision` is what
+  // brings the canvas back once more of them have arrived.
+  const { peaks, revision: peaksRevision } = usePeaks(project);
   const rows = useMemo(
     () => (sequence ? layoutRows(sequence, metrics, areaHeight) : []),
     [sequence, metrics, areaHeight],
@@ -183,10 +187,11 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
       playhead,
       selection: selectionSet,
       offline: new Set(snapshot?.offlineMedia ?? []),
+      peaks,
       lifted,
       ghosts: [...ghosts, ...(drop?.ghosts ?? [])],
     });
-  }, [theme, themeRevision, project, rows, view, width, height, playhead, selectionSet, ghosts, lifted, drop, snapshot]);
+  }, [theme, themeRevision, project, rows, view, width, height, playhead, selectionSet, ghosts, lifted, drop, snapshot, peaks, peaksRevision]);
 
   const pointer = (e: { clientX: number; clientY: number }) => {
     const rect = canvasRef.current!.getBoundingClientRect();
