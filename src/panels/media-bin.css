@@ -94,43 +94,68 @@
   opacity: 1;
 }
 
-/* List. The rows run the full width of the pane, like the bins do. */
-.bin-row {
+/* List: a table. Rows and the heading row both carry .bin-columns, so there is exactly
+   one column definition (--bin-columns) and the headings cannot drift off their columns.
+   Every track is fixed or fr, never auto: an auto track sizes to its own grid's content,
+   and the heading row and each body row are separate grids, so they would disagree.
+   Name takes the slack; the ch tracks are sized for the longest value they show. */
+.bin-content {
+  container: bin / inline-size;
+}
+
+.bin-columns {
+  --bin-columns: var(--size-swatch) minmax(0, 1fr) 7rem 4rem;
   display: grid;
-  grid-template-columns: var(--size-swatch) minmax(0, 1fr) auto;
-  grid-template-areas:
-    "swatch name duration"
-    "swatch meta duration";
+  grid-template-columns: var(--bin-columns);
   column-gap: var(--space-4);
   align-items: center;
+}
+
+/* The fixed tracks are rem and not ch. A ch resolves against the grid container's font,
+   which is the row's body size, while the values in those columns are set at the caption
+   size, so ch tracks came out about 40% wider than their contents and starved Name until
+   it showed a single letter. rem is tied to the root and says what these columns actually
+   need: 7rem fits "3840x2160, 24 fps" and 4rem fits a duration under its heading.
+
+   Format is dropped below 18rem rather than letting the columns collide, that being the
+   point below which what is left for Name stops holding enough of a filename to tell two
+   clips apart. The default bin is wider than this on purpose: a list view exists to show
+   fields, so it should be showing them at the size the panel ships at. Name and
+   Duration always
+   survive. */
+@container bin (max-width: 18rem) {
+  .bin-columns {
+    --bin-columns: var(--size-swatch) minmax(0, 1fr) 4rem;
+  }
+
+  .bin-format {
+    display: none;
+  }
+}
+
+.bin-row {
   padding: var(--space-2) var(--space-5);
 }
 
-/* The column headings, laid out on the rows' own tracks and held at the top while the
-   rows scroll under them. The transparent border-left is the width Row reserves for its
-   selection stripe, without which every heading would sit a stripe's width left of its
-   column. */
+/* Held at the top while the rows scroll under it. The transparent border-left is the
+   width Row reserves for its selection stripe, without which every heading would sit a
+   stripe's width left of its column. */
 .bin-header {
   position: sticky;
   top: 0;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: var(--size-swatch) minmax(0, 1fr) auto;
-  column-gap: var(--space-4);
-  align-items: center;
+  z-index: var(--z-sticky);
   padding: 0 var(--space-5);
   border-left: var(--border-focus-width) solid transparent;
   border-bottom: var(--border-width) solid var(--color-border-subtle);
   background: var(--color-surface-panel);
 }
 
-.bin-header-names {
-  display: flex;
-  gap: var(--space-2);
+.bin-heading {
+  color: var(--color-text-secondary);
+  font: var(--type-caption);
 }
 
 .bin-swatch {
-  grid-area: swatch;
   display: grid;
   place-items: center;
   width: var(--size-swatch);
@@ -152,7 +177,6 @@
 }
 
 .bin-name {
-  grid-area: name;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -164,14 +188,17 @@
   min-width: 0;
 }
 
-.bin-meta {
-  grid-area: meta;
+.bin-format {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--color-text-secondary);
   font: var(--type-caption);
 }
 
 .bin-duration {
-  grid-area: duration;
+  justify-self: end;
+  text-align: right;
   color: var(--color-text-secondary);
   font: var(--type-label);
 }

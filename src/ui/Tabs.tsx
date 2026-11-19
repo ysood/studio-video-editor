@@ -13,16 +13,33 @@ export interface TabSpec {
   content: ReactNode;
 }
 
-/** Text tabs with arrow-key navigation; the selected tab's content renders below. */
-export function Tabs({ value, onChange, tabs, label }: {
+/**
+ * Text tabs with arrow-key navigation; the selected tab's content renders below.
+ *
+ * `fill` makes the strip the panel's own chrome: it sits flush at the top edge taking
+ * the card inset at the sides, and the chosen tab's content takes the rest of the
+ * height and scrolls. Use it for a panel that is two views of one thing, rather than a
+ * toolbar holding a control that switches them. A pill floating in the middle of an
+ * otherwise empty band does not read as "these are the two views of this panel"; it
+ * reads as a cutout nobody can explain.
+ */
+export function Tabs({ value, onChange, tabs, label, fill }: {
   value: string;
   onChange: (value: string) => void;
   tabs: TabSpec[];
   label: string;
+  fill?: boolean;
 }) {
   return (
-    <TabsPrimitive.Root value={value} onValueChange={onChange}>
-      <TabsPrimitive.List className="flex gap-5 border-b border-edge" aria-label={label}>
+    <TabsPrimitive.Root
+      className={cn(fill && "flex min-h-0 flex-1 flex-col")}
+      value={value}
+      onValueChange={onChange}
+    >
+      <TabsPrimitive.List
+        className={cn("flex gap-5 border-b border-edge", fill && "flex-none gap-7 px-8")}
+        aria-label={label}
+      >
         {tabs.map((t) => (
           <TabsPrimitive.Trigger
             key={t.value}
@@ -42,7 +59,13 @@ export function Tabs({ value, onChange, tabs, label }: {
         ))}
       </TabsPrimitive.List>
       {tabs.map((t) => (
-        <TabsPrimitive.Content key={t.value} value={t.value} className="pt-4">
+        <TabsPrimitive.Content
+          key={t.value}
+          value={t.value}
+          // A filled tab owns the rest of the panel, and its content brings its own
+          // inset, so there is no padding to add here.
+          className={cn(fill ? "min-h-0 flex-1 overflow-hidden" : "pt-4")}
+        >
           {t.content}
         </TabsPrimitive.Content>
       ))}
@@ -54,10 +77,12 @@ const segmentedVariants = cva("inline-flex h-control rounded-button bg-raised p-
   variants: {
     emphasis: {
       quiet: "",
-      // Centred in the panel rather than ranged left, since it is the thing the panel
-      // is about. It may shrink and scroll, because in a narrow panel sliding the
-      // choices beats crushing whatever shares the toolbar with them.
-      accent: "mx-auto min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+      // Ranged left with everything else in the toolbar. It used to be centred, on the
+      // grounds that it is the thing the panel is about, and that was a mistake: a
+      // control alone in the middle of a wide empty bar reads as decoration rather than
+      // as the panel's main choice. It may still shrink and scroll, because in a narrow
+      // panel sliding the choices beats crushing whatever shares the toolbar with them.
+      accent: "min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
     },
   },
   defaultVariants: { emphasis: "quiet" },

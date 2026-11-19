@@ -50,7 +50,7 @@ export const TEXT_ROLES = [
  * `size-icon` reach them the way `p-4` reaches a spacing step.
  */
 export const SPACING_TOKENS = [
-  "hairline", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12",
+  "0", "hairline", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12",
   "control", "control-small", "control-large", "icon",
   "toolbar", "topbar", "statusbar", "tabbar", "panel-footer",
   "play-button", "swatch", "dot", "slider-track", "slider-thumb",

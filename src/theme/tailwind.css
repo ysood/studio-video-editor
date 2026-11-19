@@ -105,6 +105,10 @@
      Only steps 1 to 12 and the named component sizes below resolve; anything else
      fails to compile a class, and `npm run check:design` names it. */
   --spacing: initial;
+  /* Zero is not a design decision, but it is a value a utility has to be able to ask
+     for: with Tailwind's own scale switched off, `px-0` compiled to nothing at all and
+     the browser's 40px list indent survived it, unreset and invisible in the source. */
+  --spacing-0: 0px;
   --spacing-hairline: var(--space-hairline);
   --spacing-1: var(--space-1);
   --spacing-2: var(--space-2);

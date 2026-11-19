@@ -67,7 +67,7 @@ const SPACING_UTILITIES =
 const SPACING_SCALE = new Set([
   ...declaredNames("SPACING_TOKENS"),
   // Not spacing: Tailwind's own keywords, which take no theme value.
-  "auto", "full", "px", "min", "max", "fit", "screen", "dvh", "dvw", "lvh", "lvw", "svh", "svw", "0",
+  "auto", "full", "px", "min", "max", "fit", "screen", "dvh", "dvw", "lvh", "lvw", "svh", "svw",
 ]);
 
 const rules = [
