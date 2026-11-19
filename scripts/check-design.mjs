@@ -107,7 +107,32 @@ function walk(dir) {
   });
 }
 
-const problems = [...vocabularyProblems];
+// The native viewer draws a selected clip's box itself, in a CALayer, which cannot read
+// a CSS variable. Its colour is therefore a constant in Rust, and a constant nobody can
+// see from the browser preview: it sat at a deleted theme's red for as long as it did
+// because nothing compared it to anything. This compares it to the theme's accent.
+const nativeProblems = [];
+{
+  const primitives = readFileSync(join(src, "theme", "primitives.ts"), "utf8");
+  const viewer = readFileSync(join(root, "src-tauri", "src", "viewer.rs"), "utf8");
+  const step = primitives.match(/accentWhite = \{\s*base: neutral\[(\d+)\]/)?.[1];
+  const hex = step && primitives.match(new RegExp(`\\b${step}: "#([0-9a-f]{6})"`))?.[1];
+  const native = viewer.match(/fn accent\(\)[\s\S]*?new_srgb\(([\d.]+), ([\d.]+), ([\d.]+),/);
+  if (!hex || !native) {
+    nativeProblems.push("could not read the accent from primitives.ts or viewer.rs to compare them");
+  } else {
+    const want = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+    const got = native.slice(1, 4).map(Number);
+    if (want.some((w, i) => Math.abs(w - got[i]) > 0.002)) {
+      nativeProblems.push(
+        `src-tauri/src/viewer.rs accent() is srgb(${got.join(", ")}) but the theme's accent is #${hex} ` +
+          `(srgb(${want.map((w) => w.toFixed(3)).join(", ")})): the native clip handles would not match the UI`,
+      );
+    }
+  }
+}
+
+const problems = [...vocabularyProblems, ...nativeProblems];
 for (const file of walk(src)) {
   const ext = file.split(".").pop();
   if (!["css", "ts", "tsx"].includes(ext) || file.endsWith(".test.ts") || file.endsWith(".d.ts")) continue;
