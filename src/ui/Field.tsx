@@ -17,12 +17,14 @@ import { overlayItem, overlayMenuPanel } from "./overlayStyles";
  */
 export const inputBase = cn(
   controlBase,
-  "h-control w-full justify-between rounded-control border border-edge bg-field px-4",
+  // The outline is the whole of what marks a field, since its fill is the panel's
+  // own black, so it takes the firmer of the two hairlines.
+  "h-control w-full justify-between rounded-control border border-edge-strong bg-field px-4",
   // The value is secondary text at rest and primary once the field has focus. A panel
   // of fields is mostly values, and with every one of them at full white the panel had
   // no quiet part; the field you are in is now the one that stands out.
   "text-label text-fg-muted focus:text-fg",
-  "hover:border-edge-strong",
+  "hover:border-fg-faint",
   "disabled:opacity-disabled data-[disabled]:opacity-disabled",
 );
 

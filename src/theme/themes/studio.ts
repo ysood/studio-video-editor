@@ -38,21 +38,21 @@ export const studioTheme: Theme = {
   scheme: "dark",
 
   color: {
-    // Flat, and nearly black. The window and every panel in it are one surface, told
-    // apart by hairlines, as in Premiere and Resolve.
+    // Flat, and black. The window and every panel in it are one surface, told apart by
+    // hairlines, as in Premiere and Resolve.
     //
-    // That surface sits a few points above black on purpose, and it is the whole of how
-    // depth works here: with the ground at 925, true black is free to mean "sunk". A
-    // field, a search box, a switcher's trough and the timeline's stage are all black
-    // cut into the surface, rather than grey boxes standing on it. Grey then only ever
-    // means raised (a quiet button, the chosen segment, a menu), and there is very
-    // little of it.
+    // A field is the same black as the panel it sits in and is marked by a thin outline,
+    // not by a fill. Lifting the whole window a few points so that fields could be cut
+    // into it as a darker black was tried, and it made the window grey to make the
+    // fields black, which is the wrong way round: the background is most of the screen
+    // and a field is a few rectangles. Grey only ever means raised (a quiet button, the
+    // chosen segment, a menu), and there is very little of it.
     surface: {
-      base: neutral[925],
-      gutter: neutral[925],
-      panel: neutral[925],
+      base: neutral[950],
+      gutter: neutral[950],
+      panel: neutral[950],
       raised: neutral[900],
-      input: neutral[1000],
+      input: neutral[950],
       overlay: neutral[900],
       locked: neutral[900],
     },
@@ -112,7 +112,7 @@ export const studioTheme: Theme = {
 
     // Neutral around the picture and black behind it. Nothing else may sit here.
     viewer: {
-      surround: neutral[925],
+      surround: neutral[950],
       matte: neutral[1000],
     },
 
@@ -130,7 +130,7 @@ export const studioTheme: Theme = {
   // input likewise. Inside an overlay, raised goes up one more and an input sinks back
   // to black.
   surfaces: {
-    well: { surface: { panel: neutral[900], raised: neutral[800], input: neutral[1000] } },
+    well: { surface: { panel: neutral[900], raised: neutral[800], input: neutral[950] } },
     stage: { surface: { base: neutral[1000], panel: neutral[950] } },
   },
 

@@ -34,7 +34,6 @@ export const neutral = {
   700: "#404040",
   800: "#262626",
   900: "#171717",
-  925: "#101010", // the window and its panels: just off black, so black can mean "sunk"
   950: "#0a0a0a",
   1000: "#000000",
 } as const;

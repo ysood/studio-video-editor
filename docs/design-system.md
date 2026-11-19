@@ -156,23 +156,23 @@ and on the stage, and a hairline never has to be re-picked per surface.
 
 ## Depth
 
-The workspace is flat and nearly black. The window and every panel in it are one surface
-(`neutral[925]`, `#101010`), and a panel is told from its neighbour by a hairline, which
+The workspace is flat and black. The window and every panel in it are one surface
+(`neutral[950]`, `#0a0a0a`), and a panel is told from its neighbour by a hairline, which
 is how Premiere and Resolve divide a workspace.
-
-That surface sits a few points above black on purpose, and it is the whole of how depth
-works: with the ground at 925, true black is free to mean "sunk".
 
 | Surface | What is on it |
 |---|---|
-| panel (`neutral[925]`) | the window, the bars, every panel body |
-| field (`neutral[1000]`) | anything cut into the surface: an input, a search box, a switcher's trough, the timeline's stage, the viewer's frame |
+| panel (`neutral[950]`) | the window, the bars, every panel body, and every field |
 | raised (`neutral[900]`) | the few things that are lifted: a quiet button, the chosen segment, a track header, a menu |
+| stage (`neutral[1000]`) | the viewer's frame and the gaps of the timeline canvas |
 
-Black means sunk and grey means raised. A grey region that is not a control or an overlay
-is wrong, and so is a field drawn as a grey box standing on the panel. A field's value is
-secondary text at rest and primary once the field has focus, so a panel of fields has a
-quiet state and the one you are in stands out.
+**A field is an outline, not a fill.** An input, a search box and a switcher's trough are
+the panel's own black inside a thin outline (`border.strong`). Lifting the whole window a
+few points so fields could be a darker black was tried and reverted: it made the window
+grey to make the fields black, and the background is most of the screen. A field's value
+is secondary text at rest and primary once the field has focus.
+
+Grey means raised. A grey region that is not a control or an overlay is wrong.
 
 Hairlines are white at 6% and 10%. In a window that is nothing but panels the rules add
 up, and at shadcn's own 10% and 15% the grid of lines was the loudest thing on screen.

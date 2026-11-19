@@ -51,11 +51,11 @@ export function Tabs({ value, onChange, tabs, label }: {
 }
 
 /**
- * The trough is a field: sunk to black with a hairline, like an input, and the chosen
- * segment is the one raised thing in it. That reads as "one of these is in", which a
+ * The trough is a field: the panel's black inside a thin outline, like an input, and the
+ * chosen segment is the one raised thing in it. That reads as "one of these is in", which a
  * row of buttons on a grey slab does not.
  */
-const segmentedVariants = cva("inline-flex h-control rounded-button border border-edge bg-field p-hairline", {
+const segmentedVariants = cva("inline-flex h-control rounded-button border border-edge-strong bg-field p-hairline", {
   variants: {
     align: {
       start: "",
