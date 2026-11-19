@@ -121,16 +121,17 @@ export function draw(ctx: CanvasRenderingContext2D, scene: Scene) {
     ctx.strokeStyle = c.playhead;
     ctx.lineWidth = m.playheadWidth;
     ctx.beginPath();
-    ctx.moveTo(px, 0);
+    ctx.moveTo(px, m.playheadTop);
     ctx.lineTo(px, height);
     ctx.stroke();
     ctx.fillStyle = c.playhead;
     ctx.beginPath();
-    ctx.moveTo(px - half, 0);
-    ctx.lineTo(px + half, 0);
-    ctx.lineTo(px + half, half * 1.4);
-    ctx.lineTo(px, half * 2.4);
-    ctx.lineTo(px - half, half * 1.4);
+    const top = m.playheadTop;
+    ctx.moveTo(px - half, top);
+    ctx.lineTo(px + half, top);
+    ctx.lineTo(px + half, top + half * 1.4);
+    ctx.lineTo(px, top + half * 2.4);
+    ctx.lineTo(px - half, top + half * 1.4);
     ctx.closePath();
     ctx.fill();
   }

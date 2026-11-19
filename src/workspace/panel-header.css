@@ -11,7 +11,10 @@
   --dv-inactivegroup-visiblepanel-tab-color: var(--color-text-primary);
   --dv-activegroup-hiddenpanel-tab-color: var(--color-text-tertiary);
   --dv-inactivegroup-hiddenpanel-tab-color: var(--color-text-tertiary);
-  background: var(--color-surface-base);
+  /* The same bar as PanelToolbar: one height (set on the Dockview root from
+     size.toolbar), a hairline against the body, the panel's own surface. */
+  border-bottom: var(--border-width) solid var(--color-border-subtle);
+  background: var(--color-surface-panel);
   color: var(--color-text-primary);
 }
 
@@ -19,8 +22,9 @@
   display: none;
 }
 
+/* The panel inset, so a dock title starts where a toolbar's first control does. */
 .app .dv-tabs-and-actions-container .dv-tab {
-  padding: 0 var(--space-5);
+  padding: 0 var(--space-6);
 }
 
 .app .dv-tabs-and-actions-container .dv-tab:focus-visible {
@@ -43,5 +47,5 @@
   display: flex;
   align-items: center;
   height: 100%;
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-6);
 }

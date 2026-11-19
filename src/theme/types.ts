@@ -269,6 +269,8 @@ export interface Theme {
     offlineStripe: number;
     playheadWidth: number;
     playheadHead: number; // half-width of the playhead marker
+    /** How far the marker hangs below the top of the ruler, so it never touches the rule above. */
+    playheadTop: number;
     selectionWidth: number;
     ghostWidth: number;
     ghostDash: [number, number];

@@ -38,17 +38,20 @@ export const studioTheme: Theme = {
   scheme: "dark",
 
   color: {
+    // Flat, and black. The window and every panel in it are one surface, and a panel is
+    // told from its neighbour by a hairline, which is how Premiere and Resolve divide a
+    // workspace. Panels used to be grey cards floating on a black ground: that spent a
+    // whole surface step on saying "this is a panel", left the window mostly grey, and
+    // put a rounded corner against every edge of the window for no reason. Grey is now
+    // reserved for things that are actually raised: a control, an input, a menu.
     surface: {
       base: neutral[950], // shadcn `background`
       gutter: neutral[950],
-      panel: neutral[900], // shadcn `card`
-      raised: neutral[800], // shadcn `secondary` and `muted`
-      input: neutral[950], // sunk below the card it sits on
-      // shadcn gives popovers the card colour and separates them with a border alone.
-      // Here panels are already cards, so an overlay at the card colour would not read
-      // as lifted off the thing it covers. It takes the step above instead.
-      overlay: neutral[800],
-      locked: neutral[800],
+      panel: neutral[950],
+      raised: neutral[900], // shadcn `card`: a quiet button, a track header, a trough
+      input: neutral[900],
+      overlay: neutral[900],
+      locked: neutral[900],
     },
 
     // What is happening to a thing, rather than what the thing is. Translucent, so one
@@ -110,15 +113,11 @@ export const studioTheme: Theme = {
     shadow: "rgba(0, 0, 0, 0.6)",
   },
 
-  // Wells sink below the panel they sit in; the stage sinks furthest, so an empty track
-  // reads as part of the timeline rather than as the gap around it. Everything else is
-  // told apart by the same hairline, not by a third fill.
+  // Only the stage differs: the timeline canvas and the viewer's frame sit on true
+  // black, so an empty track reads as part of the timeline and the picture has nothing
+  // behind it. Chrome, panels and wells are deliberately the same surface.
   surfaces: {
-    chrome: { surface: { panel: neutral[950] } },
-    well: { surface: { panel: neutral[950], raised: neutral[800], input: neutral[1000] } },
-    stage: {
-      surface: { base: neutral[1000], panel: neutral[950], raised: neutral[800], locked: neutral[900] },
-    },
+    stage: { surface: { base: neutral[1000], panel: neutral[950] } },
   },
 
   font: {
@@ -131,25 +130,28 @@ export const studioTheme: Theme = {
   },
 
   /**
-   * Three rules, and no fourth:
+   * The scale is four sizes and it is closed: 11, 12, 13, 20.
    *
-   * 1. Two weights, 400 and 500. Nothing heavier exists. Weight tells a label from its
-   *    value; it is not for emphasis. Six regions each picking their own idea of
-   *    important is most of why an interface stops reading as one product.
-   * 2. Tracking goes negative as size goes up, about -0.02em from 15px, and stays at
-   *    zero below it. A face spaced for 12px falls apart set at 20.
-   * 3. Three line heights: 1 for display, about 1.3 for anything dense, 1.5 for prose
-   *    meant to be read in sentences.
+   *   11  caption   what annotates something else: column headings, hints, the status bar
+   *   12  label     the interface itself: every control, row, field, tab and timecode
+   *   13  body      prose meant to be read in sentences, and the project's own name
+   *   20  display   the one large readout
    *
-   * The one exception is `overline`, small capitals, which need air between them.
+   * Almost everything in an editor is 12. Hierarchy inside a panel comes from colour
+   * (primary, secondary, tertiary) and from the two weights, never from a size picked
+   * for the occasion: that is how a list ends up with a 13px name under a 12px heading
+   * beside an 11px value.
+   *
+   * Two weights, 400 and 500, and nothing heavier. Line height is about 1.3 for anything
+   * dense and 1.5 for prose.
    */
   type: {
     caption: { family: "ui", size: 11, weight: 400, lineHeight: 1.4, tracking: 0 },
     label: { family: "ui", size: 12, weight: 400, lineHeight: 1.35, tracking: 0 },
     body: { family: "ui", size: 13, weight: 400, lineHeight: 1.5, tracking: 0 },
     heading: { family: "ui", size: 12, weight: 500, lineHeight: 1.3, tracking: 0 },
-    title: { family: "display", size: 15, weight: 500, lineHeight: 1.2, tracking: -0.012 },
-    timecode: { family: "numeric", size: 13, weight: 500, lineHeight: 1.2, tracking: 0 },
+    title: { family: "display", size: 13, weight: 500, lineHeight: 1.3, tracking: 0 },
+    timecode: { family: "numeric", size: 12, weight: 500, lineHeight: 1.2, tracking: 0 },
     timecodeDisplay: { family: "numeric", size: 20, weight: 500, lineHeight: 1.1, tracking: -0.02 },
     canvas: { family: "ui", size: 11, weight: 400, lineHeight: 1, tracking: 0 },
     overline: { family: "ui", size: 10, weight: 500, lineHeight: 1.2, tracking: 0.14 },
@@ -176,13 +178,16 @@ export const studioTheme: Theme = {
     controlSmall: 24,
     control: 28,
     controlLarge: 36,
+    // One bar height, for the top bar and for the header and footer of every panel. A
+    // control is 28, so a bar leaves 8 above and below it: enough that nothing in a bar
+    // sits a hair off the rule beside it, which reads as an accident.
     topbar: 44,
     statusbar: 26,
-    toolbar: 36,
-    tabbar: 30,
-    panelFooter: 40,
-    playButton: 34,
-    swatch: 28,
+    toolbar: 44,
+    tabbar: 44,
+    panelFooter: 44,
+    playButton: 28,
+    swatch: 20,
     icon: 16,
     dot: 6,
     progressWidth: 120,
@@ -230,7 +235,8 @@ export const studioTheme: Theme = {
     clipLabelInset: 6,
     offlineStripe: 2,
     playheadWidth: 1,
-    playheadHead: 6,
+    playheadHead: 5,
+    playheadTop: 8,
     selectionWidth: 2,
     ghostWidth: 1,
     ghostDash: [4, 3],

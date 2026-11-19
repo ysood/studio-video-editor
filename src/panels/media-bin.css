@@ -1,11 +1,8 @@
-/* The bins are a row of pills in the toolbar now rather than a column beside the
-   media, so the media has the whole panel. They are centred by the accent emphasis (see
-   tabs.css), which is why the new-timeline button is parked at the edge rather than laid
-   out beside them: a button that is only sometimes there would otherwise shift the
-   centre whenever it appeared. */
+/* Parked at the bar's far edge, at the panel inset, so it does not shift the bins when
+   it appears. */
 .bin-new-timeline {
   position: absolute;
-  right: var(--space-8);
+  right: var(--space-6);
 }
 
 /* Gallery */
@@ -16,9 +13,9 @@
   overflow: auto;
 }
 
-/* Tiles are cards, so they take the card inset from the panel edge. */
+/* The panel inset, like everything else that starts at a panel's edge. */
 .bin-grid {
-  padding: var(--space-8);
+  padding: var(--space-6);
 }
 
 /* One card: the picture runs to its edges and the caption sits under it, with the
@@ -94,65 +91,68 @@
   opacity: 1;
 }
 
-/* List: a table. Rows and the heading row both carry .bin-columns, so there is exactly
-   one column definition (--bin-columns) and the headings cannot drift off their columns.
-   Every track is fixed or fr, never auto: an auto track sizes to its own grid's content,
-   and the heading row and each body row are separate grids, so they would disagree.
-   Name takes the slack; the ch tracks are sized for the longest value they show. */
-.bin-content {
-  container: bin / inline-size;
+/* List: a table.
+
+   One column definition. The heading row and every body row carry .bin-columns, so the
+   headings cannot drift off their columns. Every track is fixed or fr, never auto: an
+   auto track sizes to its own grid's content, and the heading row and each body row are
+   separate grids, so they would disagree.
+
+   The spacing is the part that was missing. Twelve between columns, so no value ever
+   reads as touching the next one; twelve at the sides, which is the panel inset, so a
+   row's swatch sits under the first control in the bar above and its duration under the
+   last. Six above and below a row gives a line of label type a row a little taller than
+   a control, which is dense without the rows leaning on each other.
+
+   The table has a minimum width and scrolls sideways under it, rather than dropping a
+   column or squeezing Name to a few letters. A narrow panel then shows less of the
+   table, not a worse table: every row keeps its spacing at any panel width. */
+/* The sum of the tracks at their minimums, their gaps and the two insets. It is just
+   under the width the bin ships at, so the default panel shows the whole table and the
+   scrollbar appears only when the panel is dragged narrower than that. */
+.bin-table {
+  min-width: 24rem;
 }
 
 .bin-columns {
-  --bin-columns: var(--size-swatch) minmax(0, 1fr) 7rem 4rem;
+  --bin-columns: var(--size-swatch) minmax(8rem, 1fr) 7.5rem 3.5rem;
   display: grid;
   grid-template-columns: var(--bin-columns);
-  column-gap: var(--space-4);
+  column-gap: var(--space-6);
   align-items: center;
-}
-
-/* The fixed tracks are rem and not ch. A ch resolves against the grid container's font,
-   which is the row's body size, while the values in those columns are set at the caption
-   size, so ch tracks came out about 40% wider than their contents and starved Name until
-   it showed a single letter. rem is tied to the root and says what these columns actually
-   need: 7rem fits "3840x2160, 24 fps" and 4rem fits a duration under its heading.
-
-   Format is dropped below 18rem rather than letting the columns collide, that being the
-   point below which what is left for Name stops holding enough of a filename to tell two
-   clips apart. The default bin is wider than this on purpose: a list view exists to show
-   fields, so it should be showing them at the size the panel ships at. Name and
-   Duration always
-   survive. */
-@container bin (max-width: 18rem) {
-  .bin-columns {
-    --bin-columns: var(--size-swatch) minmax(0, 1fr) 4rem;
-  }
-
-  .bin-format {
-    display: none;
-  }
+  padding-inline: var(--space-6);
 }
 
 .bin-row {
-  padding: var(--space-2) var(--space-5);
+  padding-block: var(--space-3);
 }
 
-/* Held at the top while the rows scroll under it. The transparent border-left is the
-   width Row reserves for its selection stripe, without which every heading would sit a
-   stripe's width left of its column. */
+/* Held at the top while the rows scroll under it. */
 .bin-header {
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
-  padding: 0 var(--space-5);
-  border-left: var(--border-focus-width) solid transparent;
+  height: var(--size-control-large);
   border-bottom: var(--border-width) solid var(--color-border-subtle);
   background: var(--color-surface-panel);
+  color: var(--color-text-tertiary);
+  font: var(--type-caption);
 }
 
-.bin-heading {
-  color: var(--color-text-secondary);
-  font: var(--type-caption);
+/* A heading is its label and nothing else, so it starts exactly where its column does.
+   A padded button here would sit its text inboard of the values under it. */
+.bin-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: var(--size-control-small);
+  color: inherit;
+  font: inherit;
+}
+
+.bin-sort:hover,
+.bin-sort[aria-pressed="true"] {
+  color: var(--color-text-primary);
 }
 
 .bin-swatch {
@@ -160,8 +160,14 @@
   place-items: center;
   width: var(--size-swatch);
   height: var(--size-swatch);
-  border-radius: var(--radius-control);
+  border-radius: var(--radius-clip);
   color: var(--color-text-on-media);
+}
+
+/* The glyph keeps the same clearance from each edge of its swatch. */
+.bin-swatch svg {
+  width: var(--space-6);
+  height: var(--space-6);
 }
 
 .bin-swatch[data-kind="video"] {
@@ -188,19 +194,20 @@
   min-width: 0;
 }
 
-.bin-format {
+/* Values are the same size as the name and told from it by colour alone, with figures
+   that do not shift from row to row. */
+.bin-format,
+.bin-duration {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--color-text-secondary);
-  font: var(--type-caption);
+  font-variant-numeric: tabular-nums;
 }
 
 .bin-duration {
   justify-self: end;
   text-align: right;
-  color: var(--color-text-secondary);
-  font: var(--type-label);
 }
 
 .bin-offline {

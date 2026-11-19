@@ -16,7 +16,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  padding: 0 var(--space-5);
+  /* The panel inset, so the top bar's first and last things sit over the panels'. */
+  padding: 0 var(--space-6);
   border-bottom: var(--border-width) solid var(--color-border-subtle);
   background: var(--color-surface-panel);
 }
@@ -86,7 +87,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-7);
-  padding: 0 var(--space-5);
+  padding: 0 var(--space-6);
   border-top: var(--border-width) solid var(--color-border-subtle);
   background: var(--color-surface-panel);
   color: var(--color-text-secondary);
@@ -114,7 +115,7 @@
 .app .dockview-theme-dark {
   --dv-group-view-background-color: var(--color-surface-panel);
   --dv-tabs-and-actions-container-background-color: var(--color-surface-base);
-  --dv-tabs-and-actions-container-height: var(--size-tabbar);
+  --dv-tabs-and-actions-container-height: var(--size-toolbar);
   --dv-tabs-and-actions-container-font-size: var(--type-label-size);
   --dv-activegroup-visiblepanel-tab-background-color: var(--color-surface-panel);
   --dv-activegroup-visiblepanel-tab-color: var(--color-text-primary);
@@ -124,7 +125,8 @@
   --dv-activegroup-hiddenpanel-tab-color: var(--color-text-secondary);
   --dv-inactivegroup-hiddenpanel-tab-background-color: var(--color-surface-base);
   --dv-inactivegroup-hiddenpanel-tab-color: var(--color-text-tertiary);
-  --dv-separator-border: transparent;
+  /* The line between two panels. It is the only thing that divides the workspace. */
+  --dv-separator-border: var(--color-border-subtle);
   --dv-sash-color: transparent;
   --dv-active-sash-color: var(--color-accent-base);
   --dv-tab-divider-color: transparent;
@@ -139,17 +141,11 @@
   display: none;
 }
 
-/* Depth, so the layers can be seen and not only named.
-   A dock group is a card lying on the ground. The gutter between two of them is the
-   ground showing through, not a line drawn on top of them, which is why the gap is a
-   transparent border: it costs no layout and Dockview keeps sizing the group as if it
-   filled the space. `background-clip` keeps the group's own fill inside that border,
-   and the outer radius is the inner radius plus the gap so the card's corners come out
-   at `radius.panel`. */
+/* A dock group is flat: no gap around it, no corner, no fill of its own. The workspace
+   is one black surface and Dockview's separator is the hairline between two panels. A
+   group used to be a card with a gutter and a radius, which rounded a corner against
+   every edge of the window and left the frame showing through as stripes of a second
+   colour between panels that were supposed to be one thing. */
 .app .dv-groupview {
-  border: var(--space-4) solid transparent;
-  border-radius: calc(var(--radius-panel) + var(--space-4));
-  background-clip: padding-box;
-  box-shadow: inset 0 0 0 var(--border-width) var(--color-border-subtle);
   overflow: hidden;
 }

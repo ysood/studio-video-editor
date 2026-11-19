@@ -34,7 +34,15 @@ export const controlBase = cn(
   "[&_svg]:pointer-events-none [&_svg]:shrink-0",
 );
 
-const buttonVariants = cva(cn(controlBase, "rounded-button"), {
+/**
+ * A button gives way under the pointer. It is a three percent scale and nobody will
+ * ever point at it, but it is the difference between an interface that heard the press
+ * and one that will get round to it. Only on things that are pressed: an input shares
+ * `controlBase` and must not flinch when clicked into.
+ */
+const pressable = "transition duration-quick ease-standard active:scale-97";
+
+const buttonVariants = cva(cn(controlBase, pressable, "rounded-button"), {
   variants: {
     variant: {
       solid: "bg-accent text-fg-on-accent hover:bg-accent-hover",
@@ -45,7 +53,7 @@ const buttonVariants = cva(cn(controlBase, "rounded-button"), {
       // A button is wider than it is tall by about three spacing steps at each end;
       // text that sits tight against a corner reads as cramped however correct the
       // height is.
-      default: "h-control px-6 text-body",
+      default: "h-control px-6 text-label",
       small: "h-control-small px-5 text-label",
       large: "h-control-large px-7 text-body",
     },
@@ -111,7 +119,7 @@ export const PlainButton = forwardRef<HTMLButtonElement, ButtonHTMLAttributes<HT
   },
 );
 
-const iconButtonVariants = cva(cn(controlBase, "p-0"), {
+const iconButtonVariants = cva(cn(controlBase, pressable, "p-0"), {
   variants: {
     shape: {
       square: "rounded-button bg-transparent text-fg-muted hover:text-fg hover:state-hover",

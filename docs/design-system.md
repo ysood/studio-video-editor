@@ -156,39 +156,48 @@ and on the stage, and a hairline never has to be re-picked per surface.
 
 ## Depth
 
-Four layers, and a thing belongs to exactly one:
+The workspace is flat and black. The window and every panel in it are one surface
+(`neutral[950]`), and a panel is told from its neighbour by a hairline, which is how
+Premiere and Resolve divide a workspace. Panels used to be grey cards on a black ground
+with a gutter and a radius: that spent a surface step on saying "this is a panel", left
+the window mostly grey, and rounded a corner against every edge of the window.
 
-| Layer | What is on it | Direction |
-|---|---|---|
-| chrome | the top bar, the status bar, the tab strips, the gaps between cards, the viewer surround | the frame |
-| panel | a docked panel body: the bin, the inspector, the timeline's chrome, the assistant | the card |
-| well | an inset inside a panel: bin lists, inspector groups | sinks |
-| stage | picture and time: the viewer's frame and the timeline canvas | sinks furthest |
+| Surface | What is on it |
+|---|---|
+| panel | the window, the bars, every panel body |
+| raised (`neutral[900]`) | things that are actually lifted: a quiet button, an input, a track header, a menu |
+| stage (`neutral[1000]`) | picture and time: the viewer's frame and the timeline canvas |
 
-The ladder only works in one direction. A well is darker than the panel it sits in so that
-it reads as sunk into one; put a panel at stage depth and its wells come out lighter and
-rise instead, which is how four surfaces end up looking like one bad one. Overlays are the
-exception and are the one surface that *rises*, because a menu has to read as floating
-over whatever it covers.
+Grey means raised. If a region is grey and is not a control, an input or an overlay, it
+is wrong.
 
-The card geometry is one set of numbers, used everywhere:
+## Panel anatomy
+
+Every panel is the same three parts, and the numbers are the same in all of them:
 
 | | Value |
 |---|---|
-| gutter between cards | `space[4]`, 8px |
-| inset inside a card | `space[8]`, 20px, on all four sides |
-| gap between things in a card | `space[7]`, 16px |
-| corner | `radius.panel`, 8px |
-| edge | `border.width` at `border.subtle` |
-| shadow | none |
+| header and footer height | `size.toolbar`, 44px, the same as the top bar |
+| inset at the sides of a bar, and of anything in the body | `space[6]`, 12px |
+| rule between a bar and the body | `border.width` at `border.subtle` |
+| control height inside a bar | `size.control`, 28px, leaving 8px above and below |
+| corner | none: a panel meets its neighbours and the window square |
 
-A panel toolbar takes the card inset on every side: at the sides as padding, and at the
-edge it faces as a margin, so `size.toolbar` keeps meaning the height of the row of
-controls rather than the row plus the air around it. That is what lines a toolbar's
-contents up with the content under it.
+The header is `PanelToolbar`, or `Tabs fill`, or the dock's own title strip, and all three
+come out as the same bar. Whatever a panel puts in its body starts at the 12px inset, so
+the first thing in a bar and the first thing under it share a left edge in every panel.
+That shared edge is most of what makes four panels read as one product.
 
-Inside a card, a region is told from its neighbour by **the same hairline**, not by a gap
-or a well.
+Three spacing rules hold inside a panel, taken from how real product UI is built:
+
+- **Words keep 12px from any edge**, and neighbouring values keep a fixed 8 to 12px gap.
+  Never leftover `space-between`.
+- **No near-tangents.** Two edges 1 to 3px apart read as an accident. Line them up
+  exactly or part them by at least 8px. This is why a bar is 44 and not 40: a 34px
+  button in a 40px bar sat 3px off its rule.
+- **A table has one column definition**, shared by its heading row and its body rows,
+  with fixed tracks. It keeps a minimum width and scrolls sideways under it rather than
+  dropping a column or crushing one.
 
 Stacking is `src/theme/layers.ts`, not a theme: `--z-raised`, `--z-sticky`, `--z-overlay`,
 reached as `z-raised`, `z-sticky`, `z-overlay`. How things stack is a fact about the
@@ -198,20 +207,20 @@ elements, so the browser puts them and their backdrop in the top layer.
 
 ## Type
 
-Geist and Geist Mono, bundled. Three rules, and no fourth:
+Geist and Geist Mono, bundled. The scale is four sizes and it is closed:
 
-1. **Two weights, 400 and 500.** Nothing heavier exists. Weight tells a label from its
-   value; it is not for emphasis. Six regions each picking their own idea of important is
-   most of why an interface stops reading as one product.
-2. **Tracking goes negative as size goes up**, about `-0.02em` from 15px, and stays at
-   zero below it. A face spaced for 12px falls apart set at 20.
-3. **Three line heights.** `1` for display, about `1.3` for anything dense, `1.5` for
-   prose meant to be read in sentences.
+| Size | Role | Used for |
+|---|---|---|
+| 11 | `caption` | what annotates something else: column headings, hints, the status bar |
+| 12 | `label` | the interface itself: every control, row, field, tab and timecode |
+| 13 | `body`, `title` | prose meant to be read in sentences, and the project's name |
+| 20 | `timecodeDisplay` | the one large readout |
 
-The one exception is `overline`, small capitals, which still needs air between them.
-
-A type role is four decisions and not a font size, so `text-label` sets size, weight, line
-height and tracking together.
+Almost everything in an editor is 12, and `Panel` sets it. Hierarchy inside a panel comes
+from colour (primary, secondary, tertiary) and the two weights (400, 500), never from a
+size picked for the occasion: that is how a list ends up with a 13px name under a 12px
+heading beside an 11px value. Mono is for timecode and number fields only; a value in a
+table is sans with tabular figures.
 
 ## Surfaces
 
@@ -252,9 +261,9 @@ These keep every panel reading as one product. The gallery shows each rule.
    outline, `border.strong` on hover, the one focus ring. Select triggers are the same
    `inputBase`, because a thing that sits beside an input has to read as its equal.
 5. **Toolbars.** `PanelToolbar` at the top or bottom of a panel: `size.toolbar` tall, the
-   card inset at the sides, `space.2` between controls, `Gap` between groups. Prefer icon
-   buttons with tooltips over text buttons. A toolbar draws no rule against the body: it
-   sits on the same surface, so a line there would mark a boundary where nothing changes.
+   panel inset at the sides, `space.2` between controls, `Gap` between groups. Prefer icon
+   buttons with tooltips over text buttons. A bar draws a hairline against the body and
+   takes no margin: its height already clears its controls from both edges.
 6. **Wells.** A panel body that holds wells uses `PanelBody layout="wells"`. Wells never
    set their own margins.
 7. **Lists.** Rows go in a `List`, and a row that can be picked is a `Row`. `Row` owns the

@@ -7,7 +7,8 @@ import { chord } from "../keyboard";
 import { formatDuration, formatRate } from "../format";
 import { useEditor } from "../store";
 import { useTheme } from "../theme";
-import { Button, ContextMenu, EmptyState, Icon, IconButton, List, Menu, type MenuEntry, Panel, PanelToolbar, Row, SearchInput, Segmented, TextInput } from "../ui";
+import { cn } from "../lib/cn";
+import { ContextMenu, EmptyState, Icon, IconButton, List, Menu, type MenuEntry, Panel, PanelToolbar, PlainButton, Row, SearchInput, Segmented, TextInput } from "../ui";
 import { activeSequence } from "../sequences";
 import {
   defaultDirection,
@@ -95,10 +96,10 @@ function SortHeading({ column, prefs, onSort, className }: {
       className={className}
       aria-sort={active ? (prefs.direction === "asc" ? "ascending" : "descending") : "none"}
     >
-      <Button variant="ghost" size="small" aria-pressed={active} onClick={() => onSort(column)}>
+      <PlainButton className="bin-sort" aria-pressed={active} onClick={() => onSort(column)}>
         {sortLabels[column]}
-        {active && <Icon name="chevronDown" className={prefs.direction === "asc" ? "rotate-180" : undefined} />}
-      </Button>
+        {active && <Icon name="chevronDown" className={cn("size-6", prefs.direction === "asc" && "rotate-180")} />}
+      </PlainButton>
     </div>
   );
 }
@@ -255,17 +256,18 @@ export function MediaBinPanel() {
               noMatches
             ) : showingTimelines ? (
               <>
-              <div className="bin-header bin-columns" role="row" aria-hidden>
+              <div className="bin-header bin-columns bin-table" role="row" aria-hidden>
                 <span />
                 <span className="bin-heading">Name</span>
                 <span className="bin-heading bin-format">Format</span>
                 <span className="bin-heading bin-duration">Duration</span>
               </div>
-              <List className="bin-list" label="Timelines">
+              <List className="bin-list bin-table" label="Timelines">
                   {shownSequences.map((q) => (
                     <ContextMenu key={q.id} entries={sequenceMenu(q)}>
                       <Row
                         selected={q.id === openSequenceId}
+                        marker="none"
                         className="bin-row bin-columns"
                         onClick={() => renaming !== q.id && setActiveSequence(q.id)}
                         onDoubleClick={() => setRenaming(q.id)}
@@ -289,10 +291,10 @@ export function MediaBinPanel() {
                             q.name
                           )}
                         </span>
-                        <span className="bin-format numeric">
+                        <span className="bin-format">
                           {q.format.width}×{q.format.height}, {formatRate(q.format.frameRate)} fps
                         </span>
-                        <span className="bin-duration numeric">
+                        <span className="bin-duration">
                           {formatDuration(sequenceMicros(q))}
                         </span>
                       </Row>
@@ -326,18 +328,19 @@ export function MediaBinPanel() {
               </List>
             ) : (
               <>
-              <div className="bin-header bin-columns" role="row">
+              <div className="bin-header bin-columns bin-table" role="row">
                 {/* The same grid as a row (.bin-columns), so a heading cannot drift off its column. */}
                 <span aria-hidden />
                 <SortHeading column="name" prefs={prefs} onSort={sortBy} />
                 <SortHeading column="format" prefs={prefs} onSort={sortBy} className="bin-format" />
                 <SortHeading column="duration" prefs={prefs} onSort={sortBy} className="bin-duration" />
               </div>
-              <List className="bin-list" label={bin.name}>
+              <List className="bin-list bin-table" label={bin.name}>
                   {shownMedia.map((m) => (
                     <ContextMenu key={m.id} entries={menuFor(m)}>
                       <Row
                         selected={m.id === selected}
+                        marker="none"
                         className="bin-row bin-columns"
                         draggable
                         onClick={() => setSelected(m.id)}
@@ -350,8 +353,8 @@ export function MediaBinPanel() {
                           <Icon name={m.kind} />
                         </span>
                         <span className="bin-name">{m.name}</span>
-                        <span className="bin-format numeric">{describe(m)}</span>
-                        <span className="bin-duration numeric">
+                        <span className="bin-format">{describe(m)}</span>
+                        <span className="bin-duration">
                           {offline.has(m.id) ? <em className="bin-offline">Offline</em> : formatDuration(m.durationUs)}
                         </span>
                       </Row>

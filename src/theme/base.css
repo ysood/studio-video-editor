@@ -35,6 +35,14 @@
     overflow: hidden;
   }
 
+  /* Scrollbars are part of the interface, and the platform's default is a wide pale
+     slab that is the brightest thing in a dark panel. Thin, the colour of a strong
+     hairline, on no track at all. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-strong) transparent;
+  }
+
   /* Form elements do not inherit type, and they arrive carrying the browser's own
      chrome: a 2px outset border and a grey fill that no amount of styling further up
      removes, because nothing in the app sets `border` on a control that is not meant to

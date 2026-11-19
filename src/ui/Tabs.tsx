@@ -37,7 +37,9 @@ export function Tabs({ value, onChange, tabs, label, fill }: {
       onValueChange={onChange}
     >
       <TabsPrimitive.List
-        className={cn("flex gap-5 border-b border-edge", fill && "flex-none gap-7 px-8")}
+        // Filled, the strip is the panel's header bar: the same height and inset as a
+        // toolbar, so a panel with tabs and a panel with a toolbar line up.
+        className={cn("flex gap-5 border-b border-edge", fill && "h-toolbar flex-none gap-7 px-6")}
         aria-label={label}
       >
         {tabs.map((t) => (
@@ -45,7 +47,11 @@ export function Tabs({ value, onChange, tabs, label, fill }: {
             key={t.value}
             value={t.value}
             className={cn(
-              "h-control cursor-default border-0 bg-transparent p-0 text-label text-fg-muted outline-none",
+              "cursor-default border-0 bg-transparent p-0 text-label text-fg-muted outline-none",
+              // In a header bar the tab is as tall as the bar and overlaps its rule by a
+              // hairline, so the underline of the chosen tab replaces the rule under it
+              // rather than floating above it.
+              fill ? "-mb-hairline h-toolbar" : "h-control",
               // The underline is always there, transparent, so choosing a tab never
               // shifts the label by the width of the line.
               "border-b-(length:--border-focus-width) border-b-transparent",
