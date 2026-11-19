@@ -43,6 +43,19 @@
     scrollbar-color: var(--color-border-strong) transparent;
   }
 
+  /* WebKit puts its own stepper arrows inside a number field. They are platform chrome in
+     the middle of a control that is otherwise ours, at a size and colour nothing else
+     in the interface uses, and the field already takes arrow keys. */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    appearance: none;
+    margin: 0;
+  }
+
+  input[type="number"] {
+    appearance: textfield;
+  }
+
   /* Form elements do not inherit type, and they arrive carrying the browser's own
      chrome: a 2px outset border and a grey fill that no amount of styling further up
      removes, because nothing in the app sets `border` on a control that is not meant to

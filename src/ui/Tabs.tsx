@@ -100,7 +100,11 @@ const segmentVariants = cva(
     // The height is the container's, less its inset, so a segment stretches to it rather
     // than restating a calc; an icon-only one is then square by aspect ratio.
     "rounded-button bg-transparent px-5 text-label text-fg-muted hover:text-fg",
-    "data-[icon-only]:aspect-square data-[icon-only]:px-0",
+    // An explicit width, not `aspect-square`. WebKit resolves an aspect ratio against a
+    // stretched flex height as zero width, so in the desktop app every icon-only
+    // segment after the first collapsed to nothing and the control showed one icon.
+    // Chromium does not, which is why the browser preview never showed it.
+    "data-[icon-only]:w-control data-[icon-only]:px-0",
   ),
   {
     variants: {
