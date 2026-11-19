@@ -288,7 +288,13 @@ export function RadioGroup({ value, options, onChange, name, ariaLabel }: {
         <RadioGroupPrimitive.Item key={option.value} value={option.value} asChild>
           <Row
             element="div"
-            className={cn(controlBase, "grid-lead grid gap-5 rounded-control p-5 text-start")}
+            // Not `controlBase`: that describes a control one line tall, and its
+            // `whitespace-nowrap` would stop an option's explanation wrapping inside
+            // the card. A card takes the parts of it that are about being a target.
+            className={cn(
+              "grid-lead grid cursor-default gap-5 rounded-control p-5 text-start",
+              "outline-none focus-visible:focus-ring",
+            )}
             marker="outline"
             selected={option.value === value}
           >
@@ -303,7 +309,9 @@ export function RadioGroup({ value, options, onChange, name, ariaLabel }: {
             >
               <RadioGroupPrimitive.Indicator className="size-dot rounded-round bg-accent" />
             </span>
-            <span className="grid gap-1">
+            {/* min-w-0, or a grid child keeps its content's intrinsic width and a long
+                explanation runs out past the card instead of wrapping inside it. */}
+            <span className="grid min-w-0 gap-1">
               <span>{option.label}</span>
               {option.detail && <span className="text-label text-fg-muted">{option.detail}</span>}
             </span>
