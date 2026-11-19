@@ -121,13 +121,23 @@ export function SearchInput({ value, onChange, ariaLabel, placeholder, className
   className?: string;
 }) {
   return (
-    <div className={cn("relative flex min-w-0 flex-1 items-center", className)}>
-      {/* A field with a magnifier in it is read as a search box before any of its text
-          is, which is most of what the glyph is for; the placeholder only works for
-          somebody who stopped to read it. */}
-      <Icon name="search" className="pointer-events-none absolute start-4 text-fg-faint" />
+    // The wrapper is the field and the input inside it is bare. The magnifier used to be
+    // laid over a padded input, which cost the text a gutter far wider than the glyph,
+    // and the focus ring lifts whatever it is on above its neighbours, so a focused
+    // input painted its own fill over the icon. As siblings in one row the text starts
+    // where the icon ends and the ring goes round all of it.
+    <div
+      className={cn(
+        "flex h-control min-w-0 flex-1 items-center gap-3 rounded-control border border-edge-strong bg-field ps-4",
+        "text-fg-faint transition-colors duration-quick ease-standard",
+        "hover:border-fg-faint has-focus-visible:focus-ring",
+        value === "" ? "pe-4" : "pe-1",
+        className,
+      )}
+    >
+      <Icon name="search" className="pointer-events-none shrink-0" />
       <input
-        className={cn(inputBase, "cursor-text select-text ps-11", value !== "" && "pe-10")}
+        className="h-full min-w-0 flex-1 cursor-text bg-transparent text-label text-fg-muted outline-none select-text focus:text-fg"
         type="text"
         role="searchbox"
         value={value}
@@ -148,7 +158,6 @@ export function SearchInput({ value, onChange, ariaLabel, placeholder, className
       />
       {value !== "" && (
         <IconButton
-          className="absolute end-1"
           size="small"
           icon="close"
           label="Clear search"
