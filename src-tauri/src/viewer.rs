@@ -266,14 +266,21 @@ impl Surface {
     }
 
     /// Position the surface. The rect arrives in CSS pixels with a top left origin, which
-    /// match AppKit points one to one because the webview fills the content view, but
-    /// AppKit measures y from the bottom.
+    /// match AppKit points one to one, but AppKit measures y from the bottom.
+    ///
+    /// The top it is measured from is the window's content *layout* rect, not the content
+    /// view's bounds. They are the same thing only while the content view stops at the
+    /// title bar. Where it runs under the title bar instead, the webview still begins
+    /// below it, so measuring from the top of the content view put the picture and its
+    /// handles a title bar's height too high: over the viewer's header at the top, and
+    /// short of the frame at the bottom. The layout rect is the part of the content view
+    /// nothing covers, which is where the webview is in both cases.
     fn set_rect(&self, x: f64, y: f64, width: f64, height: f64) {
-        let Some(parent) = (unsafe { self.view.superview() }) else {
+        let Some(window) = self.view.window() else {
             return;
         };
-        let bounds = parent.bounds();
-        let flipped = bounds.size.height - y - height;
+        let layout = window.contentLayoutRect();
+        let flipped = layout.origin.y + layout.size.height - y - height;
         self.view.setFrame(NSRect::new(
             NSPoint::new(x, flipped),
             NSSize::new(width, height),
