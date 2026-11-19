@@ -652,8 +652,10 @@ fn overlay_layer() -> Retained<CALayer> {
 }
 
 fn accent() -> CFRetained<CGColor> {
-    // Crimson's accent on dark, the colour the timeline draws a selected clip in.
-    CGColor::new_srgb(1.0, 0.121, 0.207, 1.0)
+    // `color.accent.base` in src/theme/themes/studio.ts (#e5e5e5), which is what the
+    // browser preview draws the same box in. It was a red left over from a theme that
+    // no longer exists, and red now means the playhead.
+    CGColor::new_srgb(0.898, 0.898, 0.898, 1.0)
 }
 
 /// An event's position in the surface's own coordinates, or `None` when it is somewhere

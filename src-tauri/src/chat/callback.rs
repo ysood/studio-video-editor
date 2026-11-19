@@ -317,7 +317,7 @@ fn page() -> String {
         "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\">\
          <title>Return to Studio</title>\
          <style>body{{font:17px -apple-system,system-ui,sans-serif;max-width:32rem;\
-         margin:18vh auto;padding:24px;color:#151414;background:#e6e5e9}}\
+         margin:18vh auto;padding:24px;color:#fafafa;background:#0a0a0a}}\
          h1{{font-size:26px;font-weight:600}}</style>\
          <h1>Return to Studio</h1>\
          <p>Studio is finishing your ChatGPT sign-in. You can close this tab.</p>\
