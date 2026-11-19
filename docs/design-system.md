@@ -68,7 +68,10 @@ follow for free:
   `bg-panel` is the well's panel colour inside a well and the panel's everywhere else.
 
 Tailwind's own 4px spacing multiplier is switched off in favour of the theme's 2px steps,
-so a utility can only ask for a value the theme defines.
+so a utility can only ask for a value the theme defines. Zero is defined explicitly
+alongside them: it is not a design decision, but it is a value a utility has to be able to
+ask for, and while `--spacing-0` was missing every `px-0`, `p-0`, `min-w-0` and `min-h-0`
+in the app compiled to nothing and failed silently.
 
 Preflight is deliberately not imported: `base.css` owns the document reset, and
 Tailwind's would fight the panel stylesheets. `base.css` sits in the `base` cascade layer,
@@ -93,43 +96,63 @@ simply absent in the browser. So `check:design` asserts that `vocabulary.ts` and
 
 ## Colour
 
-The whole idea of the palette is that **colour is rationed**. The chrome is one neutral
-ramp and nothing else, and hue appears only where it carries meaning.
+The whole idea of the palette is that **colour is rationed**, and the chrome gets none of
+it at all.
 
 | | Values | What it is |
 |---|---|---|
-| `ash` | 15 steps | the neutral ramp, and the whole of the chrome |
-| `amber` | 3 | the one accent |
-| `iris`, `caribbean`, `lavender` | 2 each | media: video, audio, stills |
-| `signal` | 1 | danger |
+| `neutral` | 12 steps | shadcn/ui's stock dark surfaces, and the whole of the chrome |
+| `accentWhite` | 3 | the one accent, which is white |
+| `red` | 2 | the playhead, and danger |
+| `mediaBlue`, `mediaGreen`, `mediaViolet` | 2 each | video, audio, stills |
 
-**Ash** is near-neutral with about 8% of blue in it. A dead grey reads as unfinished and a
-warm grey reads as paper; a trace of blue reads as an instrument. The steps are even in
-*lightness* rather than in hex, which is what makes a surface ladder look deliberate:
-panel to raised is the same visual distance as window to panel, so no two surfaces look
-like a mistake and none look like the same one twice.
+**Neutral** is shadcn/ui's dark scaffold, which is Tailwind's `neutral` scale, and the
+important thing about it is that its chroma is exactly zero. An earlier ramp here carried
+about 8% of blue on the theory that a trace of hue reads as an instrument rather than a
+utility. It does not. At these lightnesses a tinted grey reads as a grey that has gone
+wrong, the whole window looks lifted toward blue, and on a tool whose job is judging
+colour that is the one mistake worth never making.
 
-Three jobs have a hue, and nothing else gets one:
+The named steps map onto shadcn's semantic tokens, which is what lets a pasted component
+land correctly: `950` is `background`, `900` is `card`, `800` is `secondary` and `muted`,
+`400` is `muted-foreground`, `200` is `primary`, `50` is `foreground`.
 
-1. **Amber means time and the action that commits it.** The playhead, the timecode, the
-   one primary button in a region. Nothing else. It is amber rather than the blue every
-   editor reaches for first because the video clips already own blue, and a playhead has
-   to be found instantly against them.
-2. **Blue, green and violet mean media kind**, on clips, bin swatches and tiles, never on
-   chrome. The assignment follows Premiere and Resolve rather than taste: video is a blue
-   violet (Premiere's Iris), audio is a teal green (Caribbean, and Resolve's audio green),
-   stills are a violet magenta (Lavender). An editor arriving from either application
-   already knows what a green bar is. The three bases sit at the same lightness, so no
-   track type shouts louder than another. **These are the only saturated fills in the
-   product**, which is the point: they are where the eye is meant to go.
-3. **Signal means danger.** Offline media, destructive menu items.
+**The accent is white**, as the primary is in any shadcn dark theme. It was amber, and
+amber turned up on the Export button, the timecode, every toggle that was on and the zoom
+slider, which is a brand hue sprinkled across the chrome of a tool whose whole job is
+showing you someone else's colours.
 
-**Selection is deliberately not the accent.** It is plain white. If selection were amber,
-"this is chosen" and "this is now" would be the same colour on the same timeline.
+Three things have a hue, and nothing else gets one:
 
-**Borders are the text they separate, faded**, and they are alphas rather than greys. One
-value is then correct on the panel, inside a well and on the stage, and a hairline never
-has to be re-picked per surface.
+1. **Blue, green and violet mean media kind**, on clips, bin swatches and tiles, never on
+   chrome. The assignment follows Premiere and Resolve rather than taste: video is blue
+   (Premiere's Iris), audio is green (Caribbean, and Resolve's audio green), stills are
+   violet (Lavender). An editor arriving from either already knows what a green bar is.
+   **These are the only saturated fills in the product**, which is the point: with the
+   chrome at chroma zero they are the only thing the eye is pulled to, so they can afford
+   to be vivid.
+2. **Red means now.** The playhead is a role of its own rather than the accent, because
+   with a neutral accent there would be no colour left saying "this is the current frame",
+   and that is the one thing on a timeline that has to be found without being looked for.
+   Red is what Resolve uses, and against blue, green and violet clips it is the one hue
+   none of them occupy.
+3. **Red also means danger**: offline media, destructive menu items, in a softer shade,
+   because an alarm set in type wants less saturation than a one pixel line. The two never
+   share a surface.
+
+**Selection is white**, and that is not a collision with the accent. "This is now" is the
+red one, so the only two whites in play are "this is chosen" and "this is the action",
+which never appear on the same element.
+
+Each media kind is a pair. `base` fills the clip; `band` is the same hue taken down hard
+and carries the clip's name. The band **darkens** rather than lightening, which is what
+makes a vivid fill affordable: white type at 11px sits at about 3:1 on a saturated fill
+and clears 7:1 on the band. Premiere draws its clip names on a darker header for the same
+reason.
+
+**Borders are the text they separate, faded**, and they are alphas rather than greys:
+shadcn's own white at 10% and 15%. One value is then correct on the panel, inside a well
+and on the stage, and a hairline never has to be re-picked per surface.
 
 ## Depth
 
@@ -217,7 +240,7 @@ These keep every panel reading as one product. The gallery shows each rule.
    use `size="small"`. `controlBase` in `src/ui/Button.tsx` holds the height, radius,
    focus ring, transition and disabled treatment every control shares; a new control
    spreads it rather than restating parts of it.
-2. **Button hierarchy.** `solid` is the one primary action in a region. `quiet` is the
+2. **Button hierarchy.** `solid` is the one primary action in a region, and it is white. `quiet` is the
    default action. `ghost` is for low-emphasis actions; square icon buttons are ghost.
    There is no fourth: a region that seems to need two solid buttons has two things
    claiming to be the main one, which is a layout problem rather than a variant problem.
@@ -255,7 +278,13 @@ These keep every panel reading as one product. The gallery shows each rule.
     background image so the resting fill underneath survives; `bg-hover` would replace it
     and show the panel through. Selection also carries `color.selection` on a border or
     outline, never a different fill per panel.
-11. **Menus mirror the toolbar.** A context menu or overflow menu offers the same action
+11. **Two views of one panel is a tab strip**, not a control in a toolbar. `Tabs` with
+    `fill` sits flush at the panel's top edge and gives the chosen view the rest of the
+    height. A segmented control alone in the middle of an otherwise empty bar reads as a
+    cutout in the panel rather than as a way to change what the panel is showing, which
+    is what the properties panel used to do. A `Segmented` is for a choice that sits
+    among other controls in a toolbar, and it ranges left with them.
+12. **Menus mirror the toolbar.** A context menu or overflow menu offers the same action
     with the same label, icon and shortcut as its button, so `chord()` from
     `src/keyboard.ts` writes every shortcut. A right click selects what is under the
     pointer before the menu opens. Destructive items use `tone: "danger"` and sit last,
@@ -270,6 +299,7 @@ The Tailwind class name is the token path, so there is one thing to learn rather
 | `color.surface.panel` | `--color-surface-panel` | `bg-panel` |
 | `color.text.secondary` | `--color-text-secondary` | `text-fg-muted` |
 | `color.border.subtle` | `--color-border-subtle` | `border-edge` |
+| `color.media.videoBand` | `--color-media-video-band` | `bg-media-video-band` |
 | `space[4]` | `--space-4` | `p-4`, `gap-4` |
 | `size.control` | `--size-control` | `h-control`, `size-control` |
 | `radius.button` | `--radius-button` | `rounded-button` |
