@@ -115,6 +115,12 @@ const paths = {
   warning: <path d="M8 2.5l6 11H2zM8 6.5v3.5M8 12h0" />,
   chat: <path d="M2.5 3.5h11v7.5h-6l-3 2.5v-2.5h-2z" />,
   send: <path d="M2.5 8h9M8 4.5L11.5 8 8 11.5" />,
+  search: (
+    <>
+      <circle cx="7" cy="7" r="4.5" />
+      <path d="M10.3 10.3l3.2 3.2" />
+    </>
+  ),
 } as const;
 
 export type IconName = keyof typeof paths;

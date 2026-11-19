@@ -7,9 +7,19 @@ import { chord } from "../keyboard";
 import { formatDuration, formatRate } from "../format";
 import { useEditor } from "../store";
 import { useTheme } from "../theme";
-import { ContextMenu, EmptyState, Icon, IconButton, List, Menu, type MenuEntry, Panel, PanelToolbar, Row, Segmented, TextInput } from "../ui";
+import { Button, ContextMenu, EmptyState, Icon, IconButton, List, Menu, type MenuEntry, Panel, PanelToolbar, Row, SearchInput, Segmented, TextInput } from "../ui";
 import { activeSequence } from "../sequences";
-import { smartBins, sortLabels, TIMELINES_BIN, type BinId, type SortKey } from "./bins";
+import {
+  defaultDirection,
+  filterByName,
+  nextSort,
+  smartBins,
+  sortLabels,
+  TIMELINES_BIN,
+  type BinId,
+  type SortDirection,
+  type SortKey,
+} from "./bins";
 import { MediaTile } from "./MediaTile";
 import "./media-bin.css";
 import type { Sequence } from "../bindings/Sequence";
@@ -23,18 +33,23 @@ interface Prefs {
   bin: BinId;
   view: ViewMode;
   sort: SortKey;
+  direction: SortDirection;
 }
 
 function loadPrefs(): Prefs {
   try {
     const parsed = JSON.parse(localStorage.getItem(PREFS_KEY) ?? "{}") as Partial<Prefs>;
+    const sort = parsed.sort && parsed.sort in sortLabels ? parsed.sort : "name";
     return {
       bin: parsed.bin ?? "all",
       view: parsed.view ?? "grid",
-      sort: parsed.sort ?? "name",
+      sort,
+      // Preferences saved before there was a direction have none; the key's own
+      // default reproduces the order they were already seeing.
+      direction: parsed.direction ?? defaultDirection(sort),
     };
   } catch {
-    return { bin: "all", view: "grid", sort: "name" };
+    return { bin: "all", view: "grid", sort: "name", direction: "asc" };
   }
 }
 
@@ -62,6 +77,30 @@ function describe(media: MediaAsset): string {
   return "";
 }
 
+/**
+ * One sortable column heading. The cell carries `aria-sort` and holds a real button, so
+ * a screen reader hears the order and the keyboard can change it. The arrow shows only
+ * on the active column: every column drawing one would say nothing about which is in use.
+ */
+function SortHeading({ column, prefs, onSort }: {
+  column: SortKey;
+  prefs: Prefs;
+  onSort: (key: SortKey) => void;
+}) {
+  const active = prefs.sort === column;
+  return (
+    <div
+      role="columnheader"
+      aria-sort={active ? (prefs.direction === "asc" ? "ascending" : "descending") : "none"}
+    >
+      <Button variant="ghost" size="small" aria-pressed={active} onClick={() => onSort(column)}>
+        {sortLabels[column]}
+        {active && <Icon name="chevronDown" className={prefs.direction === "asc" ? "rotate-180" : undefined} />}
+      </Button>
+    </div>
+  );
+}
+
 export function MediaBinPanel() {
   const theme = useTheme();
   const snapshot = useEditor((s) => s.snapshot);
@@ -71,6 +110,9 @@ export function MediaBinPanel() {
   const [selected, setSelected] = useState<MediaId | null>(null);
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
   const [newSequence, setNewSequence] = useState(false);
+  // Deliberately not in Prefs: a filter is something you are doing now, and reopening
+  // the app to find half the bin hidden would read as lost media.
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     try {
@@ -82,18 +124,31 @@ export function MediaBinPanel() {
 
   const media = useMemo(() => snapshot?.project.media ?? [], [snapshot]);
   const offline = useMemo(() => new Set(snapshot?.offlineMedia ?? []), [snapshot]);
-  const bins = useMemo(() => smartBins(media, offline, prefs.sort), [media, offline, prefs.sort]);
+  const bins = useMemo(() => smartBins(media, offline, prefs.sort, prefs.direction), [media, offline, prefs.sort, prefs.direction]);
 
   // A check against the active key rather than a separate radio control: the menu is
-  // only ever three mutually exclusive choices.
+  // only ever a few mutually exclusive choices. Direction is its own pair so the grid,
+  // which has no column headers to click, can still reverse the order.
   const sortEntries: MenuEntry[] = [
     { type: "label", label: "Sort by" },
     ...(Object.keys(sortLabels) as SortKey[]).map((key) => ({
       label: sortLabels[key],
       icon: key === prefs.sort ? ("check" as const) : undefined,
-      onSelect: () => setPrefs({ ...prefs, sort: key }),
+      onSelect: () =>
+        setPrefs({
+          ...prefs,
+          sort: key,
+          direction: key === prefs.sort ? prefs.direction : defaultDirection(key),
+        }),
+    })),
+    { type: "separator" },
+    ...(["asc", "desc"] as const).map((direction) => ({
+      label: direction === "asc" ? "Ascending" : "Descending",
+      icon: direction === prefs.direction ? ("check" as const) : undefined,
+      onSelect: () => setPrefs({ ...prefs, direction }),
     })),
   ];
+  const sortBy = (key: SortKey) => setPrefs({ ...prefs, ...nextSort(prefs, key) });
   const sequences = snapshot?.project.sequences ?? [];
   // Which timeline is being renamed in place, the way the Finder and both reference
   // editors do it: the row's own name turns into the field, so there is no dialog to
@@ -108,6 +163,12 @@ export function MediaBinPanel() {
     snapshot ? snapshot.project.sequences.flatMap((q) => q.tracks.flatMap((t) => t.clips.map((c) => c.source.mediaId))) : [],
   );
   const thumbnail = theme.size.thumbnail;
+  const searching = query.trim() !== "";
+  const shownSequences = filterByName(sequences, query);
+  const shownMedia = filterByName(bin.media, query);
+  const noMatches = (
+    <EmptyState>{`Nothing in ${showingTimelines ? "timelines" : bin.name.toLowerCase()} matches “${query.trim()}”.`}</EmptyState>
+  );
 
   // Smart bins plus the timelines, as one row of choices. Names only: five of these
   // with an icon each needs more width than the panel has, and the names are already
@@ -188,9 +249,11 @@ export function MediaBinPanel() {
               <EmptyState
                 action={<IconButton icon="plus" shape="round" label="Import media" shortcut={chord("I")} onClick={importMedia} />}
               />
+            ) : showingTimelines && searching && shownSequences.length === 0 ? (
+              noMatches
             ) : showingTimelines ? (
               <List className="bin-list" label="Timelines">
-                  {sequences.map((q) => (
+                  {shownSequences.map((q) => (
                     <ContextMenu key={q.id} entries={sequenceMenu(q)}>
                       <Row
                         selected={q.id === openSequenceId}
@@ -229,6 +292,8 @@ export function MediaBinPanel() {
               </List>
             ) : bin.media.length === 0 ? (
               <EmptyState>Nothing in {bin.name.toLowerCase()} yet.</EmptyState>
+            ) : shownMedia.length === 0 ? (
+              noMatches
             ) : prefs.view === "grid" ? (
               <List
                 className="bin-grid"
@@ -236,7 +301,7 @@ export function MediaBinPanel() {
                 layout="grid"
                 style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${thumbnail}px, 1fr))` }}
               >
-                {bin.media.map((m) => (
+                {shownMedia.map((m) => (
                   <MediaTile
                     key={m.id}
                     media={m}
@@ -250,8 +315,19 @@ export function MediaBinPanel() {
                 ))}
               </List>
             ) : (
+              <>
+              <div className="bin-header" role="row">
+                {/* Same three tracks as a row below, so each heading sits over its column.
+                    The metadata column shares the name's track because a row stacks the two. */}
+                <span aria-hidden />
+                <div className="bin-header-names">
+                  <SortHeading column="name" prefs={prefs} onSort={sortBy} />
+                  <SortHeading column="format" prefs={prefs} onSort={sortBy} />
+                </div>
+                <SortHeading column="duration" prefs={prefs} onSort={sortBy} />
+              </div>
               <List className="bin-list" label={bin.name}>
-                  {bin.media.map((m) => (
+                  {shownMedia.map((m) => (
                     <ContextMenu key={m.id} entries={menuFor(m)}>
                       <Row
                         selected={m.id === selected}
@@ -275,6 +351,7 @@ export function MediaBinPanel() {
                     </ContextMenu>
                   ))}
               </List>
+              </>
             )}
       </div>
 
@@ -290,8 +367,14 @@ export function MediaBinPanel() {
             { value: "list", label: "List view", icon: "list", iconOnly: true },
           ]}
         />
+        <SearchInput
+          value={query}
+          onChange={setQuery}
+          ariaLabel="Search this bin"
+          placeholder="Search"
+        />
         <Menu
-          trigger={<IconButton icon="sort" label={`Sort by ${sortLabels[prefs.sort].toLowerCase()}`} />}
+          trigger={<IconButton icon="sort" label={`Sort by ${sortLabels[prefs.sort].toLowerCase()}, ${prefs.direction === "asc" ? "ascending" : "descending"}`} />}
           entries={sortEntries}
         />
       </PanelToolbar>

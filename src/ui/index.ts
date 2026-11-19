@@ -7,6 +7,7 @@ export {
   Field,
   NumberInput,
   RadioGroup,
+  SearchInput,
   Select,
   Slider,
   TextInput,

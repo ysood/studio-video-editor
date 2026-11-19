@@ -4,7 +4,7 @@ import * as SelectPrimitive from "@radix-ui/react-select";
 import * as SliderPrimitive from "@radix-ui/react-slider";
 import { useEffect, useState, type ReactNode } from "react";
 import { cn } from "../lib/cn";
-import { controlBase } from "./Button";
+import { controlBase, IconButton } from "./Button";
 import { Icon } from "./Icon";
 import { Row } from "./List";
 import { useOverlayContainer, useOverlayOpen } from "./overlay";
@@ -100,6 +100,57 @@ export function TextInput({ value, onCommit, disabled, ariaLabel, numeric, focus
         }
       }}
     />
+  );
+}
+
+/**
+ * A filter field: unlike TextInput it reports every keystroke, because a filter that
+ * waits for Enter is not filtering as you type. Escape empties it, and a clear button
+ * shows while there is text so the mouse has the same way out.
+ */
+export function SearchInput({ value, onChange, ariaLabel, placeholder, className }: {
+  value: string;
+  onChange: (value: string) => void;
+  ariaLabel: string;
+  placeholder?: string;
+  className?: string;
+}) {
+  return (
+    <div className={cn("relative flex min-w-0 flex-1 items-center", className)}>
+      {/* A field with a magnifier in it is read as a search box before any of its text
+          is, which is most of what the glyph is for; the placeholder only works for
+          somebody who stopped to read it. */}
+      <Icon name="search" className="pointer-events-none absolute start-4 text-fg-faint" />
+      <input
+        className={cn(inputBase, "cursor-text select-text ps-11", value !== "" && "pe-10")}
+        type="text"
+        role="searchbox"
+        value={value}
+        placeholder={placeholder}
+        aria-label={ariaLabel}
+        autoComplete="off"
+        spellCheck={false}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          // Only swallow Escape while there is something to clear, so an empty field
+          // still lets Escape reach whatever else is listening for it.
+          if (e.key === "Escape" && value !== "") {
+            e.preventDefault();
+            e.stopPropagation();
+            onChange("");
+          }
+        }}
+      />
+      {value !== "" && (
+        <IconButton
+          className="absolute end-1"
+          size="small"
+          icon="close"
+          label="Clear search"
+          onClick={() => onChange("")}
+        />
+      )}
+    </div>
   );
 }
 
