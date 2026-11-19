@@ -21,7 +21,7 @@ import { cn } from "../lib/cn";
  * out of whatever opened it.
  */
 export const overlayPanel = cn(
-  "ui-overlay z-overlay overflow-hidden rounded-dialog border border-edge bg-overlay p-1 text-fg shadow-popover",
+  "ui-overlay z-overlay overflow-hidden rounded-dialog border border-edge-strong bg-overlay p-1 text-fg shadow-popover",
   "origin-(--radix-popper-transform-origin) transition duration-quick ease-standard",
   "starting:scale-95 starting:opacity-0",
 );

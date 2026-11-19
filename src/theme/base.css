@@ -35,9 +35,20 @@
     overflow: hidden;
   }
 
+  /* Form elements do not inherit type, and they arrive carrying the browser's own
+     chrome: a 2px outset border and a grey fill that no amount of styling further up
+     removes, because nothing in the app sets `border` on a control that is not meant to
+     have one. Tailwind's preflight would do this, but it is not imported here (it would
+     fight the panel stylesheets), so the few lines of it that actually matter live
+     here instead. */
   button,
   input,
-  select {
+  select,
+  textarea {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
     font: inherit;
     color: inherit;
     letter-spacing: inherit;

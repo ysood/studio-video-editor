@@ -162,7 +162,7 @@ export function MediaBinPanel() {
   });
 
   return (
-    <Panel surface="stage">
+    <Panel>
       {/* How the media is shown on the left, which media on the right: the view is a
           setting you make once, the bin is the choice you keep making. */}
       <PanelToolbar>

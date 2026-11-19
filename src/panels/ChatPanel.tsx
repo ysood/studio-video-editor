@@ -23,7 +23,7 @@ export function ChatPanel() {
 
   // Nothing known yet. Blank rather than signed out: guessing wrong for one frame makes
   // the panel flick between two different layouts every time it opens.
-  if (!status) return <Panel surface="stage" className="chat" />;
+  if (!status) return <Panel className="chat" />;
   if (!status.signedIn) return <SignedOut />;
   if (!status.canInfer) return <PlanNotShared />;
   return <Conversation />;
@@ -228,7 +228,7 @@ function Asking({ entry }: { entry: Extract<Entry, { kind: "asking" }> }) {
 function Shell({ children, footer }: { children: ReactNode; footer?: ReactNode }) {
   const trouble = useChat((s) => s.trouble);
   return (
-    <Panel surface="stage" className="chat">
+    <Panel className="chat">
       <PanelBody>{children}</PanelBody>
       {trouble && (
         <p className="chat-trouble" role="alert">

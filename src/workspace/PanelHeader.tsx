@@ -1,7 +1,7 @@
 // Themed Dockview headers: our own tab (title only, no close button, since every panel
 // is part of the editor) and a right-hand overflow menu per panel group. The header
-// strip takes the surface of the active panel, so the timeline's header joins its dark
-// stage while the rest of the frame stays chrome.
+// strip takes the surface of the active panel, so it joins the panel under it rather
+// than the frame around it.
 
 import type { IDockviewHeaderActionsProps, IDockviewPanelHeaderProps } from "dockview-react";
 import { useEffect, useRef, useState } from "react";
@@ -9,12 +9,18 @@ import type { SurfaceName } from "../theme";
 import { IconButton, Menu, type MenuEntry } from "../ui";
 import "./panel-header.css";
 
-/** Panels whose header should sit on a surface other than chrome. */
+/**
+ * Panels whose header should sit on a surface other than chrome.
+ *
+ * A header strip belongs to the panel under it, not to the frame around it, so it takes
+ * that panel's own surface. The viewer is the exception and keeps chrome, because the
+ * thing under its strip is a picture rather than a panel.
+ */
 const PANEL_SURFACES: Record<string, SurfaceName> = {
-  bin: "stage",
-  inspector: "stage",
-  timeline: "stage",
-  chat: "stage",
+  bin: "panel",
+  inspector: "panel",
+  timeline: "panel",
+  chat: "panel",
 };
 
 /**

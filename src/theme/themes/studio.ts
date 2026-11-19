@@ -35,7 +35,10 @@ export const studioTheme: Theme = {
       panel: ash[900],
       raised: ash[800],
       input: ash[950],
-      overlay: ash[850],
+      // Overlays are the one surface that rises. A menu has to read as lifted off
+      // whatever it covers, and a step that only just clears the panel reads as a
+      // rendering artefact rather than as a thing floating over it.
+      overlay: ash[800],
       locked: ash[850],
     },
 

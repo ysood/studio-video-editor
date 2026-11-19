@@ -12,7 +12,7 @@ type Properties = "inspector" | "transform";
 export function PropertiesPanel() {
   const [showing, setShowing] = useState<Properties>("inspector");
   return (
-    <Panel surface="stage">
+    <Panel>
       <PanelToolbar>
         <Segmented
           emphasis="accent"

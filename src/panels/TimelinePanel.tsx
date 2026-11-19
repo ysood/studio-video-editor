@@ -441,7 +441,7 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
     ),
   );
 
-  if (!project || !sequence) return <Panel surface="stage" />;
+  if (!project || !sequence) return <Panel />;
 
   const selectedClips = sequence.tracks.flatMap((t) => t.clips.filter((c) => selectionSet.has(c.id)));
   const sequenceId = sequence.id;
@@ -471,7 +471,7 @@ export function TimelinePanel({ api }: IDockviewPanelProps) {
         ];
 
   return (
-    <Panel surface="stage">
+    <Panel>
       <PanelToolbar>
         <Timecode frame={playhead} rate={rate} label="Playhead" />
         <Gap />
