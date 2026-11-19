@@ -1,6 +1,7 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useRef } from "react";
 import type { MediaAsset } from "../bindings/MediaAsset";
+import { formatDuration } from "../format";
 import { ContextMenu, Icon, type MenuEntry, Row } from "../ui";
 
 /** Poster frame position, a little in so fades from black still show picture. */
@@ -88,6 +89,14 @@ export function MediaTile({
           )}
           {offline && <span className="bin-tile-badge">Offline</span>}
           {!offline && media.kind === "video" && <span className="bin-tile-scrub" aria-hidden />}
+        </div>
+        {/* A thumbnail does not say which clip it is: two takes of one setup are the same
+            picture. The name is what a person reads a bin for, so it is on the tile and
+            not only in a tooltip, with the duration beside it as both reference editors
+            have it. */}
+        <div className="bin-tile-caption">
+          <span className="bin-tile-name">{media.name}</span>
+          <span className="bin-tile-duration">{formatDuration(media.durationUs)}</span>
         </div>
       </Row>
     </ContextMenu>

@@ -28,6 +28,29 @@
   overflow: hidden;
 }
 
+/* Name and duration, at the row's own spacing: eight clear of the tile's edge all round,
+   twelve between the two, the name giving way first. */
+.bin-tile-caption {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-6);
+  padding: var(--space-4);
+}
+
+.bin-tile-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bin-tile-duration {
+  flex: none;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
 .bin-tile-picture {
   position: relative;
   aspect-ratio: 16 / 9;
