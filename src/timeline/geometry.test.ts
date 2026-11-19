@@ -13,10 +13,10 @@ import {
   snapDelta,
   tickStep,
 } from "./geometry";
-import { graphiteTheme } from "../theme/themes/graphite";
+import { studioTheme } from "../theme/themes/studio";
 import { IDENTITY } from "../transform";
 
-const m = graphiteTheme.timeline;
+const m = studioTheme.timeline;
 
 const MEDIA = "m-1";
 

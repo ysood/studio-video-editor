@@ -1,90 +1,78 @@
 // Raw values. Themes pick from these; components never import this file.
 
-export const graphite = {
-  50: "#e4e4e7",
-  300: "#9b9ca3",
-  500: "#6c6e75",
-  700: "#3a3c42",
-  750: "#303237",
-  800: "#2d2f33",
-  850: "#26282c",
-  900: "#1f2023",
-  950: "#18191b",
-  1000: "#000000",
-} as const;
-
-export const steel = { 500: "#4d79a8", 300: "#6e97c4" } as const;
-export const sea = { 500: "#3d8a77", 300: "#5fae99" } as const;
-export const amber = { 400: "#f6c565", 500: "#f0b545", 950: "#1d1606" } as const;
-export const coral = { 500: "#e0645a" } as const;
+import geistMonoVariable from "./fonts/GeistMono-Variable.woff2";
+import geistVariable from "./fonts/Geist-Variable.woff2";
 
 /**
- * Stone: the neutral ramp Ink and Paper are both built from. It is warm, around hue 35
- * at 6 to 20 percent saturation, because a dead grey reads as a utility and the
- * references this came from (printed paper, ink, brass) are all warm. The saturation is
- * low enough that it never competes with the picture.
+ * Ash: the one neutral ramp, and the whole of Studio's chrome.
+ *
+ * It is a near-neutral grey carrying about 8% of blue (hue 220). A dead grey reads as
+ * unfinished and a warm grey reads as paper, and neither is what a room full of people
+ * grading a picture wants behind it; a trace of blue reads as an instrument. The
+ * saturation stays low enough that it never shifts a judgement about what is on screen.
+ *
+ * The steps are even in lightness rather than in hex, which is what makes a surface
+ * ladder look deliberate: panel to raised is the same visual distance as window to
+ * panel, so no two surfaces look like a mistake and none look like the same one twice.
  */
-export const stone = {
-  25: "#fbfaf8",
-  50: "#f4f2ee",
-  100: "#ebe7e2",
-  200: "#ded9d2",
-  300: "#c8c2b9",
-  400: "#a39c92",
-  450: "#918a80",
-  500: "#7e776d",
-  550: "#6e675e",
-  600: "#5d574f",
-  700: "#423d37",
-  750: "#35312c",
-  800: "#2b2724",
-  850: "#211e1b",
-  900: "#1a1816",
-  950: "#121110",
-  975: "#0c0b0a",
-  1000: "#000000",
+export const ash = {
+  50: "#f1f3f6", // primary text; not white, which buzzes on near black
+  100: "#dfe3e9",
+  200: "#c3c9d3",
+  300: "#a1a9b6",
+  400: "#949cab", // secondary text
+  500: "#6b7382", // tertiary text
+  600: "#4b525e",
+  700: "#2e333c",
+  750: "#262a32",
+  800: "#1e2128", // raised
+  850: "#181b21", // overlay, locked, wells lifted
+  900: "#13161b", // panel
+  950: "#0d0f13", // the window
+  975: "#08090b", // the gutter between cards, and the stage
+  1000: "#000000", // behind the picture, and nowhere else
 } as const;
 
 /**
- * Brass: the one accent, and it means one thing, time and the action that commits it.
- * Hue 32, between the brass on the engraving and the amber in the reference cards. It
- * darkens for Paper because a light amber cannot hold a line on white.
+ * Amber: the one accent, and it means one thing, time and the action that commits it.
+ *
+ * It is the only hue in the product that is not media. That is deliberate: a playhead
+ * has to be found instantly against a timeline of blue, green and violet clips, and
+ * amber is the one direction none of them occupy. It is also why the accent is not the
+ * blue every editor reaches for first: the video clips already own blue.
  */
-export const brass = {
-  light: "#f2b161", // hover on dark
-  base: "#eb9d3c",
-  deep: "#a6621b", // Paper's base
-  deeper: "#8a5015", // hover on light
-  ink: "#241806", // text on a brass fill
+export const amber = {
+  base: "#f0a23c",
+  bright: "#ffbc67", // hover
+  ink: "#1b1204", // text on an amber fill
 } as const;
-
-/** The three media hues, one from each reference: cobalt, a sea green, and shoal's clay. */
-export const cobalt = { base: "#2f5aa8", edge: "#5b84cd" } as const;
-export const verdigris = { base: "#2c7d6c", edge: "#4fa894" } as const;
-export const clay = { base: "#a04b35", edge: "#c8745c" } as const;
-
-export const signal = { onDark: "#e2544f", onLight: "#b23a30" } as const;
 
 /**
- * Kit: the palette of the shared design kit (~/Developer/templates/design/core.css), so
- * one theme can match the other products. Pure greys, with indigo as the one brand hue.
- * Written in hex rather than the kit's oklch because the timeline canvas paints these too.
+ * Media hues. These are the only saturated fills in Studio, and the only place a
+ * person is meant to read meaning from colour.
+ *
+ * The assignment follows Premiere and Resolve rather than taste: video is a blue
+ * violet (Premiere's Iris), audio is a teal green (Caribbean, and Resolve's audio
+ * green), stills are a violet magenta (Lavender). Editors arriving from either
+ * application already know what a green bar is.
+ *
+ * Each kind is a pair: `base` fills the clip and `edge` draws its rim and name band,
+ * one step lighter and more saturated so a clip has an edge without a second colour.
+ * The three bases sit at the same lightness, so no track type shouts louder than
+ * another, and far enough apart in hue to stay separable for the most common colour
+ * vision deficiencies.
  */
-export const kitGray = {
-  400: "#858585", // secondary text
-  500: "#757575", // tertiary text
-  700: "#212121", // borders, hover fills
-  800: "#181818", // cards, raised fills
-  900: "#111111", // panels
-  950: "#090909", // the window
-} as const;
+export const iris = { base: "#3c5ccc", edge: "#7b93f2" } as const;
+export const caribbean = { base: "#1a8f74", edge: "#4fc3a4" } as const;
+export const lavender = { base: "#9b4fc4", edge: "#c98ae6" } as const;
 
-export const kitIndigo = { base: "#615fff", light: "#7c86ff" } as const;
-export const kitRed = "#fb2c36";
+/** Danger: offline media, destructive menu items. Nothing else. */
+export const signal = "#f26d64";
 
 export const geistSans = '"Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
 export const geistMono = '"Geist Mono", ui-monospace, "SF Mono", Menlo, monospace';
 
-export const systemSans =
-  '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif';
-export const systemMono = 'ui-monospace, "SF Mono", Menlo, Consolas, monospace';
+export const geistFaces = [
+  { family: "Geist", src: geistVariable, weight: "100 900" },
+  { family: "Geist Mono", src: geistMonoVariable, weight: "100 900" },
+] as const;
