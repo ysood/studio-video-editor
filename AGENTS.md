@@ -56,10 +56,24 @@ repository owner only:
    disk and ffprobe output are all parsed into typed values before use.
 7. **Every visual value is a theme token.** Colors, sizes, spacing, radii, fonts, type
    roles, motion and timeline dimensions live in `src/theme/` only. Components use the
-   primitives in `src/ui/` and CSS variables; the canvas reads the theme object.
-   `npm run check:design` fails on hardcoded values. See `docs/design-system.md`, and
-   `.claude/skills/refactoring-ui/` for the visual design principles to apply when
-   deciding what a new value should be.
+   primitives in `src/ui/`; the canvas reads the theme object. Tailwind is wired up as a
+   second *spelling* of those tokens rather than a second source of them, so a utility
+   can only name a value the theme defines and the class name is the token path
+   (`bg-panel` is `color.surface.panel`). `npm run check:design` fails on hardcoded
+   values, on Tailwind arbitrary values, and on a utility naming a token that does not
+   exist. See `docs/design-system.md`, and `.claude/skills/refactoring-ui/` for the
+   visual design principles to apply when deciding what a new value should be.
+
+8. **If shadcn/ui has the component, use shadcn/ui.** A control that shadcn covers is
+   vendored from shadcn (`npx shadcn@latest add <name>`, then retokenized) rather than
+   written from scratch, because its accessibility, keyboard handling and focus
+   management are solved and ours would not be. Vendoring means the source lands in
+   `src/ui/` and becomes ours to edit: swap its Tailwind classes for Studio's tokens and
+   its lucide icons for `src/ui/Icon.tsx`, which is what keeps a pasted component from
+   arriving wearing the default shadcn look. Writing a control by hand needs a reason in
+   the commit message, and "it is only a small one" is not one; small controls are
+   exactly where focus rings and ARIA go missing. `src/ui/` stays the only place a
+   component is defined: panels compose it, and never restyle it from their own CSS.
 
 ## Checks
 

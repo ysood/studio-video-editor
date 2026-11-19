@@ -72,15 +72,22 @@ export function Gallery() {
     <div className="gallery">
       <header className="gallery-header" data-surface="chrome">
         <h1>Design gallery</h1>
-        <Select
-          ariaLabel="Theme"
-          value={theme.id}
-          options={themes.map((t) => ({ value: t.id, label: t.name }))}
-          onChange={(id) => {
-            const next = themes.find((t) => t.id === id);
-            if (next) void applyTheme(next, { remember: true });
-          }}
-        />
+        {/* Studio ships one theme, so a picker with one entry would be a control that
+            cannot do anything. The registry still supports more, and a second theme
+            brings the picker back without anyone remembering to. */}
+        {themes.length > 1 ? (
+          <Select
+            ariaLabel="Theme"
+            value={theme.id}
+            options={themes.map((t) => ({ value: t.id, label: t.name }))}
+            onChange={(id) => {
+              const next = themes.find((t) => t.id === id);
+              if (next) void applyTheme(next, { remember: true });
+            }}
+          />
+        ) : (
+          <span className="text-fg-muted">{theme.name}</span>
+        )}
         <a className="gallery-link" href="#">Back to the editor</a>
       </header>
 

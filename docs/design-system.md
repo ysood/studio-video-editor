@@ -1,35 +1,40 @@
 # Design system
 
-Last verified: 2026-10-22
+Last verified: 2026-11-19
 
 Every visual decision in Studio lives in one place, `src/theme/`. Components and panels
 never hardcode a color, size, font or spacing value, and `npm run check:design` fails the
-build if one slips in. A new look is a new theme file.
+build if one slips in.
+
+Studio is dark, and it ships one theme. A video editor is dark for a reason that is not
+fashion: every judgement made in it is a judgement about a picture, and a bright interface
+around a picture changes what you think the picture is doing. Premiere, Resolve and Avid
+all arrive at the same answer.
 
 ## Layers
 
 ```
 src/theme/
   types.ts          the Theme shape: every role a theme must define
-  primitives.ts     raw values (color ramps, font stacks); only themes import these
-  themes/*.ts       a theme = one object of type Theme
-  themes/index.ts   the registry of switchable themes and the default
+  primitives.ts     raw values (the colour ramp, the hues, font stacks)
+  themes/studio.ts  the theme
+  themes/index.ts   the registry
+  vocabulary.ts     which Tailwind utility names exist, as data
+  tailwind.css      what each of those names means, mapped onto the tokens
   runtime.ts        applyTheme(): writes CSS variables, loads fonts, notifies the canvas
-  base.css          document reset and base typography from tokens
+  base.css          document reset and base typography, in the `base` cascade layer
+  layers.ts         the z-index scale
   fonts/            self-hosted font files (the app is offline; no font CDNs)
 
-src/ui/             primitives built only from tokens: Button, IconButton, Icon, Field,
-                    PlainButton, TextInput, NumberInput, Select, Checkbox, RadioGroup,
-                    Slider, List, Row, Panel,
-                    Well, PanelToolbar, PanelBody, Spacer, Gap, EmptyState, Section, Note,
-                    Actions, ProgressBar, Dialog, Timecode
-src/panels/         compose primitives; their CSS is layout only
+src/lib/cn.ts       shadcn's `cn`, taught Studio's vocabulary
+src/ui/             the components, built on shadcn/ui and Radix, styled in tokens
+src/panels/         compose those components; their CSS is layout only
 src/timeline/draw.ts paints the canvas from the theme object
 ```
 
 Tiers inside a theme:
 
-1. **Primitives**: raw values such as `graphite[850]`. Never referenced by components.
+1. **Primitives**: raw values such as `ash[850]`. Never referenced by components.
 2. **Semantic roles**: what a value is for. `color.surface.raised`, `color.text.secondary`,
    `color.accent.base`, `color.state.hover`, `type.label`, `space[4]`, `radius.control`,
    `size.control`, `motion.quick`, `elevation.dialog`.
@@ -37,79 +42,111 @@ Tiers inside a theme:
    is `timeline.*` (row and ruler height, header width, clip inset, band height, playhead
    and selection widths, ghost dash, alphas).
 
+## Tailwind and shadcn/ui
+
+Components are shadcn/ui's, which means they are Radix primitives with known-good
+accessibility, keyboard handling and focus management, written in Tailwind. **If shadcn
+has the component, we use shadcn's** and adapt it; we do not write our own. The place
+that rule earns its keep is the small controls: a hand-rolled checkbox is where a focus
+ring and an ARIA role quietly fail to exist.
+
+shadcn components are not a dependency. `npx shadcn@latest add <name>` copies source into
+`src/ui/`, where it becomes ours to edit, and two edits make it Studio's rather than
+generic: its Tailwind classes become Studio's tokens, and its lucide icons become
+`src/ui/Icon.tsx`.
+
+Tailwind is wired up as **a second spelling of the tokens, not a second set of them.**
+`src/theme/tailwind.css` maps every utility namespace onto the variables `applyTheme()`
+already writes, using `@theme inline`, which emits the variable reference into the
+utility and writes nothing to `:root`. So `bg-panel` compiles to
+`background-color: var(--color-surface-panel)` and resolves wherever it lands. Two things
+follow for free:
+
+- Runtime theme changes reach every utility, because the utility holds a reference and
+  not a value.
+- `[data-surface]` keeps working. A well restates the colour variables, so the same
+  `bg-panel` is the well's panel colour inside a well and the panel's everywhere else.
+
+Tailwind's own 4px spacing multiplier is switched off in favour of the theme's 2px steps,
+so a utility can only ask for a value the theme defines.
+
+Preflight is deliberately not imported: `base.css` owns the document reset, and
+Tailwind's would fight the panel stylesheets. `base.css` sits in the `base` cascade layer,
+which matters more than it looks: **unlayered rules beat layered ones whatever their
+specificity**, so an unlayered `button { color: inherit }` would outrank every `text-*`
+utility in the app and no component could colour a button.
+
+### The vocabulary, and why it is checked
+
+`src/theme/vocabulary.ts` lists the names that exist; `tailwind.css` says what each means.
+Two consumers need the list in a form CSS cannot give them:
+
+- `src/lib/cn.ts` hands it to tailwind-merge. Out of the box tailwind-merge only knows
+  Tailwind's stock scale, where `text-body` and `text-fg-muted` look like the same kind of
+  class, so merging the two silently drops the colour.
+- `scripts/check-design.mjs` uses the spacing names to tell a utility that resolves to a
+  value from one that resolves to nothing.
+
+Both failures are invisible: the class list looks right in the source and the style is
+simply absent in the browser. So `check:design` asserts that `vocabulary.ts` and the
+`@theme inline` block name exactly the same tokens, and a mismatch fails the build.
+
 ## Colour
 
-Paper (light) is the default. It is three colours and where each one goes:
-
-| | Where |
-|---|---|
-| `#e6e5e9` grey | the ground: the top bar, the status bar, the tab strips, the gaps between panels |
-| `#2554ce` blue | the panel surface: the media bin, inspector and transform cards |
-| `#151414` black | the stage (the timeline), and text on the grey |
-| `#f0e3de` bone | text on the blue and on the black |
-
-Text is `bone` on the blue and on the black, and `black` on the grey, which is the only
-surface where the ground is the backdrop for words. Neither is pure: a pure white on a
-saturated blue buzzes, and a pure black on a warm grey looks like a hole.
-
-**Borders are the text they separate, at 12.5%.** There is no grey of its own for a
-hairline. `border.subtle` is the surface's own text colour faded, which is why one value
-is right on the grey, on the blue and on the black without a theme listing three. The blue is also the accent on
-the grey (the Export button); on the blue card the accent is white, because blue on blue
-says nothing, and on the stage it is the same blue lifted to `#5b8bf5` so it can hold a
-playhead line against near black.
-
-Ink (dark) is unfinished. Paper overrides `color`, `surfaces` and `elevation` and takes
-everything else from Ink, so the pair cannot drift in type, density or timeline metrics.
-Kit (dark) also builds on Ink, swapping in the shared design kit's pure greys, indigo
-accent, Geist and Geist Mono and corners, so Studio can match the other products. Its
-values are in `kitGray` and `kitIndigo` in `primitives.ts`. Graphite and Crimson stay as
-alternates.
-
-**The budget.** The whole palette is one neutral ramp plus five hues:
+The whole idea of the palette is that **colour is rationed**. The chrome is one neutral
+ramp and nothing else, and hue appears only where it carries meaning.
 
 | | Values | What it is |
 |---|---|---|
-| `stone` | 18 steps | the warm neutral ramp, hue ~35 at 6-20% saturation. Both themes read it from opposite ends |
-| `brass` | 5 | the one accent |
-| `cobalt`, `verdigris`, `clay` | 2 each | media: video, audio, stills |
-| `signal` | 2 | danger, one per scheme |
+| `ash` | 15 steps | the neutral ramp, and the whole of the chrome |
+| `amber` | 3 | the one accent |
+| `iris`, `caribbean`, `lavender` | 2 each | media: video, audio, stills |
+| `signal` | 1 | danger |
 
-That is about 30 raw values behind 34 semantic roles, which is the normal shape: most of
-an interface is neutral, and the hues are few enough to each mean one thing.
+**Ash** is near-neutral with about 8% of blue in it. A dead grey reads as unfinished and a
+warm grey reads as paper; a trace of blue reads as an instrument. The steps are even in
+*lightness* rather than in hex, which is what makes a surface ladder look deliberate:
+panel to raised is the same visual distance as window to panel, so no two surfaces look
+like a mistake and none look like the same one twice.
 
-**Colour is rationed.** This is the whole idea, and it is what the references the palette
-came from have in common more than any particular colour: the page is neutral and hue
-appears only where it carries meaning. Three jobs, and nothing else gets a hue:
+Three jobs have a hue, and nothing else gets one:
 
-1. **Brass means time and the action that commits it.** The playhead, the timecode, the
-   one primary button in a region. Nothing else.
-2. **Cobalt, verdigris and clay mean media kind.** They appear on clips, bin swatches and
-   tiles, never on chrome.
+1. **Amber means time and the action that commits it.** The playhead, the timecode, the
+   one primary button in a region. Nothing else. It is amber rather than the blue every
+   editor reaches for first because the video clips already own blue, and a playhead has
+   to be found instantly against them.
+2. **Blue, green and violet mean media kind**, on clips, bin swatches and tiles, never on
+   chrome. The assignment follows Premiere and Resolve rather than taste: video is a blue
+   violet (Premiere's Iris), audio is a teal green (Caribbean, and Resolve's audio green),
+   stills are a violet magenta (Lavender). An editor arriving from either application
+   already knows what a green bar is. The three bases sit at the same lightness, so no
+   track type shouts louder than another. **These are the only saturated fills in the
+   product**, which is the point: they are where the eye is meant to go.
 3. **Signal means danger.** Offline media, destructive menu items.
 
-Selection is deliberately *not* the accent: it is plain `stone` at the far end of the
-ramp, white on Ink and near-black on Paper. If selection were brass, "this is chosen" and
-"this is now" would be the same colour on the same timeline.
+**Selection is deliberately not the accent.** It is plain white. If selection were amber,
+"this is chosen" and "this is now" would be the same colour on the same timeline.
 
-**The viewer is not a card.** It sits on the ground, so the picture is on the grey and
-only the frame itself is black, which is what letterboxing has to be. The blue is for
-panels that hold controls.
+**Borders are the text they separate, faded**, and they are alphas rather than greys. One
+value is then correct on the panel, inside a well and on the stage, and a hairline never
+has to be re-picked per surface.
 
 ## Depth
 
 Four layers, and a thing belongs to exactly one:
 
-| Layer | What is on it |
-|---|---|
-| ground | the top bar, the status bar, the tab strips, the gaps between cards, the viewer |
-| card | a dock group: the panel surface or the stage |
-| well | an inset inside a card: bin lists, inspector groups, overlays |
-| raised | a control lifted on whatever it sits on |
+| Layer | What is on it | Direction |
+|---|---|---|
+| chrome | the top bar, the status bar, the tab strips, the gaps between cards, the viewer surround | the frame |
+| panel | a docked panel body: the bin, the inspector, the timeline's chrome, the assistant | the card |
+| well | an inset inside a panel: bin lists, inspector groups | sinks |
+| stage | picture and time: the viewer's frame and the timeline canvas | sinks furthest |
 
-A card is a card because you can see the ground around it: the gutter between two groups
-is the ground showing through, not a line drawn over them. `.dv-groupview` gets that gap
-as a transparent border, which costs no layout, and `radius.panel` gives it corners.
+The ladder only works in one direction. A well is darker than the panel it sits in so that
+it reads as sunk into one; put a panel at stage depth and its wells come out lighter and
+rise instead, which is how four surfaces end up looking like one bad one. Overlays are the
+exception and are the one surface that *rises*, because a menu has to read as floating
+over whatever it covers.
 
 The card geometry is one set of numbers, used everywhere:
 
@@ -127,67 +164,49 @@ edge it faces as a margin, so `size.toolbar` keeps meaning the height of the row
 controls rather than the row plus the air around it. That is what lines a toolbar's
 contents up with the content under it.
 
-Inside a card, a region is told from its neighbour by **the same hairline**, not by a
-gap or a well: the reference uses one value for card edges and dividers alike. Content
-laid out as cards, such as the bin's tiles, takes the card inset from the panel edge and
-sits `space[4]` apart, like the dock cards do.
+Inside a card, a region is told from its neighbour by **the same hairline**, not by a gap
+or a well.
 
-A panel's main choice is a `Segmented` with `emphasis="accent"`, which fills the chosen
-pill the way a primary button is filled. Secondary choices in the same toolbar, such as
-a view toggle, stay `quiet` and only lift: two accented groups in one bar would both
-claim to be the main thing.
-
-Stacking is `src/theme/layers.ts`, not a theme: `--z-raised`, `--z-sticky`,
-`--z-overlay`. How things stack is a fact about the interface rather than a look, and a
-theme that could reorder it would only be a way to break it. Dialogs are deliberately
-absent from the scale: they are real `<dialog>` elements, so the browser puts them and
-their backdrop in the top layer, above every z-index on the page.
+Stacking is `src/theme/layers.ts`, not a theme: `--z-raised`, `--z-sticky`, `--z-overlay`,
+reached as `z-raised`, `z-sticky`, `z-overlay`. How things stack is a fact about the
+interface rather than a look, and a theme that could reorder it would only be a way to
+break it. Dialogs are deliberately absent from the scale: they are real `<dialog>`
+elements, so the browser puts them and their backdrop in the top layer.
 
 ## Type
 
-Three rules, measured off a reference that reads as one piece rather than as a dozen
-regions that each picked their own emphasis. They live in Ink and Paper inherits them;
-Graphite and Crimson keep the older scale.
+Geist and Geist Mono, bundled. Three rules, and no fourth:
 
 1. **Two weights, 400 and 500.** Nothing heavier exists. Weight tells a label from its
-   value; it is not for emphasis. Four roles were at 600, and so was every solid button
-   (they take `type.heading.weight`), which is most of why the app looked patchy.
-2. **Tracking goes negative as size goes up**, about `-0.02em` from 16px, and stays at
-   zero below it. A face spaced for 13px falls apart set at 20. Positive tracking on
-   large text is what makes it look loose.
-3. **Three line heights.** `1` for display, `1.2` for anything dense, `1.5` for prose
-   meant to be read in sentences. No fourth value.
+   value; it is not for emphasis. Six regions each picking their own idea of important is
+   most of why an interface stops reading as one product.
+2. **Tracking goes negative as size goes up**, about `-0.02em` from 15px, and stays at
+   zero below it. A face spaced for 12px falls apart set at 20.
+3. **Three line heights.** `1` for display, about `1.3` for anything dense, `1.5` for
+   prose meant to be read in sentences.
 
-The one exception is `overline`, which is small capitals and still needs air between
-them, at `0.18em`.
+The one exception is `overline`, small capitals, which still needs air between them.
+
+A type role is four decisions and not a font size, so `text-label` sets size, weight, line
+height and tracking together.
 
 ## Surfaces
 
-A theme can color regions differently. Every element marked `data-surface="<name>"` gets
-the base colors merged with that surface's overrides from `theme.surfaces`:
+A theme colors regions differently. Every element marked `data-surface="<name>"` gets the
+base colors merged with that surface's overrides from `theme.surfaces`:
 
-| Surface | Where |
-|---|---|
-| `chrome` | top bar, status bar, panel tab strips, gaps between panels |
-| `panel` | panel bodies (the default) |
-| `well` | inset content: inspector groups, dialogs, menus and other overlays |
-| `stage` | picture and time: the viewer frame and the timeline |
-
-Components keep using the same variables (`--color-surface-panel`,
-`--color-text-primary`, `--color-accent-base`); the surface decides their values. Crimson
-uses this for a red frame with dark text around near-black wells with a red accent;
-Graphite defines no overrides. Mark a new region with `<Panel surface="...">`, `<Well>`,
-`<Section surface="well">` or `data-surface` on any element; canvas code gets the
-resolved colors from `surfaceColors(theme, "stage")`.
+Components keep using the same variables (`--color-surface-panel`, `--color-text-primary`)
+and the same utilities (`bg-panel`, `text-fg`); the surface decides their values. Mark a
+new region with `<Panel surface="...">`, `<Well>`, `<Section surface="well">` or
+`data-surface` on any element; canvas code gets the resolved colors from
+`surfaceColors(theme, "stage")` rather than from the DOM, which is why the timeline paints
+stage colours whatever surface its panel is on.
 
 Panel header strips follow the active panel: `PANEL_SURFACES` in
-`src/workspace/PanelHeader.tsx` maps a panel id to a surface (the timeline and the media
-bin use `stage`), and everything else stays `chrome`. A panel listed in `HEADLESS` there
-shows no strip at all, for a panel whose own toolbar already says what it is. Only the
-viewer keeps a strip today, which makes it the one panel that can be dragged by its tab
-and the one place the shared actions, reset layout among them, can be reached. Each header has a title (the `heading` type role) and
-an overflow menu built from that panel's entries plus the shared ones (maximize, reset
-layout). Add a panel's actions to the `makeHeaderActions` call in `Workspace.tsx`.
+`src/workspace/PanelHeader.tsx` maps a panel id to a surface, because a header belongs to
+the panel under it rather than to the frame around it. A panel listed in `HEADLESS` there
+shows no strip at all, for a panel whose own toolbar already says what it is. Add a
+panel's actions to the `makeHeaderActions` call in `Workspace.tsx`.
 
 ## Component rules
 
@@ -195,72 +214,68 @@ These keep every panel reading as one product. The gallery shows each rule.
 
 1. **One control height.** Every button, input, select and segmented control is
    `size.control` tall. Only icon buttons inside dense rows (track headers, list items)
-   use `size="small"` (`size.controlSmall`). Buttons and segmented controls take
-   `radius.button`, which Ink and Paper make a pill; inputs, menu items and swatches
-   keep `radius.control`, because rounding those off to match turns a field into a
-   lozenge.
-2. **Button hierarchy.** `solid` is the one primary action in a region (Export, Import
-   media in an empty bin, a dialog's confirm). `quiet` is the default action. `ghost`
-   is for low-emphasis actions; square icon buttons are ghost. Toggles that are on show
-   accent text on the accent wash, in both buttons and icon buttons. A control whose
-   content is a block of layout rather than a label, such as a whole row that is one
-   target, is a `PlainButton`: it strips the browser's chrome and adds nothing, so no
-   screen has to write that reset again.
+   use `size="small"`. `controlBase` in `src/ui/Button.tsx` holds the height, radius,
+   focus ring, transition and disabled treatment every control shares; a new control
+   spreads it rather than restating parts of it.
+2. **Button hierarchy.** `solid` is the one primary action in a region. `quiet` is the
+   default action. `ghost` is for low-emphasis actions; square icon buttons are ghost.
+   There is no fourth: a region that seems to need two solid buttons has two things
+   claiming to be the main one, which is a layout problem rather than a variant problem.
+   Toggles that are on show accent text on the accent wash. A control whose content is a
+   block of layout rather than a label is a `PlainButton`.
 3. **Disabled fades.** Disabled controls use `opacity.disabled` instead of a color, so
-   they stay legible on red, black or grey.
-4. **Inputs.** `surface.input` fill, `border.subtle` outline, `border.strong` on hover,
-   the accent focus ring on keyboard focus. Select triggers look like inputs.
-5. **Toolbars.** `PanelToolbar` at the top or bottom of a panel: `size.toolbar` tall,
-   the card inset at the sides, `space.2` between controls, `Gap` between groups.
-   Prefer icon buttons with tooltips over text buttons in toolbars. A toolbar draws no
-   rule against the body: it sits on the same surface, so a line there would mark a
-   boundary where nothing changes. Taking the card inset is what lines a toolbar's
-   contents up with the content under it, which is what actually reads as a division.
-6. **Wells.** A panel body that holds wells uses `PanelBody layout="wells"`: `space.3`
-   inset and `space.3` between wells. Wells never set their own margins.
-
-7. **Lists.** Rows go in a `List`, and a row that can be picked is a `Row`. `Row` owns
-   the hover fill, the selected fill and the selection marker (`edge` for a line in a
-   list, `outline` for a tile); the caller's own class owns the grid, the padding and
-   the radius, because a bin folder, a media row and an export choice differ there and
-   nowhere else. Never restate selection in a panel's stylesheet.
-8. **Overlays.** Menus, select lists, popovers and tooltips share one anatomy on the
-   well surface: `radius.dialog`, `elevation.popover`, items `size.control` tall, a
-   highlight fill instead of a focus ring, shortcuts in tertiary text on the right.
-9. **Icon buttons always explain themselves.** `IconButton` requires a label, shown as
-   a tooltip with the keyboard shortcut when there is one.
-10. **Interaction fills are translucent.** What a thing *is* comes from
-   `color.surface.*`: `raised` is the resting fill of anything lifted off the panel, a
-   quiet button, a track header, a slider rail, the trough of a segmented control. What
-   is *happening to it* comes from `color.state.*`: `hover`, and `selected` for the
-   chosen row, tile, menu item or segment. The state fills are translucent so one value
-   is right over a bare row and over a raised button alike, which is what stops the two
-   from drifting into separate ladders of opaque greys. Where the element has no resting
-   fill, set one as the background directly; where it has one, layer it as a
-   `background-image` so the fill underneath survives. Selection also carries
-   `color.selection` on a border or outline, never a different fill per panel.
-
+   they stay legible on any surface.
+4. **Inputs.** `inputBase` in `src/ui/Field.tsx`: `surface.input` fill, `border.subtle`
+   outline, `border.strong` on hover, the one focus ring. Select triggers are the same
+   `inputBase`, because a thing that sits beside an input has to read as its equal.
+5. **Toolbars.** `PanelToolbar` at the top or bottom of a panel: `size.toolbar` tall, the
+   card inset at the sides, `space.2` between controls, `Gap` between groups. Prefer icon
+   buttons with tooltips over text buttons. A toolbar draws no rule against the body: it
+   sits on the same surface, so a line there would mark a boundary where nothing changes.
+6. **Wells.** A panel body that holds wells uses `PanelBody layout="wells"`. Wells never
+   set their own margins.
+7. **Lists.** Rows go in a `List`, and a row that can be picked is a `Row`. `Row` owns the
+   hover fill, the selected fill and the selection marker (`edge` for a line in a list,
+   `outline` for a tile); the caller's own class owns the grid, the padding and the
+   radius, because a bin folder, a media row and an export choice differ there and nowhere
+   else. Never restate selection in a panel's stylesheet.
+8. **Overlays.** Menus, select lists, popovers and tooltips share one anatomy, in
+   `src/ui/overlayStyles.ts` rather than in four stylesheets that drift apart a line at a
+   time: the overlay surface, `radius.dialog`, `elevation.popover`, items `size.control`
+   tall, a highlight fill instead of a focus ring, shortcuts in tertiary text on the
+   right. Overlay rows take a highlight rather than a ring because the keyboard and the
+   pointer move the same highlight, and a ring on top would say the same thing twice.
+9. **Icon buttons always explain themselves.** `IconButton` requires a label, shown as a
+   tooltip with the keyboard shortcut when there is one.
+10. **Interaction fills are translucent, and they layer.** What a thing *is* comes from
+    `color.surface.*`. What is *happening to it* comes from `color.state.*`. The state
+    fills are translucent so one value is right over a bare row and over a raised button
+    alike, which is what stops the two from drifting into separate ladders of opaque
+    greys. Use the `state-hover` and `state-selected` utilities, which apply the fill as a
+    background image so the resting fill underneath survives; `bg-hover` would replace it
+    and show the panel through. Selection also carries `color.selection` on a border or
+    outline, never a different fill per panel.
 11. **Menus mirror the toolbar.** A context menu or overflow menu offers the same action
-   with the same label, icon and shortcut as its button, so `chord()` from
-   `src/keyboard.ts` writes every shortcut. A right click selects what is under the
-   pointer before the menu opens. Destructive items use `tone: "danger"` and sit last,
-   after a separator; a disabled item says why in its label when that is not obvious.
+    with the same label, icon and shortcut as its button, so `chord()` from
+    `src/keyboard.ts` writes every shortcut. A right click selects what is under the
+    pointer before the menu opens. Destructive items use `tone: "danger"` and sit last,
+    after a separator; a disabled item says why in its label when that is not obvious.
 
 ## Naming
 
-CSS variable names derive mechanically from the token path:
+The Tailwind class name is the token path, so there is one thing to learn rather than two:
 
-| Token | CSS variable |
-|---|---|
-| `color.text.secondary` | `--color-text-secondary` |
-| `size.controlSmall` | `--size-control-small` |
-| `space[4]` | `--space-4` |
-| `radius.control` | `--radius-control` |
-| `type.label` | `--type-label` (font shorthand), plus `--type-label-size`, `-weight`, `-line`, `-tracking`, `-family` |
-| `font.numeric` | `--font-numeric` |
-| `motion.quick` | `--motion-quick` |
+| Token | CSS variable | Utility |
+|---|---|---|
+| `color.surface.panel` | `--color-surface-panel` | `bg-panel` |
+| `color.text.secondary` | `--color-text-secondary` | `text-fg-muted` |
+| `color.border.subtle` | `--color-border-subtle` | `border-edge` |
+| `space[4]` | `--space-4` | `p-4`, `gap-4` |
+| `size.control` | `--size-control` | `h-control`, `size-control` |
+| `radius.button` | `--radius-button` | `rounded-button` |
+| `type.label` | `--type-label` | `text-label` |
 
-In CSS, set type with the shorthand and tracking: `font: var(--type-label);
+In plain CSS, set type with the shorthand and tracking: `font: var(--type-label);
 letter-spacing: var(--type-label-tracking);`. In TypeScript, read the object with
 `useTheme()`; for canvas text use `canvasFont(theme, "canvas")`.
 
@@ -268,50 +283,40 @@ letter-spacing: var(--type-label-tracking);`. In TypeScript, read the object wit
 
 | To change | Edit |
 |---|---|
-| The palette | `color` in your theme file, and `surfaces` for per-region colors |
-| Fonts | `font.ui` / `font.display` / `font.numeric`, plus `font.faces` for bundled files |
+| The palette | `color` in `themes/studio.ts`, and `surfaces` for per-region colors |
+| Fonts | `font.ui` / `font.display` / `font.numeric`, plus `font.faces` |
 | Type scale or weights | `type` roles |
 | Density | `size` (control and bar heights) and `timeline.rowHeight` / `rulerHeight` |
 | Corner shape | `radius` |
 | Icon weight | `border.iconStroke`; icon drawings are in `src/ui/Icon.tsx` |
-| How a control looks in every place | its file in `src/ui/` |
+| How a control looks everywhere | its file in `src/ui/` |
+| Adding a Tailwind utility name | `vocabulary.ts` and `tailwind.css`, together |
 
 ## Adding a theme
 
-1. Copy `src/theme/themes/graphite.ts` to a new file, change `id`, `name` and values. A
-   variant can spread a base theme and override a few groups (see `graphiteCompact.ts`).
-2. Add it to `themes` in `src/theme/themes/index.ts`.
-3. Open the design gallery and pick it from the theme menu.
+Usually, do not. Studio ships one theme and the registry exists because the canvas
+painters and the gallery read a theme as an object rather than as the document's current
+variables. A look that needs a new theme is usually a change to this one.
+
+If a second is genuinely wanted: copy `themes/studio.ts`, change `id`, `name` and values,
+and add it to `themes` in `themes/index.ts`. The gallery's theme picker appears by itself
+once there is more than one.
 
 ## Adding a font
 
 Put the files in `src/theme/fonts/`, import them in the theme file so Vite bundles them,
-and list them in `font.faces`:
-
-```ts
-import displayBold from "../fonts/Display-Bold.woff2";
-
-font: {
-  ui: '"Display", -apple-system, sans-serif',
-  display: '"Display", -apple-system, sans-serif',
-  numeric: '"Display", -apple-system, sans-serif',
-  faces: [{ family: "Display", src: displayBold, weight: "700" }],
-  numericVariant: "tabular-nums",
-},
-```
-
-The runtime loads faces before notifying subscribers, so the timeline canvas repaints in
-the right font.
+and list them in `font.faces`. The runtime loads faces before notifying subscribers, so
+the timeline canvas repaints in the right font.
 
 ## Design gallery
 
 Open `#gallery` (link in the status bar) to see every color token, type role, spacing
-step, radius, primitive, icon and the real timeline painter under the active theme, with
-a theme switcher. It works in the desktop app and in the browser preview.
+step, radius, primitive, icon and the real timeline painter under the active theme. It
+works in the desktop app and in the browser preview.
 
 ## Browser preview
 
 Outside Tauri the UI installs a sample backend (`src/preview/`) with a fixed project and
 bundled sample media, so `npm run dev` in any browser, or the hosted preview built with
 `npm run build:preview`, shows the real interface. Editing, import and export are refused
-with a clear message; selection, playback, layout and themes work.
+with a clear message; selection, playback and layout work.
