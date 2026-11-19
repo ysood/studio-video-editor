@@ -6,6 +6,7 @@ import { installMockBackend } from "./preview/installMockBackend";
 import { isBrowserPreview } from "./preview/mode";
 import { applyTheme, initialTheme } from "./theme";
 import { TooltipProvider } from "./ui";
+import "./theme/tailwind.css";
 import "./theme/base.css";
 import "./styles.css";
 

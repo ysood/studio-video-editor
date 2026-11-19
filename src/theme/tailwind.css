@@ -1,0 +1,225 @@
+/*
+  The bridge between Studio's theme and Tailwind, which is what lets shadcn/ui components
+  be dropped in and come out wearing Studio's design system.
+
+  Every mapping below is `@theme inline`, which matters: an inline theme emits the
+  variable reference into the utility itself and writes nothing to :root. So
+  `bg-panel` compiles to `background-color: var(--color-surface-panel)` and resolves
+  wherever it lands. Two things keep working for free because of that:
+
+    - `applyTheme()` can rewrite the variables at runtime and every utility follows.
+    - `[data-surface="well"]` restates the colour variables, so the same `bg-panel`
+      is the well's panel colour inside a well and the panel's everywhere else.
+
+  Tailwind is therefore not a second source of design values. It is a second way to
+  spell the ones in `src/theme/types.ts`, and the spelling is mechanical: the class
+  name is the token path. `color.surface.raised` is `bg-raised`, `space[4]` is `p-4`,
+  `size.control` is `h-control`, `radius.button` is `rounded-button`.
+
+  Preflight is deliberately not imported: `src/theme/base.css` already owns the
+  document reset, and Tailwind's would fight the hand-written panel stylesheets.
+*/
+
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@source "../";
+
+@theme inline {
+  /* ---------------------------------------------------------------- colour --
+     Short names, because these appear in every class list. The long token path
+     stays the source of truth; this is its utility spelling. */
+
+  /* Surfaces: what a thing is. */
+  --color-base: var(--color-surface-base);
+  --color-gutter: var(--color-surface-gutter);
+  --color-panel: var(--color-surface-panel);
+  --color-raised: var(--color-surface-raised);
+  --color-field: var(--color-surface-input);
+  --color-overlay: var(--color-surface-overlay);
+  --color-locked: var(--color-surface-locked);
+
+  /* States: what is happening to it. Translucent, so they layer over any surface. */
+  --color-hover: var(--color-state-hover);
+  --color-selected: var(--color-state-selected);
+
+  /* Borders are the text they separate, faded. One hairline value, two weights. */
+  --color-edge: var(--color-border-subtle);
+  --color-edge-strong: var(--color-border-strong);
+
+  /* Text. `fg` so `text-fg-muted` reads as a colour and not as a type role. */
+  --color-fg: var(--color-text-primary);
+  --color-fg-muted: var(--color-text-secondary);
+  --color-fg-faint: var(--color-text-tertiary);
+  --color-fg-heading: var(--color-text-heading);
+  --color-fg-on-accent: var(--color-text-on-accent);
+  --color-fg-on-media: var(--color-text-on-media);
+
+  /* Accent: time, and the action that commits it. Nothing else. */
+  --color-accent: var(--color-accent-base);
+  --color-accent-hover: var(--color-accent-hover);
+  --color-accent-wash: var(--color-accent-wash);
+
+  --color-selection: var(--color-selection);
+  --color-danger: var(--color-status-danger);
+  --color-scrim: var(--color-scrim);
+
+  /* Media kind. These are the only saturated fills in the product. */
+  --color-media-video: var(--color-media-video);
+  --color-media-video-edge: var(--color-media-video-edge);
+  --color-media-audio: var(--color-media-audio);
+  --color-media-audio-edge: var(--color-media-audio-edge);
+  --color-media-image: var(--color-media-image);
+  --color-media-image-edge: var(--color-media-image-edge);
+
+  /* ------------------------------------------------- shadcn's own token names --
+     A component pasted from shadcn/ui reaches for `bg-background`, `text-muted-
+     foreground`, `border-input`, `ring-ring`. Pointing those at Studio's roles is
+     what makes the paste land wearing this product's clothes instead of the
+     default neutral theme. */
+  --color-background: var(--color-surface-panel);
+  --color-foreground: var(--color-text-primary);
+  --color-card: var(--color-surface-panel);
+  --color-card-foreground: var(--color-text-primary);
+  --color-popover: var(--color-surface-overlay);
+  --color-popover-foreground: var(--color-text-primary);
+  --color-primary: var(--color-accent-base);
+  --color-primary-foreground: var(--color-text-on-accent);
+  --color-secondary: var(--color-surface-raised);
+  --color-secondary-foreground: var(--color-text-primary);
+  --color-muted: var(--color-surface-raised);
+  --color-muted-foreground: var(--color-text-secondary);
+  --color-accent-foreground: var(--color-text-primary);
+  --color-destructive: var(--color-status-danger);
+  --color-destructive-foreground: var(--color-text-on-accent);
+  --color-border: var(--color-border-subtle);
+  --color-input: var(--color-border-strong);
+  --color-ring: var(--color-accent-base);
+
+  /* --------------------------------------------------------------- spacing --
+     Tailwind's own 4px multiplier is switched off. Studio's scale is 2px-based and
+     deliberately tight at the bottom, and a utility that silently invented a value
+     off that scale would be exactly the hardcoding `check:design` exists to stop.
+     Only steps 1 to 12 and the named component sizes below resolve; anything else
+     fails to compile a class, and `npm run check:design` names it. */
+  --spacing: initial;
+  --spacing-hairline: var(--space-hairline);
+  --spacing-1: var(--space-1);
+  --spacing-2: var(--space-2);
+  --spacing-3: var(--space-3);
+  --spacing-4: var(--space-4);
+  --spacing-5: var(--space-5);
+  --spacing-6: var(--space-6);
+  --spacing-7: var(--space-7);
+  --spacing-8: var(--space-8);
+  --spacing-9: var(--space-9);
+  --spacing-10: var(--space-10);
+  --spacing-11: var(--space-11);
+  --spacing-12: var(--space-12);
+
+  /* Component dimensions live in the spacing namespace so `h-control`, `w-icon` and
+     `size-icon` reach them the same way `p-4` reaches a spacing step. */
+  --spacing-control: var(--size-control);
+  --spacing-control-small: var(--size-control-small);
+  --spacing-control-large: var(--size-control-large);
+  --spacing-icon: var(--size-icon);
+  --spacing-toolbar: var(--size-toolbar);
+  --spacing-topbar: var(--size-topbar);
+  --spacing-statusbar: var(--size-statusbar);
+  --spacing-tabbar: var(--size-tabbar);
+  --spacing-panel-footer: var(--size-panel-footer);
+  --spacing-play-button: var(--size-play-button);
+  --spacing-swatch: var(--size-swatch);
+  --spacing-dot: var(--size-dot);
+  --spacing-slider-track: var(--size-slider-track);
+  --spacing-slider-thumb: var(--size-slider-thumb);
+  --spacing-field-label: var(--size-field-label);
+  --spacing-field-number: var(--size-field-number);
+  --spacing-menu-min-width: var(--size-menu-min-width);
+  --spacing-dialog-width: var(--size-dialog-width);
+
+  /* ---------------------------------------------------------------- radius --*/
+  --radius-control: var(--radius-control);
+  --radius-button: var(--radius-button);
+  --radius-panel: var(--radius-panel);
+  --radius-dialog: var(--radius-dialog);
+  --radius-clip: var(--radius-clip);
+  --radius-round: var(--radius-round);
+  /* shadcn writes `rounded-md` / `rounded-lg` out of the box. */
+  --radius-sm: var(--radius-control);
+  --radius-md: var(--radius-control);
+  --radius-lg: var(--radius-dialog);
+
+  /* ------------------------------------------------------------------ type --
+     A type role is four decisions, not a font size, so each one carries its weight,
+     line height and tracking with it. `text-label` sets all four; `font-ui` sets the
+     family when a role's own family is not wanted. */
+  --text-caption: var(--type-caption-size);
+  --text-caption--line-height: var(--type-caption-line);
+  --text-caption--font-weight: var(--type-caption-weight);
+  --text-caption--letter-spacing: var(--type-caption-tracking);
+
+  --text-label: var(--type-label-size);
+  --text-label--line-height: var(--type-label-line);
+  --text-label--font-weight: var(--type-label-weight);
+  --text-label--letter-spacing: var(--type-label-tracking);
+
+  --text-body: var(--type-body-size);
+  --text-body--line-height: var(--type-body-line);
+  --text-body--font-weight: var(--type-body-weight);
+  --text-body--letter-spacing: var(--type-body-tracking);
+
+  --text-heading: var(--type-heading-size);
+  --text-heading--line-height: var(--type-heading-line);
+  --text-heading--font-weight: var(--type-heading-weight);
+  --text-heading--letter-spacing: var(--type-heading-tracking);
+
+  --text-title: var(--type-title-size);
+  --text-title--line-height: var(--type-title-line);
+  --text-title--font-weight: var(--type-title-weight);
+  --text-title--letter-spacing: var(--type-title-tracking);
+
+  --text-timecode: var(--type-timecode-size);
+  --text-timecode--line-height: var(--type-timecode-line);
+  --text-timecode--font-weight: var(--type-timecode-weight);
+  --text-timecode--letter-spacing: var(--type-timecode-tracking);
+
+  --text-overline: var(--type-overline-size);
+  --text-overline--line-height: var(--type-overline-line);
+  --text-overline--font-weight: var(--type-overline-weight);
+  --text-overline--letter-spacing: var(--type-overline-tracking);
+
+  --font-ui: var(--font-ui);
+  --font-display: var(--font-display);
+  --font-numeric: var(--font-numeric);
+
+  /* ------------------------------------------------------- motion and depth --*/
+  --ease-standard: var(--motion-easing);
+  --shadow-popover: var(--elevation-popover);
+  --shadow-dialog: var(--elevation-dialog);
+}
+
+/*
+  Durations are not a namespace Tailwind lets a theme extend by name, so the two the
+  product uses are utilities of their own. Everything that animates picks one.
+*/
+@utility duration-quick {
+  transition-duration: var(--motion-quick);
+}
+
+@utility duration-base {
+  transition-duration: var(--motion-base);
+}
+
+/*
+  The one focus treatment in the product, so no component has to restate it and none
+  can drift. It matches `:focus-visible` in base.css for the elements that are not
+  built here.
+*/
+@utility focus-ring {
+  outline: var(--border-focus-width) solid var(--color-accent-base);
+  outline-offset: var(--border-width);
+  position: relative;
+  z-index: var(--z-raised);
+}
